@@ -34,9 +34,10 @@ jobs:
     # the preview label itself triggers a deploy.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
+      secrets.VERCEL_TOKEN != '' &&
       contains(github.event.pull_request.labels.*.name, 'preview:web') &&
       (github.event.action != 'labeled' || github.event.label.name == 'preview:web')
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read

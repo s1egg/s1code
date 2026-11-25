@@ -25,6 +25,7 @@ jobs:
     name: Tear down relay preview
     if: >-
       github.ref == 'refs/heads/main' &&
+      secrets.CLOUDFLARE_API_TOKEN != '' &&
       github.event_name == 'pull_request_target' &&
       (
         (github.event.action == 'unlabeled' && github.event.label.name == 'relay:preview') ||
@@ -39,7 +40,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment:
       name: relay-preview-cleanup
@@ -100,7 +101,7 @@ jobs:
   list_closed_previews:
     name: List closed relay previews
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request_target'
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       numbers: ${{ steps.list.outputs.numbers }}
@@ -123,8 +124,8 @@ jobs:
   sweep_pr:
     name: Retry teardown for PR ${{ matrix.number }}
     needs: list_closed_previews
-    if: github.ref == 'refs/heads/main' && needs.list_closed_previews.outputs.numbers != '[]'
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    if: github.ref == 'refs/heads/main' && secrets.CLOUDFLARE_API_TOKEN != '' && needs.list_closed_previews.outputs.numbers != '[]'
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false

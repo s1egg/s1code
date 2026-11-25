@@ -50,12 +50,14 @@ runs:
           echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"
         } >> "$GITHUB_ENV"
 
-    - name: Mount Android build cache
+    - name: Restore Android build cache
       if: inputs.platform == 'android' && inputs.cache == 'true'
-      uses: useblacksmith/stickydisk@3f6be1451e3cad893b778bc93495c80452a5da26 # v1.7.2
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        key: ${{ github.repository }}-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}-build
         path: ~/.cache/s1-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}
+        key: ${{ github.repository }}-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}-build-${{ hashFiles('apps/mobile/package.json', 'pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ github.repository }}-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}-build-
 
     - name: Configure Gradle and ccache
       if: inputs.platform == 'android' && inputs.cache == 'true'
@@ -63,9 +65,11 @@ runs:
       run: |
         mkdir -p "$GRADLE_USER_HOME" "$CCACHE_DIR"
         rm -rf "$EAS_LOCAL_BUILD_WORKINGDIR"
-        # No daemon: nothing should hold the sticky disk open when it is committed.
+        # No daemon: nothing should hold the cache directory open when the job saves it.
         printf 'org.gradle.caching=true\norg.gradle.daemon=false\n' > "$GRADLE_USER_HOME/gradle.properties"
-        sudo sed -i 's|http://|https://|g' /etc/apt/blacksmith-ubuntu-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sudo sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources
+        fi
         sudo apt-get update -qq && sudo apt-get install -y -qq ccache
         ccache --zero-stats
 
@@ -76,9 +80,15 @@ runs:
       run: |
         xcode=/Applications/Xcode_27.1.app
         if [ ! -d "$xcode" ]; then
-          ls -d /Applications/Xcode*.app
-          echo "::error::Xcode 27.1 is not on this runner."
+          xcode="$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)"
+        fi
+        if [ -z "${xcode:-}" ] || [ ! -d "$xcode" ]; then
+          ls -d /Applications/Xcode*.app || true
+          echo "::error::No Xcode is installed on this runner."
           exit 1
+        fi
+        if [ "$(basename "$xcode")" != "Xcode_27.1.app" ]; then
+          echo "::warning::Xcode 27.1 is not on this runner; using $(basename "$xcode")."
         fi
         sudo xcode-select -s "$xcode/Contents/Developer"
         xcodebuild -version

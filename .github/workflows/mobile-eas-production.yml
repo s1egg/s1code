@@ -76,8 +76,8 @@ permissions:
 jobs:
   production:
     name: EAS ${{ inputs.profile || 'production' }} ${{ github.event_name == 'push' && 'auto' || inputs.mode }}
-    if: github.repository == 's1egg/s1code'
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    if: github.repository == 's1egg/s1code' && secrets.EXPO_PRODUCTION_TOKEN != ''
+    runs-on: ubuntu-24.04
     # Serialize runs so OTAs publish in merge order. GitHub keeps at most one
     # queued job per group, so a burst of merges collapses into one run of the
     # newest commit — intermediate commits don't need their own OTA.
@@ -428,7 +428,7 @@ jobs:
     name: Commit version override
     needs: production
     if: ${{ !cancelled() && needs.production.result == 'success' && needs.production.outputs.version_override == 'true' }}
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
