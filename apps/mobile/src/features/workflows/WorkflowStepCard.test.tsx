@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import type { WorkflowBeat } from "@t3tools/client-runtime/workflows";
+import type { WorkflowBeat } from "@s1tools/client-runtime/workflows";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { vi } from "vite-plus/test";
@@ -56,25 +56,25 @@ it("shows who answered a question and when", () => {
   try {
     card({
       choice: "No",
-      answeredBy: "t3 workflow signal",
+      answeredBy: "s1 workflow signal",
       answeredAt: "2026-11-24T10:00:00.000Z",
     });
     expect(container.textContent).toContain("Answered No");
-    expect(container.textContent).toContain("by t3 workflow signal, 2026-11-24T10:00:00.000Z");
+    expect(container.textContent).toContain("by s1 workflow signal, 2026-11-24T10:00:00.000Z");
     // This phone's own answer is yours; another phone the server names the same is not.
     const fromPhone = {
       choice: "No",
-      answeredBy: "T3 Code Mobile",
+      answeredBy: "S1 Code Mobile",
       answeredAt: "2026-11-24T10:00:00.000Z",
     };
     card({ ...fromPhone, answeredBySession: "this-phone" });
     expect(container.textContent).toContain("by you, 2026-11-24T10:00:00.000Z");
-    expect(container.textContent).not.toContain("T3 Code Mobile");
+    expect(container.textContent).not.toContain("S1 Code Mobile");
     card({ ...fromPhone, answeredBySession: "another-phone" });
-    expect(container.textContent).toContain("by T3 Code Mobile, 2026-11-24T10:00:00.000Z");
+    expect(container.textContent).toContain("by S1 Code Mobile, 2026-11-24T10:00:00.000Z");
     // An answer kept before answers recorded a session names who gave it, as before.
     card(fromPhone);
-    expect(container.textContent).toContain("by T3 Code Mobile, 2026-11-24T10:00:00.000Z");
+    expect(container.textContent).toContain("by S1 Code Mobile, 2026-11-24T10:00:00.000Z");
     // An answer kept before answers recorded this says nothing about it.
     card({ choice: "No" });
     expect(container.textContent).not.toContain("2026");

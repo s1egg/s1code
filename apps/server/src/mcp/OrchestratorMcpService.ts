@@ -66,13 +66,13 @@ import {
   latestProviderTurnForAttempt,
   resolveProjectProviderInstanceEnabled,
   SECRET_REQUEST_UNSAVED_NOTE,
-} from "@t3tools/contracts";
-import { getProviderOptionCurrentValue, withLegacyUltracodeEffort } from "@t3tools/shared/model";
-import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
-import { runRanAfter } from "@t3tools/shared/orchestrationV2ThreadError";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
-import { formatThreadLink } from "@t3tools/shared/threadLinks";
-import { threadPullRequestUpdatedAtMs } from "@t3tools/shared/threadPullRequests";
+} from "@s1tools/contracts";
+import { getProviderOptionCurrentValue, withLegacyUltracodeEffort } from "@s1tools/shared/model";
+import { backgroundWorkHoldsCompletion } from "@s1tools/shared/orchestrationV2PendingBackgroundWork";
+import { runRanAfter } from "@s1tools/shared/orchestrationV2ThreadError";
+import { resolveProjectSettings } from "@s1tools/shared/projectSettings";
+import { formatThreadLink } from "@s1tools/shared/threadLinks";
+import { threadPullRequestUpdatedAtMs } from "@s1tools/shared/threadPullRequests";
 import {
   normalizeThreadPullRequestKey,
   visibleThreadPullRequests,
@@ -97,7 +97,7 @@ import {
   subagentStopNotice,
   delegatedTaskProgress,
   delegatedTaskReportRuns,
-} from "@t3tools/provider-core/server/subagentProjection";
+} from "@s1tools/provider-core/server/subagentProjection";
 import {
   DispatchModeLimit,
   type DispatchModeRefusal,
@@ -243,7 +243,7 @@ export interface OrchestratorMcpServiceShape {
 export class OrchestratorMcpService extends Context.Service<
   OrchestratorMcpService,
   OrchestratorMcpServiceShape
->()("t3/mcp/OrchestratorMcpService") {}
+>()("s1/mcp/OrchestratorMcpService") {}
 
 export const isThreadManagementError = Schema.is(ThreadManagementService.ThreadManagementError);
 
@@ -1216,7 +1216,7 @@ function turnItemText(item: OrchestrationV2TurnItem): string | null {
     case "secret_request":
       return `Asked the user for ${item.label}: ${item.secretStatus}.`;
     case "feedback_request":
-      return `Asked the user to approve a ${item.preview.kind} report about ${item.preview.subject} for the T3 team: ${item.feedbackStatus}.`;
+      return `Asked the user to approve a ${item.preview.kind} report about ${item.preview.subject} for the S1 team: ${item.feedbackStatus}.`;
     case "link_request":
       return item.linkStatus === "linked"
         ? `Linked ${item.linkedLabel ?? item.url ?? "an environment"} (${item.linkedAccess}).`
@@ -1474,7 +1474,7 @@ const make = Effect.gen(function* () {
   const resolveProjectTarget = (
     parent: Pick<OrchestrationV2ThreadProjection, "thread"> | undefined,
     projectId: ProjectId | undefined,
-    missingMessage = "Pass projectId: this MCP client is not running inside a T3 thread.",
+    missingMessage = "Pass projectId: this MCP client is not running inside a S1 thread.",
   ) =>
     projectId !== undefined
       ? Effect.succeed(projectId)
@@ -2454,7 +2454,7 @@ const make = Effect.gen(function* () {
         return yield* failure(
           "invalid_request",
           parent === undefined
-            ? "bindToCurrentThread needs an agent running inside a T3 thread."
+            ? "bindToCurrentThread needs an agent running inside a S1 thread."
             : "bindToCurrentThread binds to this thread, which belongs to a different project.",
         );
       }
@@ -2552,7 +2552,7 @@ const make = Effect.gen(function* () {
           return yield* failure(
             "invalid_request",
             parent === undefined
-              ? "bindToCurrentThread needs an agent running inside a T3 thread."
+              ? "bindToCurrentThread needs an agent running inside a S1 thread."
               : "bindToCurrentThread binds to this thread, which belongs to a different project.",
           );
         }
@@ -3533,7 +3533,7 @@ const make = Effect.gen(function* () {
         : yield* resolveProjectTarget(
             parent,
             input.projectId,
-            "Pass projectId, or allProjects: true for every project. This MCP client is not running inside a T3 thread.",
+            "Pass projectId, or allProjects: true for every project. This MCP client is not running inside a S1 thread.",
           );
       if (!input.allProjects && input.projectId !== undefined) {
         yield* requireProject(input.projectId);

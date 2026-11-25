@@ -1,6 +1,6 @@
-import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
+import { thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import { ProcessSignalActions } from "./ProcessSignalActions";
-import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
+import { AuthEnvironmentMaintainScope } from "@s1tools/contracts";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import {
   ActivityIcon,
@@ -27,7 +27,7 @@ import type {
   ResourceTelemetrySourceHealth,
   ResourceTelemetrySourceStatus,
   ServerProcessSignal,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 import { RegistryContext } from "@effect/atom-react";
@@ -35,7 +35,7 @@ import { useContext, useRef, useState, type ReactNode } from "react";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@s1tools/client-runtime/state/runtime";
 import { msg, T, useGT, useMessages, Var } from "gt-react";
 import { m, type MessageResolver } from "../../i18n/messages";
 
@@ -113,8 +113,8 @@ function categoryLabel(
       return resolve(msg("Electron utility"));
     case "resource-monitor":
       return resolve(msg("Monitor"));
-    case "unknown-t3":
-      return resolve(msg("T3 process"));
+    case "unknown-s1":
+      return resolve(msg("S1 process"));
   }
 }
 
@@ -1095,7 +1095,7 @@ function ResourceTelemetryDiagnosticsBody({
           <div className="flex flex-col gap-3 border-b border-border/60 bg-linear-to-r from-muted/45 via-muted/20 to-transparent px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div>
               <div className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground/70">
-                <T>T3 system footprint</T>
+                <T>S1 system footprint</T>
               </div>
               <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
                 <T>
@@ -1433,7 +1433,7 @@ function ResourceTelemetryDiagnosticsBody({
           <div className="bg-muted/15 px-4 py-3 text-2xs leading-relaxed text-muted-foreground sm:px-5">
             <T>
               Native counters identify which process is reading or writing. These application-level
-              counters identify known T3 operations so process spikes can be correlated with
+              counters identify known S1 operations so process spikes can be correlated with
               specific persistence and logging paths.
             </T>
           </div>

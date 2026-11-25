@@ -1,4 +1,4 @@
-import { SourceControlProviderKind } from "@t3tools/contracts";
+import { SourceControlProviderKind } from "@s1tools/contracts";
 import { assert, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as DateTime from "effect/DateTime";
@@ -16,16 +16,16 @@ import {
   DEFAULT_SERVER_SETTINGS,
   VcsProcessSpawnError,
   VcsProcessTimeoutError,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import type {
   SourceControlCliDiscoverySpec,
   SourceControlManagedCliDiscoverySpec,
   SourceControlProviderDiscoverySpec,
-} from "@t3tools/source-control-core/server/discovery";
-import type * as SourceControlHost from "@t3tools/source-control-core/server/SourceControlHost";
-import { fakeSourceControlProvider } from "@t3tools/source-control-testing/fakeSourceControlDriver";
-import * as TestSourceControlHost from "@t3tools/source-control-testing/TestSourceControlHost";
-import { SpawnExecutableResolution } from "@t3tools/shared/shell";
+} from "@s1tools/source-control-core/server/discovery";
+import type * as SourceControlHost from "@s1tools/source-control-core/server/SourceControlHost";
+import { fakeSourceControlProvider } from "@s1tools/source-control-testing/fakeSourceControlDriver";
+import * as TestSourceControlHost from "@s1tools/source-control-testing/TestSourceControlHost";
+import { SpawnExecutableResolution } from "@s1tools/shared/shell";
 
 import * as ServerSettings from "../serverSettings.ts";
 import * as ServerConfig from "../config.ts";
@@ -158,7 +158,7 @@ function makeRegistry(input: {
           ? Layer.mock(ServerSettings.ServerSettingsService)(input.settings)
           : ServerSettings.ServerSettingsService.layerTest(),
         ServerConfig.layerTest(process.cwd(), {
-          prefix: "t3-source-control-registry-test-",
+          prefix: "s1-source-control-registry-test-",
         }).pipe(Layer.provide(NodeServices.layer)),
       ),
     ),

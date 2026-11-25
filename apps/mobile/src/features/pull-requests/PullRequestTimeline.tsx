@@ -1,7 +1,7 @@
 import {
   parsePullRequestAnchor,
   pullRequestAnchorMatchesUrl,
-} from "@t3tools/shared/pullRequestAnchor";
+} from "@s1tools/shared/pullRequestAnchor";
 import { PullRequestEntryRow } from "./PullRequestEntryRow";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
@@ -10,7 +10,7 @@ import {
   pullRequestConversationThreads,
   type PullRequestActivity,
   type PullRequestComment,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { StackActions, type NavigationProp } from "@react-navigation/native";
 import { msg, T, useGT, useMessages, Var } from "gt-react-native";
 import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
@@ -112,21 +112,21 @@ function TimelineComment({
           <Text className="text-sm">
             {approved ? (
               <T>
-                <Text className="font-t3-medium">
+                <Text className="font-s1-medium">
                   <Var>{comment.author?.login ?? gt("Unknown author")}</Var>
                 </Text>
                 <Text className="text-foreground-muted"> approved</Text>
               </T>
             ) : changes ? (
               <T>
-                <Text className="font-t3-medium">
+                <Text className="font-s1-medium">
                   <Var>{comment.author?.login ?? gt("Unknown author")}</Var>
                 </Text>
                 <Text className="text-foreground-muted"> requested changes</Text>
               </T>
             ) : (
               <T>
-                <Text className="font-t3-medium">
+                <Text className="font-s1-medium">
                   <Var>{comment.author?.login ?? gt("Unknown author")}</Var>
                 </Text>
                 <Text className="text-foreground-muted"> commented</Text>
@@ -218,7 +218,7 @@ function TimelineComment({
               }
               className="flex-row items-center justify-center gap-1 py-2 active:opacity-70"
             >
-              <Text className="text-xs font-t3-medium text-foreground">
+              <Text className="text-xs font-s1-medium text-foreground">
                 {expanded ? gt("Show less") : gt("Show more")}
               </Text>
               <SymbolView
@@ -282,7 +282,7 @@ export function pullRequestTimelineRows(
             <PullRequestAvatar actor={thread.comments[0]?.author ?? null} size={22} />
             <Text className="flex-1 text-sm">
               <T>
-                <Text className="font-t3-medium">
+                <Text className="font-s1-medium">
                   <Var>{thread.comments[0]?.author?.login ?? resolve(msg("Unknown author"))}</Var>
                 </Text>
                 <Text className="text-foreground-muted"> started a discussion</Text>

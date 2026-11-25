@@ -11,10 +11,10 @@ import {
   RelayEnvironmentHealthResponseProofPayload,
   RelayEnvironmentMintResponse,
   RelayEnvironmentMintResponseProofPayload,
-} from "@t3tools/contracts/relay";
+} from "@s1tools/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
-import { RELAY_HEALTH_RESPONSE_TYP, RELAY_MINT_RESPONSE_TYP } from "@t3tools/shared/relayJwt";
+import { RELAY_HEALTH_RESPONSE_TYP, RELAY_MINT_RESPONSE_TYP } from "@s1tools/shared/relayJwt";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
@@ -65,12 +65,12 @@ const settings = RelayConfiguration.RelayConfiguration.of({
     teamId: "team-id",
     keyId: "key-id",
     privateKey: Redacted.make("private-key"),
-    bundleId: "com.t3tools.t3code.dev",
+    bundleId: "com.s1tools.s1code.dev",
   },
   apnsDeliveryJobSigningSecret: Redacted.make("job-secret"),
   clerkSecretKey: Redacted.make("clerk-secret"),
   clerkPublishableKey: "pk_test_test",
-  clerkJwtAudience: "t3-code-relay",
+  clerkJwtAudience: "s1-code-relay",
   cloudMintPrivateKey: Redacted.make(cloudKeyPair.privateKey),
   cloudMintPublicKey: cloudKeyPair.publicKey,
   managedEndpointBaseDomain: "example.test",
@@ -97,7 +97,7 @@ function signMintResponse(
 ): RelayEnvironmentMintResponse {
   const requestProof = decodeRequestProof<RelayCloudMintCredentialProofPayload>(request.proof);
   const payload = {
-    iss: `t3-env:${requestProof.environmentId}`,
+    iss: `s1-env:${requestProof.environmentId}`,
     aud: "https://relay.example.test",
     sub: requestProof.environmentId,
     jti: "mint-response-jti",
@@ -124,7 +124,7 @@ function signHealthResponse(
 ): RelayEnvironmentHealthResponse {
   const requestProof = decodeRequestProof<RelayCloudEnvironmentHealthProofPayload>(request.proof);
   const payload = {
-    iss: `t3-env:${requestProof.environmentId}`,
+    iss: `s1-env:${requestProof.environmentId}`,
     aud: "https://relay.example.test",
     sub: requestProof.environmentId,
     jti: "health-response-jti",
@@ -186,7 +186,7 @@ function makeAllocations(
     tunnelName: "tunnel-name",
     dnsRecordId: "dns-record-id",
     readyAt: "2026-05-25T00:00:00.000Z",
-    origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
+    origin: { localHttpHost: "127.0.0.1", localHttpPort: 4773 },
     updatedAt: "2026-05-25T00:00:00.000Z",
     generation: 1,
     tunnelReleasedAt: null,
@@ -257,10 +257,10 @@ describe("EnvironmentConnector", () => {
         environmentId: "env-connector-test",
       });
 
-      expect(seenUrls).toEqual(["https://env.example.test/api/t3-connect/health"]);
+      expect(seenUrls).toEqual(["https://env.example.test/api/s1-connect/health"]);
       expect(seenProofs[0]).toMatchObject({
         iss: "https://relay.example.test",
-        aud: "t3-env:env-connector-test",
+        aud: "s1-env:env-connector-test",
         sub: "user_123",
         environmentId: "env-connector-test",
         scope: ["environment:status"],
@@ -483,7 +483,7 @@ describe("EnvironmentConnector", () => {
       tunnelName: "tunnel-name",
       dnsRecordId: "dns-record-id",
       readyAt: "2026-05-25T00:00:00.000Z",
-      origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
+      origin: { localHttpHost: "127.0.0.1", localHttpPort: 4773 },
       updatedAt: "2026-05-25T00:00:00.000Z",
       generation: 2,
       tunnelReleasedAt: "2026-05-26T00:00:00.000Z",
@@ -624,10 +624,10 @@ describe("EnvironmentConnector", () => {
         deviceId: "device-123",
       });
 
-      expect(seenUrls).toEqual(["https://env.example.test/api/t3-connect/mint-credential"]);
+      expect(seenUrls).toEqual(["https://env.example.test/api/s1-connect/mint-credential"]);
       expect(seenProofs[0]).toMatchObject({
         iss: "https://relay.example.test",
-        aud: "t3-env:env-connector-test",
+        aud: "s1-env:env-connector-test",
         sub: "user_123",
         environmentId: "env-connector-test",
         clientProofKeyThumbprint: "client-proof-key-thumbprint",

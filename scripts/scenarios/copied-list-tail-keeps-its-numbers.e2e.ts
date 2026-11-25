@@ -2,19 +2,19 @@
 // The DOM lib types the function this scenario runs in the page.
 import { expect } from "e2e";
 
-import { test, WEB } from "./t3.ts";
+import { test, WEB } from "./s1.ts";
 
 test(
   "A copy that starts at a later list item and ends past the list keeps the shown numbers",
   WEB,
-  async ({ t3, app, browser, screen }) => {
-    const project = await t3.project("demo");
-    const thread = await t3.thread({
+  async ({ s1, app, browser, screen }) => {
+    const project = await s1.project("demo");
+    const thread = await s1.thread({
       project,
       title: "Steps",
       messages: ["Steps:\n\n1. Install\n2. Configure\n3. Deploy\n\nThen report back."],
     });
-    await t3.open(thread);
+    await s1.open(thread);
     // A message sent through the CLI shows collapsed under its sender.
     await screen.getByRole("button", /^Agent Steps/).tap();
     await expect(screen.getByText("Configure")).toBeVisible();

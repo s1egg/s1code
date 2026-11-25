@@ -7,14 +7,14 @@ import {
   openThreadWithManyFiles,
   wheelSuggestions,
 } from "./composer-menu.ts";
-import { test, WEB } from "./t3.ts";
+import { test, WEB } from "./s1.ts";
 
 test(
   "After the window shrinks, file suggestions wheel up to a first suggestion the pointer can pick",
   WEB,
-  async ({ t3, app, browser, screen }) => {
+  async ({ s1, app, browser, screen }) => {
     await browser.setViewport({ width: 375, height: 500 });
-    await openThreadWithManyFiles(t3);
+    await openThreadWithManyFiles(s1);
     await openFileSuggestionsUnderTallDraft(browser, screen);
     await browser.keyboard.press("Escape");
     await browser.keyboard.press("Backspace");

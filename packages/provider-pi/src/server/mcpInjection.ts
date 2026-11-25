@@ -1,15 +1,15 @@
-import { tokenizeCliArgs } from "@t3tools/shared/cliArgs";
+import { tokenizeCliArgs } from "@s1tools/shared/cliArgs";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 
-import type { McpProviderSessionConfig } from "@t3tools/provider-core/server/mcpSession";
+import type { McpProviderSessionConfig } from "@s1tools/provider-core/server/mcpSession";
 import {
-  PI_T3_MCP_EXTENSION_FILENAME,
-  PI_T3_MCP_EXTENSION_SOURCE,
-  T3_MCP_BEARER_ENV,
-  T3_MCP_URL_ENV,
-  T3_PI_RUNTIME_MODE_ENV,
-  T3_PI_MCP_EXTENSION_PATH_ENV,
+  PI_S1_MCP_EXTENSION_FILENAME,
+  PI_S1_MCP_EXTENSION_SOURCE,
+  S1_MCP_BEARER_ENV,
+  S1_MCP_URL_ENV,
+  S1_PI_RUNTIME_MODE_ENV,
+  S1_PI_MCP_EXTENSION_PATH_ENV,
 } from "./mcpExtensionSource.ts";
 
 const RESERVED_PI_LAUNCH_ARGUMENTS = new Set([
@@ -112,7 +112,7 @@ export function resolvePiLaunchArgs(launchArgs: string): PiLaunchArgsResolution 
     if (reserved !== undefined) {
       return {
         ok: false,
-        message: `Pi launch argument '${reserved}' is controlled by T3 Code and cannot be overridden.`,
+        message: `Pi launch argument '${reserved}' is controlled by S1 Code and cannot be overridden.`,
       };
     }
     if (arg === "--") {
@@ -146,7 +146,7 @@ export function resolvePiLaunchArgs(launchArgs: string): PiLaunchArgsResolution 
       continue;
     }
     if (arg.startsWith("-")) {
-      return { ok: false, message: `Pi launch argument '${arg}' is not supported by T3 Code.` };
+      return { ok: false, message: `Pi launch argument '${arg}' is not supported by S1 Code.` };
     }
     return {
       ok: false,
@@ -221,7 +221,7 @@ function withoutToolSelectionArgs(args: ReadonlyArray<string>): ReadonlyArray<st
 }
 
 function piT3McpExtensionDestPath(cacheDir: string): string {
-  return `${cacheDir.replace(/\\/g, "/")}/${PI_T3_MCP_EXTENSION_FILENAME}`;
+  return `${cacheDir.replace(/\\/g, "/")}/${PI_S1_MCP_EXTENSION_FILENAME}`;
 }
 
 export const materializePiT3McpExtension = Effect.fn("materializePiT3McpExtension")(function* (
@@ -231,14 +231,14 @@ export const materializePiT3McpExtension = Effect.fn("materializePiT3McpExtensio
   yield* fs.makeDirectory(cacheDir, { recursive: true });
   const dest = piT3McpExtensionDestPath(cacheDir);
   const existing = yield* fs.readFileString(dest).pipe(Effect.orElseSucceed(() => ""));
-  if (existing !== PI_T3_MCP_EXTENSION_SOURCE) {
+  if (existing !== PI_S1_MCP_EXTENSION_SOURCE) {
     // Concurrent pi launches read this file: stage it in a per-call directory
     // and rename so readers and other writers never see a partial file.
     yield* Effect.scoped(
       Effect.gen(function* () {
         const stagingDir = yield* fs.makeTempDirectoryScoped({ directory: cacheDir });
-        const staging = `${stagingDir.replace(/\\/g, "/")}/${PI_T3_MCP_EXTENSION_FILENAME}`;
-        yield* fs.writeFileString(staging, PI_T3_MCP_EXTENSION_SOURCE);
+        const staging = `${stagingDir.replace(/\\/g, "/")}/${PI_S1_MCP_EXTENSION_FILENAME}`;
+        yield* fs.writeFileString(staging, PI_S1_MCP_EXTENSION_SOURCE);
         yield* fs.rename(staging, dest).pipe(Effect.retry({ times: 3 }));
       }),
     );
@@ -253,7 +253,7 @@ export function buildPiRpcLaunch(input: {
   readonly extensionPath: string | undefined;
   readonly sessionPath?: string | undefined;
   readonly ephemeral?: boolean;
-  // T3 stops these processes as soon as they answer. They run --offline because Pi's startup
+  // S1 stops these processes as soon as they answer. They run --offline because Pi's startup
   // catalog refresh renews expired OAuth tokens, and a stop mid-request loses the rotated one.
   readonly shortLived?: boolean;
   readonly disableExtensions?: boolean;
@@ -293,28 +293,28 @@ export function buildPiRpcLaunch(input: {
     args.push("--extension", input.extensionPath);
   }
   const environment = { ...input.environment };
-  // MCP credentials belong to this T3 session; discard inherited server/parent credentials.
-  delete environment[T3_MCP_URL_ENV];
-  delete environment[T3_MCP_BEARER_ENV];
-  delete environment[T3_PI_MCP_EXTENSION_PATH_ENV];
+  // MCP credentials belong to this S1 session; discard inherited server/parent credentials.
+  delete environment[S1_MCP_URL_ENV];
+  delete environment[S1_MCP_BEARER_ENV];
+  delete environment[S1_PI_MCP_EXTENSION_PATH_ENV];
 
   return {
     args,
     env: {
       ...environment,
       ...(hasT3Extension && input.extensionPath !== undefined
-        ? { [T3_PI_MCP_EXTENSION_PATH_ENV]: input.extensionPath }
+        ? { [S1_PI_MCP_EXTENSION_PATH_ENV]: input.extensionPath }
         : {}),
       ...(hasT3Extension && input.runtimeMode !== undefined
         ? {
-            [T3_PI_RUNTIME_MODE_ENV]:
+            [S1_PI_RUNTIME_MODE_ENV]:
               input.runtimeMode === "auto" ? "approval-required" : input.runtimeMode,
           }
         : {}),
       ...(hasT3Mcp && input.mcpSession !== undefined
         ? {
-            [T3_MCP_URL_ENV]: input.mcpSession.endpoint,
-            [T3_MCP_BEARER_ENV]: bearerTokenFromAuthorizationHeader(
+            [S1_MCP_URL_ENV]: input.mcpSession.endpoint,
+            [S1_MCP_BEARER_ENV]: bearerTokenFromAuthorizationHeader(
               input.mcpSession.authorizationHeader,
             ),
           }

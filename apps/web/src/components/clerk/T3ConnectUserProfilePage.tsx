@@ -1,10 +1,10 @@
-import { findErrorTraceId, thrownErrorMessage } from "@t3tools/client-runtime/errors";
+import { findErrorTraceId, thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentId } from "@t3tools/contracts";
-import type { RelayClientEnvironmentRecord } from "@t3tools/contracts/relay";
+} from "@s1tools/client-runtime/state/runtime";
+import type { EnvironmentId } from "@s1tools/contracts";
+import type { RelayClientEnvironmentRecord } from "@s1tools/contracts/relay";
 import { ServerIcon } from "lucide-react";
 import { msg, T, useGT, useMessages, Var } from "gt-react";
 import { useRef, useState } from "react";
@@ -99,7 +99,7 @@ function T3ConnectEnvironmentRow(props: {
               </p>
               <p className="mt-4 max-w-xl text-xs leading-4.5 text-muted-foreground">
                 <T>
-                  T3 Connect access will be revoked, any managed tunnel will be removed, and a host
+                  S1 Connect access will be revoked, any managed tunnel will be removed, and a host
                   space will become available. Local connections on your devices are not changed.
                 </T>
               </p>
@@ -149,7 +149,7 @@ function T3ConnectTunnelUsage() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                t3.chat
+                s1.chat
               </a>
               , then select Refresh.
             </T>
@@ -158,7 +158,7 @@ function T3ConnectTunnelUsage() {
               {tunnelUpgradeCopy(usage.upgrade, m)}{" "}
               {usage.upgrade === "link" ? (
                 <InlineButton disabled={t3Chat.pending !== null} onClick={() => void t3Chat.link()}>
-                  {t3Chat.pending === "link" ? gt("Opening…") : gt("Link T3 Chat")}
+                  {t3Chat.pending === "link" ? gt("Opening…") : gt("Link S1 Chat")}
                 </InlineButton>
               ) : (
                 <a
@@ -167,7 +167,7 @@ function T3ConnectTunnelUsage() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <T>Upgrade on T3 Chat</T>
+                  <T>Upgrade on S1 Chat</T>
                 </a>
               )}
             </>
@@ -223,7 +223,7 @@ export function T3ConnectUserProfilePage() {
       toastManager.add({
         type: "success",
         title: gt("Server deregistered"),
-        description: gt("T3 Connect access was revoked and a host space is now available."),
+        description: gt("S1 Connect access was revoked and a host space is now available."),
       });
       return;
     }
@@ -234,7 +234,7 @@ export function T3ConnectUserProfilePage() {
     const cause = squashAtomCommandFailure(result);
     const message = thrownErrorMessage(cause, m) ?? gt("Could not deregister the server.");
     const traceId = findErrorTraceId(cause);
-    console.error("[t3-connect] Could not deregister environment", {
+    console.error("[s1-connect] Could not deregister environment", {
       environmentId: environment.environmentId,
       message,
       traceId,
@@ -274,7 +274,7 @@ export function T3ConnectUserProfilePage() {
 
   return (
     <ClerkUserProfilePage
-      title="T3 Connect"
+      title="S1 Connect"
       description={gt(
         "Environments registered to your account. Connections on this device are managed in Settings.",
       )}
@@ -291,7 +291,7 @@ export function T3ConnectUserProfilePage() {
         {environmentsState.error ? (
           <div className="mb-4 border-t border-destructive/35 py-3 text-xs" role="alert">
             <p className="font-medium text-destructive-foreground">
-              <T>Could not load T3 Connect environments</T>
+              <T>Could not load S1 Connect environments</T>
             </p>
             <p className="mt-1 text-xs text-muted-foreground">{environmentsState.error}</p>
           </div>
@@ -324,11 +324,11 @@ export function T3ConnectUserProfilePage() {
               </EmptyMedia>
               <EmptyHeader>
                 <EmptyTitle>
-                  <T>No T3 Connect environments</T>
+                  <T>No S1 Connect environments</T>
                 </EmptyTitle>
                 <EmptyDescription>
                   <T>
-                    Link an environment from its local Settings to make it available through T3
+                    Link an environment from its local Settings to make it available through S1
                     Connect.
                   </T>
                 </EmptyDescription>

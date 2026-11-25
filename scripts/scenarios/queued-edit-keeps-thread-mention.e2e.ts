@@ -4,8 +4,8 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
-import { T3_HOME } from "../e2e.config.ts";
-import { makeState, runPromise, test, WEB } from "./t3.ts";
+import { S1_HOME } from "../e2e.config.ts";
+import { makeState, runPromise, test, WEB } from "./s1.ts";
 
 const SettingsJson = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
 const decodeSettings = Schema.decodeEffect(SettingsJson);
@@ -13,7 +13,7 @@ const encodeSettings = Schema.encodeEffect(SettingsJson);
 
 const threadRuntimeSettings = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
-  const settingsPath = (yield* Path.Path).join(T3_HOME, "userdata/settings.json");
+  const settingsPath = (yield* Path.Path).join(S1_HOME, "userdata/settings.json");
   const original = yield* fs.readFileString(settingsPath);
   const settings = yield* decodeSettings(original);
   return {
@@ -28,22 +28,22 @@ const threadRuntimeSettings = Effect.gen(function* () {
 test(
   "An unsaved queued edit keeps its thread mention when the queued run starts",
   WEB,
-  async ({ t3, app, screen }) => {
+  async ({ s1, app, screen }) => {
     const settings = await runPromise(threadRuntimeSettings);
     try {
       // Supervised mode makes the approval recording wait for an answer, which holds its turn open.
       await runPromise(settings.supervise);
-      const project = await t3.project("demo");
-      await t3.thread({ project, title: "Release notes", messages: ["Draft the notes"] });
-      const thread = await t3.thread({
+      const project = await s1.project("demo");
+      await s1.thread({ project, title: "Release notes", messages: ["Draft the notes"] });
+      const thread = await s1.thread({
         project,
         title: "Waiting work",
         messages: ["Change the file"],
         model: "approval",
       });
-      const { cli } = makeState(T3_HOME);
+      const { cli } = makeState(S1_HOME);
       await runPromise(cli(["thread", "send", thread.threadId, "Queued message"]));
-      await t3.open(thread);
+      await s1.open(thread);
 
       await screen.getByRole("button", "Edit queued message").tap();
       const composer = screen.getByRole("textbox");

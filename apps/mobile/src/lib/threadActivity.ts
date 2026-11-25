@@ -1,24 +1,24 @@
 import type {
   ThreadPendingApproval,
   ThreadPendingUserInput,
-} from "@t3tools/client-runtime/state/thread-requests";
-import { linkRequestTargetName } from "@t3tools/client-runtime/link-request";
-import { turnItemIsWorkspacePreparation } from "@t3tools/client-runtime/state/turn-item-presentation";
-import { formatSubagentDisplayTitle } from "@t3tools/client-runtime/state/subagent-display";
+} from "@s1tools/client-runtime/state/thread-requests";
+import { linkRequestTargetName } from "@s1tools/client-runtime/link-request";
+import { turnItemIsWorkspacePreparation } from "@s1tools/client-runtime/state/turn-item-presentation";
+import { formatSubagentDisplayTitle } from "@s1tools/client-runtime/state/subagent-display";
 import {
   isLiveSubagentTurnItem,
   waitingOnSubagentsLabel,
-} from "@t3tools/client-runtime/state/subagentRuntime";
-import { extractToolActivityPresentation } from "@t3tools/client-runtime/work-log/tool-presentation";
+} from "@s1tools/client-runtime/state/subagentRuntime";
+import { extractToolActivityPresentation } from "@s1tools/client-runtime/work-log/tool-presentation";
 import {
   turnItemDetailRevision,
   turnItemHasDetail,
   turnItemNeedsDetailFetch,
-} from "@t3tools/client-runtime/work-log/item-detail";
+} from "@s1tools/client-runtime/work-log/item-detail";
 import {
   commandDisplayText,
   commandProgramName,
-} from "@t3tools/client-runtime/work-log/command-label";
+} from "@s1tools/client-runtime/work-log/command-label";
 import {
   commandlessCommandLabel,
   contextCompactionLabel,
@@ -35,14 +35,14 @@ import {
   type WorkLogPresentationEntry,
   type WorkLogToolLifecycleStatus,
   workEntryHiddenByToolCallVisibility,
-} from "@t3tools/client-runtime/work-log/presentation";
-import type { ToolCallVisibility } from "@t3tools/contracts/settings";
+} from "@s1tools/client-runtime/work-log/presentation";
+import type { ToolCallVisibility } from "@s1tools/contracts/settings";
 import {
   resolveT3McpToolDefinition,
   type T3McpToolLogo,
   type T3McpToolPresentation,
-} from "@t3tools/shared/t3McpToolPresentation";
-import { resolveT3McpToolPresentation } from "@t3tools/shared/t3McpToolPresentationCopy";
+} from "@s1tools/shared/t3McpToolPresentation";
+import { resolveT3McpToolPresentation } from "@s1tools/shared/t3McpToolPresentationCopy";
 import type {
   ChatAttachment,
   MessageId,
@@ -58,36 +58,36 @@ import type {
   RunAttemptId,
   ScheduledTaskId,
   TurnItemId,
-} from "@t3tools/contracts";
-import { idleCompactionOf, isCompactionCommandMessage, RunId, ThreadId } from "@t3tools/contracts";
+} from "@s1tools/contracts";
+import { idleCompactionOf, isCompactionCommandMessage, RunId, ThreadId } from "@s1tools/contracts";
 import {
   classifyToolActivity,
   collectToolFilePaths,
   isJavaScriptReplTool,
-} from "@t3tools/shared/toolActivity";
+} from "@s1tools/shared/toolActivity";
 import {
   dynamicToolTitle,
   formatReadToolLabel,
   formatSearchToolLabel,
-} from "@t3tools/shared/toolActivityCopy";
-import { claudeResumeCompactionAge } from "@t3tools/shared/claudeCompaction";
-import { formatDuration } from "@t3tools/shared/orchestrationTimingCopy";
-import { truncate } from "@t3tools/shared/String";
-import type { HtmlRenderReference } from "@t3tools/shared/htmlRender";
-import type { McpAppReference } from "@t3tools/shared/mcpApp";
+} from "@s1tools/shared/toolActivityCopy";
+import { claudeResumeCompactionAge } from "@s1tools/shared/claudeCompaction";
+import { formatDuration } from "@s1tools/shared/orchestrationTimingCopy";
+import { truncate } from "@s1tools/shared/String";
+import type { HtmlRenderReference } from "@s1tools/shared/htmlRender";
+import type { McpAppReference } from "@s1tools/shared/mcpApp";
 import {
   compactDynamicToolOutput,
   htmlRenderFromToolItem,
   sentMessageFromToolItem,
   mcpAppFromToolItem,
-} from "@t3tools/shared/toolOutput";
+} from "@s1tools/shared/toolOutput";
 import * as DateTime from "effect/DateTime";
 import { msg } from "gt-react-native";
 import { m, type MessageResolver } from "../i18n/messages";
 import {
   IDLE_COMPACTION_TITLES,
   IDLE_COMPACTING_LABELS,
-} from "@t3tools/client-runtime/user-message";
+} from "@s1tools/client-runtime/user-message";
 
 export type PendingApproval = ThreadPendingApproval;
 export type PendingUserInput = ThreadPendingUserInput;
@@ -136,7 +136,7 @@ export interface ThreadFeedActivity {
 }
 
 export interface ThreadFeedMessage {
-  readonly context?: import("@t3tools/contracts").OrchestrationMessageContext | undefined;
+  readonly context?: import("@s1tools/contracts").OrchestrationMessageContext | undefined;
   readonly id: MessageId;
   readonly role: "user" | "assistant";
   readonly text: string;
@@ -148,8 +148,8 @@ export interface ThreadFeedMessage {
   readonly creationSource?: OrchestrationV2CreationSource;
   readonly scheduledTaskId?: ScheduledTaskId;
   readonly senderThreadId?: ThreadId;
-  readonly linkedSender?: import("@t3tools/contracts").OrchestrationV2LinkedSender;
-  readonly idleCompaction?: import("@t3tools/contracts").OrchestrationV2IdleCompaction;
+  readonly linkedSender?: import("@s1tools/contracts").OrchestrationV2LinkedSender;
+  readonly idleCompaction?: import("@s1tools/contracts").OrchestrationV2IdleCompaction;
   readonly visibility: OrchestrationV2ProjectedTurnItem["visibility"];
   readonly sourceThreadId: ThreadId;
   readonly createdAt: string;
@@ -233,7 +233,7 @@ type ThreadFeedEntryContent =
       readonly summaryKind: ToolGroupSummaryKind;
       readonly toolSurface?: WorkLogPresentationEntry["toolSurface"];
       readonly toolIcon?: WorkLogPresentationEntry["toolIcon"];
-      readonly summaryToolIcon?: "browser" | "device" | "t3-code" | "pull-request";
+      readonly summaryToolIcon?: "browser" | "device" | "s1-code" | "pull-request";
       readonly hasFailure: boolean;
       readonly live: boolean;
       readonly shimmer: boolean;
@@ -706,7 +706,7 @@ function itemSummary(
     case "secret_request":
       return item.label;
     case "feedback_request":
-      return resolve(msg("Feedback for the T3 team"));
+      return resolve(msg("Feedback for the S1 team"));
     case "link_request":
       return resolve(msg("Link {target}", { target: linkRequestTargetName(item, resolve) }));
     case "dynamic_tool": {

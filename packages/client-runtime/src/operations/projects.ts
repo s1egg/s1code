@@ -9,15 +9,15 @@ import type {
   ServerSettings,
   SourceControlDiscoveryResult,
   SourceControlRepositoryInfo,
-} from "@t3tools/contracts";
-import { SourceControlProviderKind } from "@t3tools/contracts";
-import { cloneUrlRepositoryPath, isScpLikeCloneUrl } from "@t3tools/shared/cloneUrl";
+} from "@s1tools/contracts";
+import { SourceControlProviderKind } from "@s1tools/contracts";
+import { cloneUrlRepositoryPath, isScpLikeCloneUrl } from "@s1tools/shared/cloneUrl";
 import {
   isAbsolutePath,
   isExplicitRelativePath,
   isHostPath,
   newProjectFolderName,
-} from "@t3tools/shared/path";
+} from "@s1tools/shared/path";
 import * as Arr from "effect/Array";
 import * as Option from "effect/Option";
 import * as Order from "effect/Order";

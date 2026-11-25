@@ -14,10 +14,10 @@ const webIconSource = NodeFS.readFileSync(
   NodePath.join(repositoryRoot, "apps/web/src/pierre-icons.ts"),
   "utf8",
 );
-const customSprite = webIconSource.match(/const T3_FILE_ICON_SPRITE = `([\s\S]*?)`;/)?.[1];
+const customSprite = webIconSource.match(/const S1_FILE_ICON_SPRITE = `([\s\S]*?)`;/)?.[1];
 
 if (!customSprite) {
-  throw new Error("Could not read the T3 Pierre icon sprite from apps/web/src/pierre-icons.ts");
+  throw new Error("Could not read the S1 Pierre icon sprite from apps/web/src/pierre-icons.ts");
 }
 
 const colors = {
@@ -87,17 +87,17 @@ const colors = {
 };
 
 const customIcons = {
-  agents: "t3-file-icon-agents",
-  csharp: "t3-file-icon-csharp",
-  elixir: "t3-file-icon-elixir",
-  javascript_test: "t3-file-icon-javascript-test",
-  kotlin: "t3-file-icon-kotlin",
-  objc: "t3-file-icon-objc",
-  pnpm: "t3-file-icon-pnpm",
-  rolldown: "t3-file-icon-rolldown",
-  typescript_test: "t3-file-icon-typescript-test",
-  video: "t3-file-icon-video",
-  vitest: "t3-file-icon-vitest",
+  agents: "s1-file-icon-agents",
+  csharp: "s1-file-icon-csharp",
+  elixir: "s1-file-icon-elixir",
+  javascript_test: "s1-file-icon-javascript-test",
+  kotlin: "s1-file-icon-kotlin",
+  objc: "s1-file-icon-objc",
+  pnpm: "s1-file-icon-pnpm",
+  rolldown: "s1-file-icon-rolldown",
+  typescript_test: "s1-file-icon-typescript-test",
+  video: "s1-file-icon-video",
+  vitest: "s1-file-icon-vitest",
 };
 
 function symbolFromSprite(sprite, id) {

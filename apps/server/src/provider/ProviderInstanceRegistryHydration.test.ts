@@ -6,10 +6,10 @@ import {
   SecretProviderId,
   SecretProviderKind,
   type ServerSettings,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import * as ProviderHost from "@t3tools/provider-core/server/ProviderHost";
+import * as ProviderHost from "@s1tools/provider-core/server/ProviderHost";
 import { it as effectIt } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -118,7 +118,7 @@ describe("seedDevReplayInstance", () => {
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          ServerConfig.layerTest(process.cwd(), { prefix: "t3-dev-replay-seed-" }),
+          ServerConfig.layerTest(process.cwd(), { prefix: "s1-dev-replay-seed-" }),
           ServerSettingsService.layerTest({
             providerInstances: {
               [DEV_REPLAY_INSTANCE_ID]: {
@@ -142,7 +142,7 @@ describe("seedDevReplayInstance", () => {
   );
 
   effectIt.effect("points a dev server at the replay agent and keeps user edits", () =>
-    seed(new URL("http://localhost:5733")).pipe(
+    seed(new URL("http://localhost:4780")).pipe(
       Effect.map((instance) => {
         expect(instance?.displayName).toBe("My replay");
         expect(instance?.enabled).toBe(false);

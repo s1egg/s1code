@@ -5,9 +5,9 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Schema from "effect/Schema";
 
-import { T3_HOME } from "../e2e.config.ts";
+import { S1_HOME } from "../e2e.config.ts";
 import { run } from "./shell.ts";
-import { runPromise, test, WEB } from "./t3.ts";
+import { runPromise, test, WEB } from "./s1.ts";
 
 const decodeSettings = Schema.decodeSync(
   Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
@@ -16,13 +16,13 @@ const decodeSettings = Schema.decodeSync(
 test(
   "Cleanup updates the displayed size of a kept worktree",
   WEB,
-  async ({ t3, app, browser, screen }) => {
-    const project = await t3.project("cleanup-size", { "README.md": "Example project" });
-    const settingsPath = `${T3_HOME}/userdata/settings.json`;
+  async ({ s1, app, browser, screen }) => {
+    const project = await s1.project("cleanup-size", { "README.md": "Example project" });
+    const settingsPath = `${S1_HOME}/userdata/settings.json`;
     const original = await runPromise(
       Effect.flatMap(FileSystem.FileSystem, (fs) => fs.readFileString(settingsPath)),
     );
-    const worktree = `${T3_HOME}/worktrees/cleanup-size-orphan`;
+    const worktree = `${S1_HOME}/worktrees/cleanup-size-orphan`;
     const build = `${worktree}/build`;
     const git = (...args: ReadonlyArray<string>) => runPromise(run("git", args, { cwd: project }));
     await git("worktree", "add", "--detach", worktree, "HEAD");
@@ -48,7 +48,7 @@ test(
         }),
       );
 
-      await t3.open("/settings/maintenance");
+      await s1.open("/settings/maintenance");
       const runCleanup = screen.getByRole("button", "Delete now", { exact: true });
       await runCleanup.tap();
       await screen.getByRole("button", /^Last run/).tap();

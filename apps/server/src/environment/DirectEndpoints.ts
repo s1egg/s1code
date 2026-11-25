@@ -1,9 +1,9 @@
-import type { ServerDirectEndpoint } from "@t3tools/contracts";
+import type { ServerDirectEndpoint } from "@s1tools/contracts";
 import {
   buildTailscaleHttpsBaseUrl,
   probeTailscaleHttpsEndpoint,
   readTailscaleStatus,
-} from "@t3tools/tailscale";
+} from "@s1tools/tailscale";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -16,12 +16,12 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as NodeNet from "node:net";
 import * as NodeOS from "node:os";
 
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import {
   formatHostForUrl,
   isTailnetHost,
   isWildcardHost,
-} from "@t3tools/shared/hostClassification";
+} from "@s1tools/shared/hostClassification";
 
 import * as ServerConfig from "../config.ts";
 import * as ServerEnvironment from "./ServerEnvironment.ts";
@@ -43,7 +43,7 @@ export class DirectEndpoints extends Context.Service<
     readonly resolveAvailable: () => Effect.Effect<ReadonlyArray<ServerDirectEndpoint>>;
     readonly resolve: () => Effect.Effect<ReadonlyArray<ServerDirectEndpoint>>;
   }
->()("t3/environment/DirectEndpoints") {}
+>()("s1/environment/DirectEndpoints") {}
 
 // Credentials travel over HTTP; public IPs leak them and hostnames can resolve differently per client.
 // Wildcard binds stay IPv4: the private-network listener check accepts only IPv4 peers.

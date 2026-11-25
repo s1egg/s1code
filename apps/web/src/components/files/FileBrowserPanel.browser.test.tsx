@@ -1,4 +1,4 @@
-import { EnvironmentId, type ProjectEntry } from "@t3tools/contracts";
+import { EnvironmentId, type ProjectEntry } from "@s1tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 

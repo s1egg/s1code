@@ -1,4 +1,4 @@
-import { readHtmlRenderContentHeight } from "@t3tools/shared/htmlRender";
+import { readHtmlRenderContentHeight } from "@s1tools/shared/htmlRender";
 
 import { isInSideChatPane } from "../../lib/sideChatPane";
 import { registerCommands } from "../../shortcuts/dispatcher";

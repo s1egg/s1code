@@ -2,8 +2,8 @@ import {
   BearerConnectionTarget,
   RelayConnectionTarget,
   SshConnectionTarget,
-} from "@t3tools/client-runtime/connection";
-import { EnvironmentId } from "@t3tools/contracts";
+} from "@s1tools/client-runtime/connection";
+import { EnvironmentId } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { folderDropTarget } from "./folderDrop";
@@ -47,17 +47,17 @@ describe("folderDropTarget", () => {
     ],
     [
       "a saved loopback server on desktop",
-      { ...thinClient, connection: savedServer("http://127.0.0.1:3773") },
+      { ...thinClient, connection: savedServer("http://127.0.0.1:4773") },
       "local",
     ],
     [
       "a saved LAN server",
-      { ...thinClient, connection: savedServer("http://192.168.1.20:3773") },
+      { ...thinClient, connection: savedServer("http://192.168.1.20:4773") },
       "remote",
     ],
     [
       "a saved loopback server in a browser",
-      { ...thinClient, isDesktopRenderer: false, connection: savedServer("http://localhost:3773") },
+      { ...thinClient, isDesktopRenderer: false, connection: savedServer("http://localhost:4773") },
       "remote",
     ],
     [
@@ -82,7 +82,7 @@ describe("folderDropTarget", () => {
         ...thinClient,
         connection: {
           target: new RelayConnectionTarget(base),
-          httpBaseUrl: "https://relay.t3.codes",
+          httpBaseUrl: "https://relay.s1.codes",
         },
       },
       "remote",

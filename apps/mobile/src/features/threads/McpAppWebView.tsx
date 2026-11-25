@@ -1,7 +1,7 @@
 import { Button } from "../../components/ui/Button";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import * as Dialog from "../../components/ui/Dialog";
-import type { EnvironmentId, ThreadId, TurnItemId } from "@t3tools/contracts";
+import type { EnvironmentId, ThreadId, TurnItemId } from "@s1tools/contracts";
 import {
   makeMcpAppHost,
   McpAppHostRefusal,
@@ -10,16 +10,16 @@ import {
   type McpAppCallToolResult,
   type McpAppHost,
   type McpAppHostContext,
-} from "@t3tools/client-runtime/mcp-apps";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
-import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import { CommandId, MessageId } from "@t3tools/contracts";
+} from "@s1tools/client-runtime/mcp-apps";
+import { scopeThreadRef } from "@s1tools/client-runtime/environment";
+import { squashAtomCommandFailure } from "@s1tools/client-runtime/state/runtime";
+import { CommandId, MessageId } from "@s1tools/contracts";
 import {
   mcpAppAllowAttribute,
   mcpAppFileName,
   mcpAppReferencesEqual,
   type McpAppReference,
-} from "@t3tools/shared/mcpApp";
+} from "@s1tools/shared/mcpApp";
 import * as Predicate from "effect/Predicate";
 import { AsyncResult } from "effect/reactivity";
 import Constants from "expo-constants";
@@ -50,7 +50,7 @@ import { mcpAppRelayDocument } from "./mcpAppRelayDocument";
 import { MCP_APP_INLINE_MAX_HEIGHT, mcpAppInlineHeight } from "./mcpAppSizing";
 
 const ROW_BOTTOM_MARGIN = 8;
-const PRODUCT_NAME = "T3 Code";
+const PRODUCT_NAME = "S1 Code";
 
 const commandFailure = (result: {
   readonly cause: Parameters<typeof squashAtomCommandFailure>[0]["cause"];
@@ -174,7 +174,7 @@ export function ThreadMcpApp(props: {
     reopenDocument();
     setPresentedFullscreen(false);
   });
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Navigation focus is outside React; listen only while the app is presented full screen, and stop on unmount.
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- Navigation focus is outside React; listen only while the app is presented full screen, and stop on unmount.
   useEffect(() => {
     if (!presentedFullscreen) return;
     return navigation.addListener("focus", () => returnedFromFullscreen());
@@ -221,7 +221,7 @@ export function ThreadMcpApp(props: {
   // The attached WebView owns its host; state lets the tool-call effect pair
   // a host only with an atom from a render after that host existed.
   const [host, setHost] = useState<McpAppHost | null>(null);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- resends host context to the MCP app host after commits that change theme, insets, tool or size
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- resends host context to the MCP app host after commits that change theme, insets, tool or size
   useEffect(() => {
     const previous = latest.current;
     latest.current = live;
@@ -240,7 +240,7 @@ export function ThreadMcpApp(props: {
   // The host sends the call once the app initializes, so a stored item that
   // lands late still reaches it. A completed call can arrive under a new
   // revision, which is a new atom, so the host follows the current one.
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes the MCP host to the current tool call
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- subscribes the MCP host to the current tool call
   useEffect(() => {
     if (host === null) return;
     return appAtomRegistry.subscribe(
@@ -291,7 +291,7 @@ export function ThreadMcpApp(props: {
         platform: "mobile",
         locale: Intl.DateTimeFormat().resolvedOptions().locale,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        userAgent: `t3-code/${Constants.expoConfig?.version ?? "0.0.0"}`,
+        userAgent: `s1-code/${Constants.expoConfig?.version ?? "0.0.0"}`,
         deviceCapabilities: { touch: true, hover: false },
         safeAreaInsets: isFullscreen
           ? { top: 0, right: current.insets.right, bottom: 0, left: current.insets.left }
@@ -347,7 +347,7 @@ export function ThreadMcpApp(props: {
         return result.value;
       },
       openLink: async (url) => {
-        // WebViews cannot prove user activation; confirm links to prevent timer-driven navigation out of T3.
+        // WebViews cannot prove user activation; confirm links to prevent timer-driven navigation out of S1.
         if (
           !(await confirm(
             m(msg("Open a link from {server}?", { server: app.server })),
@@ -594,12 +594,12 @@ export function ThreadMcpApp(props: {
             }
             if (!Predicate.isObject(envelope) || envelope.secret !== secret) return;
             const message = envelope.message;
-            if (Predicate.isObject(message) && message.t3 === "navigated") {
+            if (Predicate.isObject(message) && message.s1 === "navigated") {
               host?.dispose();
               setNavigatedAway(true);
               return;
             }
-            if (Predicate.isObject(message) && message.t3 === "unlinked") {
+            if (Predicate.isObject(message) && message.s1 === "unlinked") {
               host?.dispose();
               setBridgeMissing(true);
               return;

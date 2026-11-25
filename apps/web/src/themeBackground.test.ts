@@ -1,9 +1,9 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@s1tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 const query = vi.hoisted(() => vi.fn());
 vi.mock(
-  import("@t3tools/client-runtime/state/runtime"),
+  import("@s1tools/client-runtime/state/runtime"),
   () =>
     ({
       executeAtomQuery: query,

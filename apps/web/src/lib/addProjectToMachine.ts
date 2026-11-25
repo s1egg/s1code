@@ -1,16 +1,16 @@
-import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
+import { thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import {
   executeAtomQuery,
   runAtomCommand,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
-import { scopedProjectKey } from "@t3tools/client-runtime/environment";
+} from "@s1tools/client-runtime/state/runtime";
+import { scopedProjectKey } from "@s1tools/client-runtime/environment";
 import type {
   EnvironmentId,
   ProjectCloneSnapshot,
   ProjectId,
   ScopedProjectRef,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { msg } from "gt-react";
 import { create } from "zustand";
 

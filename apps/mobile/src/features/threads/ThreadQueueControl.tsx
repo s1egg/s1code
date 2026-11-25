@@ -1,17 +1,17 @@
 import { type StaticScreenProps, useNavigation } from "@react-navigation/native";
-import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
+import { errorDisplayMessage } from "@s1tools/client-runtime/errors";
 import { useAtomValue } from "@effect/atom-react";
 import {
   makeQueuedRunsAtom,
   queuedRunEditBlockedReason,
-} from "@t3tools/client-runtime/queued-run-edit";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+} from "@s1tools/client-runtime/queued-run-edit";
+import { scopeThreadRef } from "@s1tools/client-runtime/environment";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
-import { resolveUserMessagePresentation } from "@t3tools/client-runtime/user-message";
-import type { ChatAttachment, EnvironmentId, RunId, ThreadId } from "@t3tools/contracts";
+} from "@s1tools/client-runtime/state/runtime";
+import { resolveUserMessagePresentation } from "@s1tools/client-runtime/user-message";
+import type { ChatAttachment, EnvironmentId, RunId, ThreadId } from "@s1tools/contracts";
 import { Atom } from "effect/reactivity";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -103,8 +103,8 @@ function QueuedRunSender(props: {
             icon: "bubble.left.and.bubble.right" as const,
             label: senderShell?.title.trim() || linkedSender?.title.trim() || gt("Agent"),
           }
-        : attribution === "t3code"
-          ? { icon: null, label: gt("Sent by T3 Code") }
+        : attribution === "s1code"
+          ? { icon: null, label: gt("Sent by S1 Code") }
           : null;
   if (sender === null) return null;
   return (
@@ -120,7 +120,7 @@ function QueuedRunSender(props: {
       ) : null}
       <Text
         numberOfLines={1}
-        className="min-w-0 shrink font-t3-medium text-2xs text-foreground-muted"
+        className="min-w-0 shrink font-s1-medium text-2xs text-foreground-muted"
       >
         {sender.label}
       </Text>
@@ -159,7 +159,7 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
   const queuedRuns = workflow?.queuedRuns ?? [];
 
   const hadQueuedRuns = useRef(queuedRuns.length > 0);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pops the navigator once the server-side queue empties after it had runs
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- pops the navigator once the server-side queue empties after it had runs
   useEffect(() => {
     if (queuedRuns.length > 0) {
       hadQueuedRuns.current = true;
@@ -366,7 +366,7 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
                         numberOfLines={1}
                       >
                         {context?.guest === undefined ? null : (
-                          <Text className="font-t3-medium text-adaptive-fuchsia-600-300">
+                          <Text className="font-s1-medium text-adaptive-fuchsia-600-300">
                             {`${context.guest.name}  `}
                           </Text>
                         )}
@@ -399,7 +399,7 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
                         size={13}
                         tintColorClassName="accent-primary-foreground"
                       />
-                      <Text className="font-t3-medium text-sm text-primary-foreground">
+                      <Text className="font-s1-medium text-sm text-primary-foreground">
                         <T>Send now</T>
                       </Text>
                     </View>
@@ -465,7 +465,7 @@ function QueueRowSwipeable(props: {
           style={{ width: REMOVE_ACTION_WIDTH }}
         >
           <SymbolView name="trash" size={16} tintColorClassName="accent-danger-foreground" />
-          <Text className="pt-1 text-2xs font-t3-medium text-danger-foreground">
+          <Text className="pt-1 text-2xs font-s1-medium text-danger-foreground">
             {gt("Remove", { $context: "verb, menu action" })}
           </Text>
         </Pressable>

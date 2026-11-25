@@ -1,9 +1,9 @@
-import { managedRuntimeModeDenial } from "@t3tools/client-runtime/contract-labels";
+import { managedRuntimeModeDenial } from "@s1tools/client-runtime/contract-labels";
 import {
   clampManagedRuntimeMode,
   type ManagedPolicySummary,
   type RuntimeMode,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { useGT, useMessages } from "gt-react-native";
 import { View } from "react-native";
 

@@ -1,13 +1,13 @@
-import type { ScopedThreadRef } from "@t3tools/contracts";
+import type { ScopedThreadRef } from "@s1tools/contracts";
 import {
   isAbsolutePath,
   isWindowsAbsolutePath,
   normalizeProjectPathForComparison,
   workspaceRelativeFilePath,
-} from "@t3tools/shared/path";
+} from "@s1tools/shared/path";
 
 import { useRightPanelStore } from "./rightPanelStore";
-import { resolvePathLinkTarget } from "@t3tools/shared/fileLinks";
+import { resolvePathLinkTarget } from "@s1tools/shared/fileLinks";
 
 interface OpenDiffFilePrimaryActionInput {
   readonly threadRef: ScopedThreadRef | null;

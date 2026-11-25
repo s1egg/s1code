@@ -4,7 +4,7 @@ import {
   SecretRequestError,
   ThreadId,
   TurnItemId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

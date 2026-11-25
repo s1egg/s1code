@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@s1tools/contracts";
 import { createContext, useContext } from "react";
 
 import { cn } from "~/lib/utils";

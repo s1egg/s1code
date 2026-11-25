@@ -1,4 +1,4 @@
-import type { ServerSettings } from "@t3tools/contracts";
+import type { ServerSettings } from "@s1tools/contracts";
 import type { ComponentProps } from "react";
 
 import { Switch } from "../ui/switch";

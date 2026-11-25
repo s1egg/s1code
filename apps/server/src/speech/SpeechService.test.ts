@@ -11,8 +11,8 @@ import * as Scheduler from "effect/Scheduler";
 import * as Scope from "effect/Scope";
 import * as Exit from "effect/Exit";
 import * as PlatformError from "effect/PlatformError";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS } from "@t3tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS } from "@s1tools/contracts";
 import * as ServerSettings from "../serverSettings.ts";
 import { listNativeSpeechGpuDevices } from "./native.ts";
 import * as SpeechModelStore from "./SpeechModelStore.ts";
@@ -532,12 +532,12 @@ it.effect("uses vocabulary only for supported transcription and always applies a
             speechCustomWords: [
               { term: "GitHub", aliases: [] },
               { term: "Bob", aliases: ["Robert"] },
-              { term: "T3 Code", aliases: [] },
+              { term: "S1 Code", aliases: [] },
             ],
             speechHints: ["Server"],
           };
           const vocabulary =
-            supportsVocabulary && !translate ? ["Server", "GitHub", "Bob", "T3 Code"] : undefined;
+            supportsVocabulary && !translate ? ["Server", "GitHub", "Bob", "S1 Code"] : undefined;
           native.transcribe.mockResolvedValueOnce({ text: "git hub and Robert on the server" });
           expect(yield* speech.transcribe(pcm(), options)).toBe(
             vocabulary ? "git hub and Bob on the server" : "GitHub and Bob on the server",

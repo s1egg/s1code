@@ -1,18 +1,18 @@
 import { useAtomValue } from "@effect/atom-react";
-import { sourceControlInstallHintText } from "@t3tools/client-runtime/contract-labels";
-import { isSourceControlProviderOffered } from "@t3tools/client-runtime/operations/projects";
-import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import { sourceControlInstallHintText } from "@s1tools/client-runtime/contract-labels";
+import { isSourceControlProviderOffered } from "@s1tools/client-runtime/operations/projects";
+import { squashAtomCommandFailure } from "@s1tools/client-runtime/state/runtime";
 import {
   readHostCredentialSettings,
   sourceControlClients,
   type SourceControlDefinition,
   type SourceControlHostCredentials,
-} from "@t3tools/client-runtime/source-control-clients";
+} from "@s1tools/client-runtime/source-control-clients";
 import type {
   EnvironmentId,
   SettingsSecretValue,
   SourceControlProviderDiscoveryItem,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { useNavigation } from "@react-navigation/native";
@@ -408,7 +408,7 @@ export function SourceControlHostFieldsForm(props: {
         <View key={field.key} className="gap-1.5">
           {field.secret ? (
             <>
-              <Text className="text-2xs font-t3-bold tracking-[0.8px] uppercase text-foreground-muted">
+              <Text className="text-2xs font-s1-bold tracking-[0.8px] uppercase text-foreground-muted">
                 {field.label}
               </Text>
               <SecretTextInput

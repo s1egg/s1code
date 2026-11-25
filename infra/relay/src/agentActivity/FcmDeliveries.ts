@@ -4,7 +4,7 @@ import {
   RelayAgentActivityAggregateState,
   RelayAgentAwarenessPreferences,
   type RelayDeliveryResult,
-} from "@t3tools/contracts/relay";
+} from "@s1tools/contracts/relay";
 import * as Digest from "effect/crypto/Digest";
 import type * as PlatformError from "effect/PlatformError";
 import * as Context from "effect/Context";
@@ -135,7 +135,7 @@ export class FcmDeliveries extends Context.Service<
       | EnvironmentLinks.EnvironmentLinkUserListPersistenceError
     >;
   }
->()("t3code-relay/agentActivity/FcmDeliveries") {}
+>()("s1code-relay/agentActivity/FcmDeliveries") {}
 
 const make = Effect.gen(function* () {
   const config = yield* RelayConfiguration.RelayConfiguration;
@@ -285,7 +285,7 @@ const make = Effect.gen(function* () {
       const active = (displayedAggregate?.activeCount ?? 0) > 0;
       if (!displayedAggregate && !alert && !previousAggregate && job.state !== null) return;
       const data: Record<string, string> = {
-        t3_kind: "agent_activity",
+        s1_kind: "agent_activity",
         ...androidRecipientData(job.userId, job.deviceId, target.app_version),
         updated_at: String(now.epochMilliseconds),
         ...androidActivityData(displayedAggregate),

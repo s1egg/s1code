@@ -8,20 +8,20 @@ import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
-import { type ClaudeSettings, TextGenerationError } from "@t3tools/contracts";
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
-import { deepMerge } from "@t3tools/shared/Struct";
+import { type ClaudeSettings, TextGenerationError } from "@s1tools/contracts";
+import { resolveSpawnCommand } from "@s1tools/shared/shell";
+import { deepMerge } from "@s1tools/shared/Struct";
 
-import * as TextGenerationOperations from "@t3tools/provider-core/server/textGenerationOperations";
+import * as TextGenerationOperations from "@s1tools/provider-core/server/textGenerationOperations";
 import {
   normalizeCliError,
   toJsonSchemaObject,
-} from "@t3tools/provider-core/server/textGenerationUtils";
+} from "@s1tools/provider-core/server/textGenerationUtils";
 import {
   getModelSelectionBooleanOptionValue,
   getModelSelectionStringOptionValue,
   getProviderOptionDescriptors,
-} from "@t3tools/shared/model";
+} from "@s1tools/shared/model";
 import {
   BUNDLED_CLAUDE_MODEL_CATALOG,
   type ClaudeModelCatalog,
@@ -221,7 +221,7 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
     const workingDirectory =
       operation === "generateThreadTitle"
         ? yield* fileSystem
-            .makeTempDirectoryScoped({ prefix: "t3code-claude-title-" })
+            .makeTempDirectoryScoped({ prefix: "s1code-claude-title-" })
             .pipe(
               Effect.mapError((cause) =>
                 normalizeCliError("claude", operation, cause, "Failed to create title directory"),
@@ -299,7 +299,7 @@ export const makeClaudeTextGeneration = Effect.fn("makeClaudeTextGeneration")(fu
     // The user's settings can hold credentials; a file keeps them out of the process list.
     const settingsArgument = investigate
       ? yield* fileSystem
-          .makeTempFileScoped({ prefix: "t3code-claude-settings-", suffix: ".json" })
+          .makeTempFileScoped({ prefix: "s1code-claude-settings-", suffix: ".json" })
           .pipe(
             Effect.tap((filePath) => fileSystem.writeFileString(filePath, settingsJson)),
             Effect.mapError((cause) =>

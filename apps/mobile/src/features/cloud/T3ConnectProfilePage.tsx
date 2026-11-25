@@ -1,13 +1,13 @@
-import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
+import { errorDisplayMessage } from "@s1tools/client-runtime/errors";
 import { msg, T, useGT, useMessages } from "gt-react-native";
-import { findErrorTraceId } from "@t3tools/client-runtime/errors";
+import { findErrorTraceId } from "@s1tools/client-runtime/errors";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@s1tools/client-runtime/state/runtime";
 import type { MenuAction } from "@react-native-menu/menu";
-import type { EnvironmentId } from "@t3tools/contracts";
-import type { RelayClientEnvironmentRecord } from "@t3tools/contracts/relay";
+import type { EnvironmentId } from "@s1tools/contracts";
+import type { RelayClientEnvironmentRecord } from "@s1tools/contracts/relay";
 import { type ReactNode, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { RefreshControl } from "../../components/ui/RefreshControl";
@@ -48,7 +48,7 @@ function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm:
   const message = m(
     msg(
       "“{environment}” will be removed from this account. {product} access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.",
-      { environment: environment.label, product: "T3 Connect" },
+      { environment: environment.label, product: "S1 Connect" },
     ),
   );
   Dialog.confirm({
@@ -110,7 +110,7 @@ export function T3ConnectProfilePage() {
         ? (errorDisplayMessage(cause, m) ?? cause.message)
         : gt("Could not deregister the server.");
     const traceId = findErrorTraceId(cause);
-    console.error("[t3-connect] Could not deregister environment", {
+    console.error("[s1-connect] Could not deregister environment", {
       environmentId: environment.environmentId,
       message,
       traceId,
@@ -168,7 +168,7 @@ export function T3ConnectProfilePage() {
       {environmentsState.error ? (
         <>
           <ClerkRow
-            title={gt("Could not load {product} environments", { product: "T3 Connect" })}
+            title={gt("Could not load {product} environments", { product: "S1 Connect" })}
             subtitle={environmentsState.error}
           />
           {errorTraceId ? (
@@ -235,7 +235,7 @@ export function T3ConnectProfilePage() {
         <ClerkRow
           title={gt("No servers registered")}
           subtitle={gt("Link a server from its local Settings to reach it through {product}.", {
-            product: "T3 Connect",
+            product: "S1 Connect",
           })}
         />
       )}

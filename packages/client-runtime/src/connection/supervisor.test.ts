@@ -3,9 +3,9 @@ import {
   EnvironmentId,
   type ServerConfig,
   type ServerConfigStreamEvent,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import { RelayClientTracer } from "@t3tools/shared/relayTracing";
+import { RelayClientTracer } from "@s1tools/shared/relayTracing";
 import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -103,8 +103,8 @@ const LAN_ROUTE = {
       connectionId: LAN_TARGET.connectionId,
       environmentId: TARGET.environmentId,
       label: TARGET.label,
-      httpBaseUrl: "http://192.168.1.10:3773/",
-      wsBaseUrl: "ws://192.168.1.10:3773/",
+      httpBaseUrl: "http://192.168.1.10:4773/",
+      wsBaseUrl: "ws://192.168.1.10:4773/",
     }),
   ),
 } satisfies ConnectionRoute;
@@ -1408,8 +1408,8 @@ describe("EnvironmentSupervisor", () => {
       const harness = yield* makeSilentSocketHarness();
       const target = new PrimaryConnectionTarget({
         ...TARGET,
-        httpBaseUrl: "http://127.0.0.1:3773",
-        wsBaseUrl: "ws://127.0.0.1:3773",
+        httpBaseUrl: "http://127.0.0.1:4773",
+        wsBaseUrl: "ws://127.0.0.1:4773",
       });
       const supervisor = yield* EnvironmentSupervisor.make(
         { ...TARGET_ENTRY, target },
@@ -1945,7 +1945,7 @@ describe("EnvironmentSupervisor", () => {
         const pathname = new URL(request.url).pathname;
         httpPaths.push(pathname);
         switch (pathname) {
-          case "/.well-known/t3/environment":
+          case "/.well-known/s1/environment":
             return Promise.resolve(
               Response.json({
                 environmentId: TARGET.environmentId,
@@ -1982,7 +1982,7 @@ describe("EnvironmentSupervisor", () => {
                   policy: "loopback-browser",
                   bootstrapMethods: ["one-time-token"],
                   sessionMethods: ["dpop-access-token"],
-                  sessionCookieName: "t3_session_test",
+                  sessionCookieName: "s1_session_test",
                 },
                 scopes: AuthStandardClientScopes,
               }),
@@ -2173,8 +2173,8 @@ describe("EnvironmentSupervisor routes", () => {
                 connectionId: secondLanTarget.connectionId,
                 environmentId: TARGET.environmentId,
                 label: TARGET.label,
-                httpBaseUrl: "http://192.168.56.1:3773/",
-                wsBaseUrl: "ws://192.168.56.1:3773/",
+                httpBaseUrl: "http://192.168.56.1:4773/",
+                wsBaseUrl: "ws://192.168.56.1:4773/",
               }),
             ),
           },
@@ -2254,8 +2254,8 @@ describe("EnvironmentSupervisor routes", () => {
                 connectionId: tailnetTarget.connectionId,
                 environmentId: TARGET.environmentId,
                 label: TARGET.label,
-                httpBaseUrl: "http://100.100.1.2:3773/",
-                wsBaseUrl: "ws://100.100.1.2:3773/",
+                httpBaseUrl: "http://100.100.1.2:4773/",
+                wsBaseUrl: "ws://100.100.1.2:4773/",
                 network: "tailscale",
               }),
             ),
@@ -2313,7 +2313,7 @@ describe("EnvironmentSupervisor routes", () => {
         prepare: (_attempt, target) => {
           attempted.push(target._tag);
           return target._tag === "RelayConnectionTarget"
-            ? Effect.fail(blocked("Sign in to T3 Connect."))
+            ? Effect.fail(blocked("Sign in to S1 Connect."))
             : Effect.succeed(preparedFor(target));
         },
       });
@@ -2358,7 +2358,7 @@ describe("EnvironmentSupervisor routes", () => {
     }).pipe(Effect.provide(TestClock.layer())),
   );
 
-  it.effect("skips a silent LAN route and connects over T3 Connect", () =>
+  it.effect("skips a silent LAN route and connects over S1 Connect", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness({
         checkRoute: (route) =>
@@ -2400,7 +2400,7 @@ describe("EnvironmentSupervisor routes", () => {
       const failures = [
         new ConnectionBlockedError({
           reason: "permission",
-          detail: "T3 Connect is not enabled on this machine.",
+          detail: "S1 Connect is not enabled on this machine.",
           hop: "tunnel",
           failureCause: "tunnel_not_enabled",
         }),
@@ -2507,8 +2507,8 @@ describe("EnvironmentSupervisor routes", () => {
             connectionId: loopbackTarget.connectionId,
             environmentId: TARGET.environmentId,
             label: TARGET.label,
-            httpBaseUrl: "http://127.0.0.1:3773/",
-            wsBaseUrl: "ws://127.0.0.1:3773/",
+            httpBaseUrl: "http://127.0.0.1:4773/",
+            wsBaseUrl: "ws://127.0.0.1:4773/",
           }),
         ),
         alternateRoutes: [LAN_ROUTE, { target: RELAY_TARGET, profile: Option.none() }],
@@ -2585,7 +2585,7 @@ describe("EnvironmentSupervisor routes", () => {
         checkRoute: () => Effect.succeed("answered"),
         prepare: (_attempt, target) =>
           target._tag === "RelayConnectionTarget"
-            ? Effect.fail(blocked("Sign in to T3 Connect."))
+            ? Effect.fail(blocked("Sign in to S1 Connect."))
             : Effect.fail(transient("LAN socket refused.")),
       });
       const supervisor = yield* EnvironmentSupervisor.make(LAN_THEN_RELAY_ENTRY, {
@@ -2806,7 +2806,7 @@ describe("EnvironmentSupervisor routes", () => {
   );
 
   it.effect.each(["initial", "late", "withdrawn", "withdrawn-upgrade", "omitted"] as const)(
-    "learns the %s direct endpoint over T3 Connect",
+    "learns the %s direct endpoint over S1 Connect",
     (discovery) =>
       Effect.gen(function* () {
         const relayEntry: ConnectionCatalogEntry =
@@ -2823,7 +2823,7 @@ describe("EnvironmentSupervisor routes", () => {
                         }
                       : {}),
                     learned: true,
-                    authorization: "t3-connect",
+                    authorization: "s1-connect",
                   }),
                 ),
                 alternateRoutes: [{ target: RELAY_TARGET, profile: Option.none() }],
@@ -2874,7 +2874,7 @@ describe("EnvironmentSupervisor routes", () => {
               directEndpoints:
                 discovery !== "initial"
                   ? []
-                  : [{ kind: "lan", httpBaseUrl: "http://192.168.1.10:3773/" }],
+                  : [{ kind: "lan", httpBaseUrl: "http://192.168.1.10:4773/" }],
             } as unknown as ServerConfig),
         });
         const current = yield* Ref.make(relayEntry);
@@ -2931,7 +2931,7 @@ describe("EnvironmentSupervisor routes", () => {
           "BearerConnectionTarget",
         );
         expect(yield* Ref.get(learned)).toEqual([
-          `learned:${TARGET.environmentId}:${discovery !== "initial" ? "https://fixture.tail1234.ts.net" : "http://192.168.1.10:3773"}`,
+          `learned:${TARGET.environmentId}:${discovery !== "initial" ? "https://fixture.tail1234.ts.net" : "http://192.168.1.10:4773"}`,
         ]);
       }),
   );

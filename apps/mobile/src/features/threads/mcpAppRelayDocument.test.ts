@@ -1,4 +1,4 @@
-import { MCP_APP_DOCUMENT_MESSAGE } from "@t3tools/shared/mcpApp";
+import { MCP_APP_DOCUMENT_MESSAGE } from "@s1tools/shared/mcpApp";
 import { expect, it } from "vite-plus/test";
 
 import { mcpAppRelayDocument } from "./mcpAppRelayDocument";
@@ -61,15 +61,15 @@ it("relays nothing for a frame whose document did not hand over a port", () => {
   relay.frameLoaded();
 
   relay.fromFrame(REQUEST);
-  expect(relay.relayed).toEqual([{ t3: "unlinked" }]);
+  expect(relay.relayed).toEqual([{ s1: "unlinked" }]);
 
   // The frame's next page gets the same window, and nothing more.
   relay.frameLoaded();
   relay.fromFrame({ ...REQUEST, id: 2 });
-  relay.fromFrame({ t3: MCP_APP_DOCUMENT_MESSAGE }, [{ postMessage: () => {} }]);
+  relay.fromFrame({ s1: MCP_APP_DOCUMENT_MESSAGE }, [{ postMessage: () => {} }]);
   relay.fromFrame({ ...REQUEST, id: 3 });
   relay.toApp({ jsonrpc: "2.0", id: 1, result: {} });
-  expect(relay.relayed).toEqual([{ t3: "unlinked" }]);
+  expect(relay.relayed).toEqual([{ s1: "unlinked" }]);
   expect(relay.toFrameWindow).toEqual([]);
 });
 
@@ -83,7 +83,7 @@ it("relays a message once the document that handed over the port confirms it", (
     },
   };
 
-  relay.fromFrame({ t3: MCP_APP_DOCUMENT_MESSAGE }, [port]);
+  relay.fromFrame({ s1: MCP_APP_DOCUMENT_MESSAGE }, [port]);
   relay.fromFrame(REQUEST);
   expect(relay.relayed).toEqual([]);
   expect(toPort).toEqual([{ alive: 0 }]);

@@ -3,7 +3,7 @@ import {
   ProjectId,
   type RepositoryIdentity,
   SourceControlProviderKind,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -21,17 +21,17 @@ describe("findProjectForChangeRequest", () => {
   it("matches a nested GitLab group by the whole path below the host", () => {
     const projects = [
       project({
-        canonicalKey: "gitlab.com/t3tools/platform/t3code",
+        canonicalKey: "gitlab.com/s1tools/platform/s1code",
         provider: SourceControlProviderKind.make("gitlab"),
-        displayName: "t3tools/platform/t3code",
-        owner: "t3tools",
-        name: "t3code",
+        displayName: "s1tools/platform/s1code",
+        owner: "s1tools",
+        name: "s1code",
       }),
     ];
     expect(
       findProjectForChangeRequest(projects, {
         host: "gitlab.com",
-        repository: "t3tools/platform/t3code",
+        repository: "s1tools/platform/s1code",
         number: 42,
       }),
     ).toBe(projects[0]);
@@ -40,16 +40,16 @@ describe("findProjectForChangeRequest", () => {
   it("claims nothing for a lookalike host, which is what keeps a link a link", () => {
     const projects = [
       project({
-        canonicalKey: "github.com/pingdotgg/t3code",
+        canonicalKey: "github.com/s1egg/s1code",
         provider: SourceControlProviderKind.make("github"),
-        owner: "pingdotgg",
-        name: "t3code",
+        owner: "s1egg",
+        name: "s1code",
       }),
     ];
     expect(
       findProjectForChangeRequest(projects, {
         host: "github.com-evil.test",
-        repository: "pingdotgg/t3code",
+        repository: "s1egg/s1code",
         number: 1,
       }),
     ).toBeUndefined();

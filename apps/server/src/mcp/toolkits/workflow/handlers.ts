@@ -1,4 +1,4 @@
-import { OrchestratorMcpFailure } from "@t3tools/contracts";
+import { OrchestratorMcpFailure } from "@s1tools/contracts";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Effect from "effect/Effect";
 
@@ -18,7 +18,7 @@ const isRead = (action: string): action is (typeof WORKFLOW_READ_ACTIONS)[number
   (WORKFLOW_READ_ACTIONS as ReadonlyArray<string>).includes(action);
 
 export const layer = McpToolAccess.toLayer(WorkflowToolkit, {
-  t3_workflow: McpToolAccess.either(
+  s1_workflow: McpToolAccess.either(
     (input) => isRead(input.action),
     McpToolAccess.reads((input) =>
       Effect.gen(function* () {

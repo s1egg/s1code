@@ -6,7 +6,7 @@ import {
   type OrchestrationV2ThreadHistoryPage,
   type OrchestrationV2ThreadStreamItem,
   type PeerLinkClientPairingResult,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -243,7 +243,7 @@ it.effect("brings back the turns a closed view had loaded when it opens again", 
 );
 
 describe("connectLinkedEnvironment", () => {
-  const lan = "http://192.168.1.20:3773";
+  const lan = "http://192.168.1.20:4773";
   const tailnet = "https://vm.tail.ts.net";
   const target = {
     environmentId: EnvironmentId.make("environment-vm"),
@@ -314,7 +314,7 @@ describe("connectLinkedEnvironment", () => {
       return Promise.resolve(true);
     });
     try {
-      // oxlint-disable-next-line t3code/no-real-time-wait-in-tests -- Let the already runnable probe continuations finish while the last probe stays pending.
+      // oxlint-disable-next-line s1code/no-real-time-wait-in-tests -- Let the already runnable probe continuations finish while the last probe stays pending.
       const pending = NodeTimersPromises.setImmediate("still waiting for an address");
       expect(await Promise.race([connecting, pending])).toEqual(row.expected);
     } finally {

@@ -3,7 +3,7 @@ import {
   type PullRequestActivity,
   type PullRequestActor,
   type PullRequestConversationThread,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 
 export interface ActivityFilter {
   readonly kind: "all" | "comments" | "commits";

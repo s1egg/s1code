@@ -18,11 +18,11 @@ const steps = [
 ];
 assert.equal(steps.length, 3, "Expected both release steps and the preview step");
 
-const url = "https://t3code-fixture-pinglabs.vercel.app";
-const warning = 'Error while parsing config file: "/runner/t3code/pnpm-lock.yaml"';
+const url = "https://s1code-fixture-pinglabs.vercel.app";
+const warning = 'Error while parsing config file: "/runner/s1code/pnpm-lock.yaml"';
 
 function runStep(script, stdout, exitCode = 0) {
-  const directory = mkdtempSync(join(tmpdir(), "t3-vercel-output-"));
+  const directory = mkdtempSync(join(tmpdir(), "s1-vercel-output-"));
   const outputFile = join(directory, "output");
   try {
     const result = spawnSync(

@@ -1,14 +1,14 @@
 import { useAtomValue } from "@effect/atom-react";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopeThreadRef } from "@s1tools/client-runtime/environment";
 import {
   resolveWorkflowOpening,
   workflowMemberModelSelection,
   workflowOpeningHeadline,
   workflowOpeningParentThreadId,
   type RuntimeSubagent,
-} from "@t3tools/client-runtime/state/subagentRuntime";
-import type { EnvironmentId, ScopedThreadRef, ThreadId } from "@t3tools/contracts";
-import type { EnvironmentThread } from "@t3tools/client-runtime/state/shell";
+} from "@s1tools/client-runtime/state/subagentRuntime";
+import type { EnvironmentId, ScopedThreadRef, ThreadId } from "@s1tools/contracts";
+import type { EnvironmentThread } from "@s1tools/client-runtime/state/shell";
 import { Atom } from "effect/reactivity";
 import { T, useGT, useMessages } from "gt-react-native";
 import { useState } from "react";
@@ -123,10 +123,10 @@ export function ThreadWorkflowOpening(props: {
       <View className="mb-5 gap-3">
         <View className="flex-row items-start gap-2">
           <View className="min-w-0 flex-1 gap-0.5">
-            <Text className="font-t3-medium text-2xs text-foreground-muted">
+            <Text className="font-s1-medium text-2xs text-foreground-muted">
               <T>Workflow started</T>
             </Text>
-            <Text numberOfLines={1} className="font-t3-medium text-sm text-foreground">
+            <Text numberOfLines={1} className="font-s1-medium text-sm text-foreground">
               {headline.title}
             </Text>
             {headline.description ? (
@@ -142,7 +142,7 @@ export function ThreadWorkflowOpening(props: {
         {canListMembers
           ? phases.map((phase) => (
               <View key={phase.index} className="gap-px">
-                <Text className="px-1 pt-1 font-t3-medium text-2xs text-foreground-muted">
+                <Text className="px-1 pt-1 font-s1-medium text-2xs text-foreground-muted">
                   {phase.title} · {phase.settledCount}/{phase.members.length}
                 </Text>
                 {phase.members.map(renderMember)}
@@ -199,7 +199,7 @@ function WorkflowScript(props: { readonly script: string }) {
           onPress={() => setExpanded((value) => !value)}
           className="self-start py-1 active:opacity-70"
         >
-          <Text className="font-t3-medium text-xs text-foreground-muted">
+          <Text className="font-s1-medium text-xs text-foreground-muted">
             {expanded
               ? gt("Show less", { $context: "collapses the workflow script" })
               : gt("Show full script")}

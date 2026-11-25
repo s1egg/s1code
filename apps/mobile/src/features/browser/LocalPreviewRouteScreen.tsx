@@ -1,6 +1,6 @@
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
-import { EnvironmentId } from "@t3tools/contracts";
-import { normalizePreviewUrl } from "@t3tools/shared/preview";
+import { EnvironmentId } from "@s1tools/contracts";
+import { normalizePreviewUrl } from "@s1tools/shared/preview";
 import { msg, useGT } from "gt-react-native";
 import { useRef, useState } from "react";
 import { View } from "react-native";
@@ -172,7 +172,7 @@ export function LocalPreviewScreen(props: {
                     variant="plain"
                     title={
                       outdated
-                        ? gt("Update T3 Code on {environment}", { environment: environmentLabel })
+                        ? gt("Update S1 Code on {environment}", { environment: environmentLabel })
                         : disconnected
                           ? gt("Not connected to {environment}", { environment: environmentLabel })
                           : gt("Can't reach {host}", { host: hostOf(current) })
@@ -180,7 +180,7 @@ export function LocalPreviewScreen(props: {
                     detail={
                       outdated
                         ? gt(
-                            "{environment} runs a version of T3 Code that can't open its localhost pages on this device. Update it there, then try again.",
+                            "{environment} runs a version of S1 Code that can't open its localhost pages on this device. Update it there, then try again.",
                             { environment: environmentLabel },
                           )
                         : disconnected

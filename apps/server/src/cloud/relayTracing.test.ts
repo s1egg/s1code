@@ -1,7 +1,7 @@
 import { assert, it, vi } from "@effect/vitest";
-import type { ManagedPolicyDocument } from "@t3tools/contracts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import * as RelayTracing from "@t3tools/shared/relayTracing";
+import type { ManagedPolicyDocument } from "@s1tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import * as RelayTracing from "@s1tools/shared/relayTracing";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -14,14 +14,14 @@ const tracesTo = (policy?: ManagedPolicyDocument) =>
   Effect.service(RelayTracing.RelayClientTracer).pipe(
     Effect.provide(
       relayLayer(
-        { serviceName: "t3code-server", runtime: "node", client: "environment-server" },
+        { serviceName: "s1code-server", runtime: "node", client: "environment-server" },
         { tracesUrl: "https://traces.example.com", tracesDataset: "relay", tracesToken: "token" },
       ).pipe(Layer.provide(ManagedPolicy.layerTest(policy)), Layer.provide(FetchHttpClient.layer)),
     ),
     Effect.map(Option.isSome),
   );
 
-it.effect("a policy with telemetry off stops relay tracing to T3 Connect", () =>
+it.effect("a policy with telemetry off stops relay tracing to S1 Connect", () =>
   Effect.gen(function* () {
     assert.isTrue(yield* tracesTo());
     assert.isFalse(
@@ -36,7 +36,7 @@ it.effect("a policy with telemetry off stops relay tracing to T3 Connect", () =>
 
 it.effect("relay tracing waits for the desktop shell's telemetry opt-out", () => {
   const fetchFn = vi.fn<typeof fetch>(async () => new Response(null, { status: 202 }));
-  const environment: NodeJS.ProcessEnv = { T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING: "1" };
+  const environment: NodeJS.ProcessEnv = { S1CODE_DESKTOP_SHELL_DISCOVERY_PENDING: "1" };
   return Effect.void.pipe(
     Effect.withSpan("relay.request"),
     RelayTracing.withRelayClientTracing,
@@ -44,14 +44,14 @@ it.effect("relay tracing waits for the desktop shell's telemetry opt-out", () =>
       Effect.sync(() => {
         assert.isFalse(allowedFor(environment, undefined));
         // What desktop shell discovery does once ~/.zshrc turns telemetry off.
-        environment.T3CODE_TELEMETRY_ENABLED = "false";
-        delete environment.T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING;
+        environment.S1CODE_TELEMETRY_ENABLED = "false";
+        delete environment.S1CODE_DESKTOP_SHELL_DISCOVERY_PENDING;
       }),
     ),
     Layer.effectDiscard,
     Layer.provide(
       relayLayer(
-        { serviceName: "t3code-server", runtime: "node", client: "environment-server" },
+        { serviceName: "s1code-server", runtime: "node", client: "environment-server" },
         { tracesUrl: "https://traces.example.com", tracesDataset: "relay", tracesToken: "token" },
       ),
     ),
@@ -67,12 +67,12 @@ it.effect("relay tracing waits for the desktop shell's telemetry opt-out", () =>
 
 it("reports the server's relay tracing policy to clients", () => {
   assert.isTrue(allowedFor({}, undefined));
-  assert.isFalse(allowedFor({ T3CODE_TELEMETRY_ENABLED: "false" }, undefined));
+  assert.isFalse(allowedFor({ S1CODE_TELEMETRY_ENABLED: "false" }, undefined));
   assert.isFalse(allowedFor({ CI: "true" }, undefined));
-  assert.isTrue(allowedFor({ CI: "true", T3CODE_TELEMETRY_ENABLED: "true" }, undefined));
+  assert.isTrue(allowedFor({ CI: "true", S1CODE_TELEMETRY_ENABLED: "true" }, undefined));
   assert.isFalse(
     allowedFor(
-      { T3CODE_TELEMETRY_ENABLED: "true" },
+      { S1CODE_TELEMETRY_ENABLED: "true" },
       { organization: "Example Corp", lockedSettings: [], limits: { telemetry: false } },
     ),
   );

@@ -1,11 +1,11 @@
-import type { DeviceHubAccess } from "@t3tools/client-runtime/device/hub-access";
-import type { PreviewStreamHostSetup } from "@t3tools/contracts";
+import type { DeviceHubAccess } from "@s1tools/client-runtime/device/hub-access";
+import type { PreviewStreamHostSetup } from "@s1tools/contracts";
 import type {
   PreviewStreamControl,
   PreviewStreamDownload,
   PreviewStreamFileChooser,
   PreviewStreamSelectMenu,
-} from "@t3tools/client-runtime/preview/server-browser-stream";
+} from "@s1tools/client-runtime/preview/server-browser-stream";
 
 export interface PreviewStreamConfiguration {
   readonly access: DeviceHubAccess;
@@ -55,7 +55,7 @@ export function previewStreamDocument(
   const safeScript = script.replace(/<\/script/gi, "<\\/script");
   const safeStoppedDetail = JSON.stringify(stoppedDetail).replace(/</g, "\\u003c");
   const failure = `window.ReactNativeWebView.postMessage(JSON.stringify({type:"status",status:"error",detail:${safeStoppedDetail}}));`;
-  // oxlint-disable-next-line t3code/no-untranslated-copy -- WebView document markup
+  // oxlint-disable-next-line s1code/no-untranslated-copy -- WebView document markup
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
   html, body { height: 100%; overflow: hidden; }

@@ -1,4 +1,4 @@
-import { ProjectId, SourceControlProviderKind } from "@t3tools/contracts";
+import { ProjectId, SourceControlProviderKind } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { pullRequestSyncKey } from "./pullRequestSyncKey.ts";

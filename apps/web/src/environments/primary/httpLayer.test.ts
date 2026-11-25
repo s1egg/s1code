@@ -1,4 +1,4 @@
-import type { DesktopBridge } from "@t3tools/contracts";
+import type { DesktopBridge } from "@s1tools/contracts";
 import { afterEach, describe, expect, it, vi } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -29,14 +29,14 @@ describe("primary environment HTTP layer", { concurrent: false }, () => {
       configurable: true,
       value: {
         location: {
-          href: "http://127.0.0.1:3773/settings",
-          origin: "http://127.0.0.1:3773",
+          href: "http://127.0.0.1:4773/settings",
+          origin: "http://127.0.0.1:4773",
         },
       },
     });
 
     return Effect.gen(function* () {
-      yield* HttpClient.get("http://127.0.0.1:3773/api/auth/session");
+      yield* HttpClient.get("http://127.0.0.1:4773/api/auth/session");
 
       const request = new Request(fetchMock.mock.calls[0]?.[0], fetchMock.mock.calls[0]?.[1]);
       expect(request.credentials).toBe("include");
@@ -52,12 +52,12 @@ describe("primary environment HTTP layer", { concurrent: false }, () => {
     Object.defineProperty(globalThis, "window", {
       configurable: true,
       value: {
-        location: { origin: "t3code://app" },
+        location: { origin: "s1code://app" },
         desktopBridge: {
           getLocalEnvironmentBootstrap: () => ({
             label: "Local environment",
-            httpBaseUrl: "http://127.0.0.1:3773",
-            wsBaseUrl: "ws://127.0.0.1:3773",
+            httpBaseUrl: "http://127.0.0.1:4773",
+            wsBaseUrl: "ws://127.0.0.1:4773",
             bootstrapToken: "desktop-bootstrap-token",
           }),
           getLocalEnvironmentBearerToken: () => {
@@ -70,7 +70,7 @@ describe("primary environment HTTP layer", { concurrent: false }, () => {
 
     return Effect.gen(function* () {
       const requestFiber = yield* HttpClient.get(
-        "http://127.0.0.1:3773/api/connect/link-state",
+        "http://127.0.0.1:4773/api/connect/link-state",
       ).pipe(Effect.forkChild);
       yield* Effect.promise(() => requested.promise);
       expect(fetchMock).not.toHaveBeenCalled();

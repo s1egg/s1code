@@ -1,6 +1,6 @@
 import { RegistryContext } from "@effect/atom-react";
-import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
-import { PullRequestOperationError, type PullRequestDiffResult } from "@t3tools/contracts";
+import { sourceControlClients } from "@s1tools/client-runtime/source-control-clients";
+import { PullRequestOperationError, type PullRequestDiffResult } from "@s1tools/contracts";
 import * as Effect from "effect/Effect";
 import { Atom, AtomRegistry } from "effect/reactivity";
 import { act, useLayoutEffect, useState } from "react";

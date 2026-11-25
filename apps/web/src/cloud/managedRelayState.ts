@@ -7,19 +7,19 @@ import {
   managedRelaySessionAtom,
   readManagedRelaySnapshotState,
   unlinkManagedRelayT3Chat,
-} from "@t3tools/client-runtime/relay";
+} from "@s1tools/client-runtime/relay";
 import {
   createAtomCommandScheduler,
   createRuntimeCommand,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@s1tools/client-runtime/state/runtime";
 import {
   DEFAULT_MANAGED_TUNNEL_LIMIT,
   T3CHAT_PLAN_TUNNEL_LIMITS,
   type RelayClientDeviceRecord,
   type RelayClientEnvironmentRecord,
   type RelayT3ChatLinkResponse,
-} from "@t3tools/contracts/relay";
-import type { EnvironmentId } from "@t3tools/contracts";
+} from "@s1tools/contracts/relay";
+import type { EnvironmentId } from "@s1tools/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -147,10 +147,10 @@ export function useManagedRelayDevices() {
   };
 }
 
-/** How this account can raise its tunnel cap: link T3 Chat, or upgrade the linked plan. */
+/** How this account can raise its tunnel cap: link S1 Chat, or upgrade the linked plan. */
 export type ManagedTunnelUpgrade = "link" | "pro" | "premier" | null;
 
-// Mirrors the relay's cap: a manual override is exact, otherwise the T3 Chat plan raises the default.
+// Mirrors the relay's cap: a manual override is exact, otherwise the S1 Chat plan raises the default.
 function managedTunnelCap(t3Chat: RelayT3ChatLinkResponse): {
   readonly limit: number;
   readonly upgrade: ManagedTunnelUpgrade;
@@ -171,7 +171,7 @@ function managedTunnelCap(t3Chat: RelayT3ChatLinkResponse): {
   }
 }
 
-/** Refetches the account's environments and T3 Chat plan after a tunnel changes. */
+/** Refetches the account's environments and S1 Chat plan after a tunnel changes. */
 export function refreshManagedTunnelUsage() {
   const accountId = appAtomRegistry.get(managedRelaySessionAtom)?.accountId;
   if (!accountId) return;

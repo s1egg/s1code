@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@s1tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Option from "effect/Option";
 
@@ -56,7 +56,7 @@ function supervisorState(overrides: Partial<SupervisorConnectionState>): Supervi
 }
 
 describe("connection presentation", () => {
-  it("copies the T3 Connect MCP address first, then the route this device is connected over", () => {
+  it("copies the S1 Connect MCP address first, then the route this device is connected over", () => {
     const route = (connectionId: string, httpBaseUrl: string): ConnectionRoute => {
       const target = new BearerConnectionTarget({ ...TARGET, connectionId });
       return {
@@ -72,8 +72,8 @@ describe("connection presentation", () => {
         ),
       };
     };
-    const lan = route("lan", "http://192.168.4.53:3773/");
-    const tailnet = route("tailnet", "http://100.115.1.44:3773/");
+    const lan = route("lan", "http://192.168.4.53:4773/");
+    const tailnet = route("tailnet", "http://100.115.1.44:4773/");
     const serve = route("serve", "https://machine.tailnet.ts.net/");
     const entry: ConnectionCatalogEntry = {
       ...ENTRY,
@@ -83,9 +83,9 @@ describe("connection presentation", () => {
     };
 
     expect(environmentMcpUrl({ entry, connectedTarget: tailnet.target })).toBe(
-      "http://100.115.1.44:3773/mcp",
+      "http://100.115.1.44:4773/mcp",
     );
-    expect(environmentMcpUrl({ entry })).toBe("http://192.168.4.53:3773/mcp");
+    expect(environmentMcpUrl({ entry })).toBe("http://192.168.4.53:4773/mcp");
     expect(
       environmentMcpUrl({
         entry,

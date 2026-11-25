@@ -6,7 +6,7 @@ import {
   selectRunningSubprocessTerminalIds,
   type KnownTerminalSession,
   type TerminalSessionState,
-} from "@t3tools/client-runtime/state/terminal";
+} from "@s1tools/client-runtime/state/terminal";
 import {
   EnvironmentId,
   ThreadId,
@@ -14,7 +14,7 @@ import {
   AuthTerminalOperateScope,
   TerminalAttachInput,
   type TerminalSummary,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";

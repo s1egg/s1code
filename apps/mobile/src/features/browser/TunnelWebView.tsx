@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@s1tools/contracts";
 import { requireNativeModule, requireNativeView } from "expo";
 import { useRef, type Ref } from "react";
 import {
@@ -84,7 +84,7 @@ export function TunnelWebView({
     readonly debug?: string;
     /**
      * Whether the environment itself was out of reach (`environment`), answered that nothing
-     * listens on the port (`port`), or runs a T3 Code server without the tunnel (`outdated`).
+     * listens on the port (`port`), or runs a S1 Code server without the tunnel (`outdated`).
      */
     readonly cause?: TunnelFailureCause;
   }) => void;

@@ -2,8 +2,8 @@ import {
   parseScopedThreadKey,
   scopedThreadKey,
   scopeThreadRef,
-} from "@t3tools/client-runtime/environment";
-import { EnvironmentId, RunId, ThreadId, type ScopedThreadRef } from "@t3tools/contracts";
+} from "@s1tools/client-runtime/environment";
+import { EnvironmentId, RunId, ThreadId, type ScopedThreadRef } from "@s1tools/contracts";
 import { msg } from "gt-react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -11,7 +11,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { useClosedViewStore } from "./closedViewStore";
 import { m } from "./i18n/messages";
 import { resolveStorage } from "./lib/storage";
-import type { LinkedThreadTarget } from "@t3tools/client-runtime/linked-thread";
+import type { LinkedThreadTarget } from "@s1tools/client-runtime/linked-thread";
 import {
   decodeLinkedThreadSurface,
   linkedThreadSurface,
@@ -129,7 +129,7 @@ export function decodeThreadSurface(surface: object): ThreadSurface | null {
   return threadId === "" ? null : threadSurface(ThreadId.make(threadId));
 }
 
-const RIGHT_PANEL_STORAGE_KEY = "t3code:right-panel-state:v2";
+const RIGHT_PANEL_STORAGE_KEY = "s1code:right-panel-state:v2";
 const RIGHT_PANEL_STORAGE_VERSION = 16;
 
 export const PULL_REQUESTS_PANEL_REF = scopeThreadRef(

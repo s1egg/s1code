@@ -1,10 +1,10 @@
 import { assert, describe, expect, it } from "vite-plus/test";
-import type { ResolvedKeybindingsConfig } from "@t3tools/contracts";
+import type { ResolvedKeybindingsConfig } from "@s1tools/contracts";
 import {
   compileResolvedKeybindingsConfig,
   mergeWithDefaultKeybindings,
   parseKeybindingShortcut,
-} from "@t3tools/shared/keybindings";
+} from "@s1tools/shared/keybindings";
 
 import { resolveShortcutCommand } from "../../keybindings";
 

@@ -1,5 +1,5 @@
 import { makeAggregateState } from "./agentActivityAggregate.ts";
-import type { RelayAgentActivityState, RelayDeliveryResult } from "@t3tools/contracts/relay";
+import type { RelayAgentActivityState, RelayDeliveryResult } from "@s1tools/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -415,12 +415,12 @@ describe("AgentActivityPublisher", () => {
             teamId: "team-id",
             keyId: "key-id",
             privateKey: Redacted.make("unused-key"),
-            bundleId: "com.t3tools.t3code.dev",
+            bundleId: "com.s1tools.s1code.dev",
           },
           apnsDeliveryJobSigningSecret: Redacted.make("job-signing-secret"),
           clerkSecretKey: Redacted.make("clerk-secret"),
           clerkPublishableKey: "pk_test_test",
-          clerkJwtAudience: "t3-code-relay",
+          clerkJwtAudience: "s1-code-relay",
           cloudMintPrivateKey: Redacted.make("cloud-private-key"),
           cloudMintPublicKey: "cloud-public-key",
           managedEndpointBaseDomain: undefined,

@@ -4,8 +4,8 @@ import * as EffectNodeCrypto from "@effect/platform-node/NodeCrypto";
 import type {
   RelayEnvironmentLinkProofPayload,
   RelayEnvironmentLinkRequest,
-} from "@t3tools/contracts/relay";
-import { RELAY_LINK_PROOF_TYP } from "@t3tools/shared/relayJwt";
+} from "@s1tools/contracts/relay";
+import { RELAY_LINK_PROOF_TYP } from "@s1tools/shared/relayJwt";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -39,12 +39,12 @@ const config = RelayConfiguration.RelayConfiguration.of({
     teamId: "team-id",
     keyId: "key-id",
     privateKey: Redacted.make("private-key"),
-    bundleId: "com.t3tools.t3code.dev",
+    bundleId: "com.s1tools.s1code.dev",
   },
   apnsDeliveryJobSigningSecret: Redacted.make("job-secret"),
   clerkSecretKey: Redacted.make("clerk-secret"),
   clerkPublishableKey: "pk_test_test",
-  clerkJwtAudience: "t3-code-relay",
+  clerkJwtAudience: "s1-code-relay",
   cloudMintPrivateKey: Redacted.make(relayKeyPair.privateKey),
   cloudMintPublicKey: relayKeyPair.publicKey,
   managedEndpointBaseDomain: undefined,
@@ -75,7 +75,7 @@ const makeRequest = Effect.gen(function* () {
     expiresAtEpochSeconds: Math.floor(expiresAt.epochMilliseconds / 1_000),
   });
   const payload = {
-    iss: "t3-env:env-link-test",
+    iss: "s1-env:env-link-test",
     aud: "https://relay.example.test",
     sub: "env-link-test",
     jti: "link-proof-jti",
@@ -96,7 +96,7 @@ const makeRequest = Effect.gen(function* () {
       wsBaseUrl: "wss://env.example.test/",
       providerKind: "manual",
     },
-    origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
+    origin: { localHttpHost: "127.0.0.1", localHttpPort: 4773 },
     scopes: ["agent_activity_notifications", "managed_tunnels"],
   } satisfies RelayEnvironmentLinkProofPayload;
   return {
@@ -206,7 +206,7 @@ describe("EnvironmentLinker", () => {
         expiresAtEpochSeconds: Math.floor(expiresAt.epochMilliseconds / 1_000),
       });
       const payload = {
-        iss: "t3-env:env-link-test",
+        iss: "s1-env:env-link-test",
         aud: "https://relay.example.test",
         sub: "env-link-test",
         jti: "publish-only-proof-jti",
@@ -223,11 +223,11 @@ describe("EnvironmentLinker", () => {
         },
         environmentPublicKey: environmentKeyPair.publicKey.trim(),
         endpoint: {
-          httpBaseUrl: "http://127.0.0.1:3773/",
-          wsBaseUrl: "ws://127.0.0.1:3773/",
+          httpBaseUrl: "http://127.0.0.1:4773/",
+          wsBaseUrl: "ws://127.0.0.1:4773/",
           providerKind: "manual",
         },
-        origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
+        origin: { localHttpHost: "127.0.0.1", localHttpPort: 4773 },
         scopes: ["agent_activity_notifications"],
       } satisfies RelayEnvironmentLinkProofPayload;
       const request = {
@@ -240,7 +240,7 @@ describe("EnvironmentLinker", () => {
       const result = yield* linker.link({ userId: "user_123", request });
       expect(result.environmentCredential).toBe("t3env_credential_secret");
       expect(result.endpointRuntime).toBeNull();
-      expect(persistedEndpoint).toBe("http://127.0.0.1:3773/");
+      expect(persistedEndpoint).toBe("http://127.0.0.1:4773/");
       expect(deprovisionedEnvironmentId).toBe("env-link-test");
     }).pipe(
       Effect.provide(

@@ -12,7 +12,7 @@ import {
   type AuthSessionState,
   type PullRequestListInput,
   type PullRequestListEntry,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Schema from "effect/Schema";
 import * as Deferred from "effect/Deferred";
@@ -553,8 +553,8 @@ const makeTestRuntime = Effect.fn("makeTestRuntime")(function* (
   const localTarget = new PrimaryConnectionTarget({
     environmentId: EnvironmentId.make("local-environment"),
     label: "Local environment",
-    httpBaseUrl: "http://localhost:3773",
-    wsBaseUrl: "ws://localhost:3773",
+    httpBaseUrl: "http://localhost:4773",
+    wsBaseUrl: "ws://localhost:4773",
   });
   const localSupervisor = {
     ...supervisor,

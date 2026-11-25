@@ -1,4 +1,4 @@
-import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
+import { sourceControlClients } from "@s1tools/client-runtime/source-control-clients";
 import { changeRequestTermKind } from "../../lib/changeRequestTerm";
 import { useGT, useMessages } from "gt-react-native";
 import { memo } from "react";
@@ -46,7 +46,7 @@ export function ListRowLabel(props: {
       {color ? (
         <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: color }} />
       ) : null}
-      <Text className={cn("shrink text-2xs font-t3-medium", props.textClassName)} numberOfLines={1}>
+      <Text className={cn("shrink text-2xs font-s1-medium", props.textClassName)} numberOfLines={1}>
         {props.label.name}
       </Text>
     </View>
@@ -213,7 +213,7 @@ export const PullRequestListRow = memo(
                 </Text>
               </View>
               <Text
-                className={cn("text-base leading-5 font-t3-medium", foreground)}
+                className={cn("text-base leading-5 font-s1-medium", foreground)}
                 numberOfLines={2}
                 ellipsizeMode="tail"
               >

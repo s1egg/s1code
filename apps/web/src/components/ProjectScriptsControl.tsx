@@ -1,19 +1,19 @@
 import { m } from "../i18n/messages";
-import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
+import { thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import { ThreadDetailsControl } from "./chat/ThreadDetailsControl";
 import {
   AuthSettingsWriteScope,
   type EnvironmentId,
   type ProjectScript,
   type T3ProjectFileScript,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
-import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
+import { DEFAULT_RESOLVED_KEYBINDINGS } from "@s1tools/shared/keybindings";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
-import { projectScriptMenuLabel } from "@t3tools/shared/projectScriptsCopy";
+} from "@s1tools/client-runtime/state/runtime";
+import { projectScriptMenuLabel } from "@s1tools/shared/projectScriptsCopy";
 import { ChevronDownIcon, DownloadIcon, PlusIcon, SettingsIcon, WrenchIcon } from "lucide-react";
 import React, { useState } from "react";
 import { T, useGT, useMessages, Var } from "gt-react";
@@ -185,7 +185,7 @@ export default function ProjectScriptsControl({
       <MenuGroup>
         <MenuGroupLabel>
           <T>
-            From <Var>t3.json</Var>
+            From <Var>s1.json</Var>
           </T>
         </MenuGroupLabel>
         {importableScripts.map((fileScript) => (
@@ -199,7 +199,7 @@ export default function ProjectScriptsControl({
             <MenuShortcut>
               <DownloadIcon
                 className="size-3.5"
-                aria-label={gt("Import", { $context: "verb, import an action from t3.json" })}
+                aria-label={gt("Import", { $context: "verb, import an action from s1.json" })}
               />
             </MenuShortcut>
           </MenuItem>

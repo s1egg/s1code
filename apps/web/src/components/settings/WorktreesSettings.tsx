@@ -1,4 +1,4 @@
-import { DEFAULT_UNIFIED_SETTINGS } from "@t3tools/contracts/settings";
+import { DEFAULT_UNIFIED_SETTINGS } from "@s1tools/contracts/settings";
 import { useGT } from "gt-react";
 
 import { AdvancedSettings } from "./AdvancedSettings";

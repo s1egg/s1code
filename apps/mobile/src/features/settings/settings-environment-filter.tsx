@@ -1,5 +1,5 @@
-import type { EnvironmentId } from "@t3tools/contracts";
-import { buildProjectGroups } from "@t3tools/client-runtime/state/project-grouping";
+import type { EnvironmentId } from "@s1tools/contracts";
+import { buildProjectGroups } from "@s1tools/client-runtime/state/project-grouping";
 import { useLocale, useMessages } from "gt-react-native";
 import {
   createContext,

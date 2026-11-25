@@ -5,10 +5,10 @@ import {
   buildMenuItems,
   getGitActionDisabledReason,
   requiresDefaultBranchConfirmation,
-} from "@t3tools/client-runtime/state/vcs";
-import type { ThreadRepositorySection } from "@t3tools/client-runtime/state/thread-repositories";
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
+} from "@s1tools/client-runtime/state/vcs";
+import type { ThreadRepositorySection } from "@s1tools/client-runtime/state/thread-repositories";
+import { EnvironmentId, ThreadId } from "@s1tools/contracts";
+import { sourceControlClients } from "@s1tools/client-runtime/source-control-clients";
 import { changeRequestTermKind } from "../../../lib/changeRequestTerm";
 import {
   CommonActions,
@@ -68,7 +68,7 @@ export function GitOverviewSheet(props: GitOverviewSheetProps) {
   const navigation = useNavigation();
   const { environmentId, threadId } = props.route.params;
   const isBlankLink = environmentId.trim().length === 0 || threadId.trim().length === 0;
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pops the navigator when the route link names a blank environment or thread
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- pops the navigator when the route link names a blank environment or thread
   useEffect(() => {
     if (isBlankLink) navigation.goBack();
   }, [isBlankLink, navigation]);

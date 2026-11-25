@@ -36,7 +36,7 @@ it.each([
     undefined,
   ],
 ])("%s", (_name, system, expected) => {
-  const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-oomd-"));
+  const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-oomd-"));
   try {
     const calls = NodePath.join(root, "calls");
     NodeFS.writeFileSync(

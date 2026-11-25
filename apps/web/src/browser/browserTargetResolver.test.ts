@@ -1,5 +1,5 @@
-import { EnvironmentId } from "@t3tools/contracts";
-import { isPrivateNetworkHost, isPublicFaviconHost } from "@t3tools/shared/hostClassification";
+import { EnvironmentId } from "@s1tools/contracts";
+import { isPrivateNetworkHost, isPublicFaviconHost } from "@s1tools/shared/hostClassification";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const readPreparedConnection = vi.fn();
@@ -20,7 +20,7 @@ describe("browser target resolver", () => {
   });
 
   it("normalizes schemeless localhost server-picker values", async () => {
-    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://localhost:3773" });
+    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://localhost:4773" });
     const { resolveDiscoveredServerUrl } = await import("./browserTargetResolver");
     expect(resolveDiscoveredServerUrl(EnvironmentId.make("environment-1"), "localhost:5173")).toBe(
       "http://localhost:5173/",
@@ -31,7 +31,7 @@ describe("browser target resolver", () => {
   });
 
   it("maps discovered loopback servers onto a remote environment host", async () => {
-    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://192.168.1.25:3773" });
+    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://192.168.1.25:4773" });
     const { resolveDiscoveredServerUrl } = await import("./browserTargetResolver");
     expect(
       resolveDiscoveredServerUrl(EnvironmentId.make("environment-1"), "localhost:3000/app"),
@@ -48,13 +48,13 @@ describe("browser target resolver", () => {
         { _tag: "BearerConnectionTarget", connectionId: "local:wsl:Ubuntu" },
         { _tag: "PrimaryConnectionTarget" },
       ]) {
-        readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://172.24.66.27:3773", target });
+        readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://172.24.66.27:4773", target });
         expect(
           resolveDiscoveredServerUrl(EnvironmentId.make("environment-1"), "localhost:3001/"),
         ).toBe("http://localhost:3001/");
       }
       readPreparedConnection.mockReturnValue({
-        httpBaseUrl: "http://192.168.1.25:3773",
+        httpBaseUrl: "http://192.168.1.25:4773",
         target: { _tag: "BearerConnectionTarget", connectionId: "saved:remote" },
       });
       // The webview's partition tunnels to the environment; the system browser has no tunnel.

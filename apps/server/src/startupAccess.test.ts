@@ -27,12 +27,12 @@ const ipv4 = (address: string, internal = false): NodeOS.NetworkInterfaceInfo =>
 });
 
 it("resolves wildcard hosts to a concrete external interface when one is available", () => {
-  const connectionString = resolveHeadlessConnectionString("0.0.0.0", 3773, {
+  const connectionString = resolveHeadlessConnectionString("0.0.0.0", 4773, {
     interfaces: { en0: [ipv4("192.168.1.42")], lo0: [ipv4("127.0.0.1", true)] },
     platform: "linux",
   });
 
-  expect(connectionString).toBe("http://192.168.1.42:3773");
+  expect(connectionString).toBe("http://192.168.1.42:4773");
 });
 
 it("skips public and container addresses for a private-network listener", () => {
@@ -43,48 +43,48 @@ it("skips public and container addresses for a private-network listener", () => 
     eth1: [ipv4("10.0.0.5")],
   };
 
-  expect(resolveHeadlessConnectionString("0.0.0.0", 3773, { interfaces, platform: "linux" })).toBe(
-    "http://203.0.113.7:3773",
+  expect(resolveHeadlessConnectionString("0.0.0.0", 4773, { interfaces, platform: "linux" })).toBe(
+    "http://203.0.113.7:4773",
   );
   expect(
-    resolveHeadlessConnectionString("0.0.0.0", 3773, {
+    resolveHeadlessConnectionString("0.0.0.0", 4773, {
       interfaces,
       privateNetworkOnly: true,
       platform: "linux",
     }),
-  ).toBe("http://10.0.0.5:3773");
+  ).toBe("http://10.0.0.5:4773");
   expect(
-    resolveHeadlessConnectionString("0.0.0.0", 3773, {
+    resolveHeadlessConnectionString("0.0.0.0", 4773, {
       interfaces: { eth0: [ipv4("203.0.113.7")] },
       privateNetworkOnly: true,
       platform: "linux",
     }),
-  ).toBe("http://127.0.0.1:3773");
+  ).toBe("http://127.0.0.1:4773");
 });
 
 it("names the bound loopback address instead of localhost", () => {
   const options = { interfaces: {}, platform: "linux" as const };
-  expect(resolveHeadlessConnectionString(undefined, 3773, options)).toBe("http://127.0.0.1:3773");
-  expect(resolveHeadlessConnectionString("::", 3773, options)).toBe("http://[::1]:3773");
-  expect(resolveLocalOrigin(undefined, 3773)).toBe("http://127.0.0.1:3773");
-  expect(resolveLocalOrigin("0.0.0.0", 3773)).toBe("http://127.0.0.1:3773");
-  expect(resolveLocalOrigin("[::]", 3773)).toBe("http://[::1]:3773");
-  expect(resolveLocalOrigin("192.168.1.42", 3773)).toBe("http://192.168.1.42:3773");
+  expect(resolveHeadlessConnectionString(undefined, 4773, options)).toBe("http://127.0.0.1:4773");
+  expect(resolveHeadlessConnectionString("::", 4773, options)).toBe("http://[::1]:4773");
+  expect(resolveLocalOrigin(undefined, 4773)).toBe("http://127.0.0.1:4773");
+  expect(resolveLocalOrigin("0.0.0.0", 4773)).toBe("http://127.0.0.1:4773");
+  expect(resolveLocalOrigin("[::]", 4773)).toBe("http://[::1]:4773");
+  expect(resolveLocalOrigin("192.168.1.42", 4773)).toBe("http://192.168.1.42:4773");
 });
 
 it("prefers a LAN address over a tailnet one for a private-network pairing URL", () => {
   expect(
-    resolveHeadlessConnectionString("0.0.0.0", 3773, {
+    resolveHeadlessConnectionString("0.0.0.0", 4773, {
       interfaces: { tailscale0: [ipv4("100.101.102.103")], en0: [ipv4("192.168.1.42")] },
       privateNetworkOnly: true,
       platform: "linux",
     }),
-  ).toBe("http://192.168.1.42:3773");
+  ).toBe("http://192.168.1.42:4773");
 });
 
 it("skips Windows VirtualBox and VMware host-only adapters for a private-network listener", () => {
   expect(
-    resolveHeadlessConnectionString("0.0.0.0", 3773, {
+    resolveHeadlessConnectionString("0.0.0.0", 4773, {
       interfaces: {
         "VirtualBox Host-Only Network": [{ ...ipv4("192.168.56.1"), mac: "0a:00:27:00:00:0a" }],
         "VMware Network Adapter VMnet8": [{ ...ipv4("192.168.159.1"), mac: "00:50:56:c0:00:08" }],
@@ -93,22 +93,22 @@ it("skips Windows VirtualBox and VMware host-only adapters for a private-network
       privateNetworkOnly: true,
       platform: "win32",
     }),
-  ).toBe("http://192.168.1.20:3773");
+  ).toBe("http://192.168.1.20:4773");
 });
 
 it("skips NixOS container and systemd-nspawn veths for a private-network pairing URL", () => {
   expect(
-    resolveHeadlessConnectionString("0.0.0.0", 3773, {
+    resolveHeadlessConnectionString("0.0.0.0", 4773, {
       interfaces: { "ve-jellyfin": [ipv4("192.168.53.193")], eth0: [ipv4("192.168.0.18")] },
       privateNetworkOnly: true,
       platform: "linux",
     }),
-  ).toBe("http://192.168.0.18:3773");
+  ).toBe("http://192.168.0.18:4773");
 });
 
 it("targets the bound interface when the listener binds a specific address", () => {
   const hostFor = (ip: string) =>
-    loopbackUrlHostForAddress(NetAddress.inetAddressFromIpStringUnsafe(ip, 3773));
+    loopbackUrlHostForAddress(NetAddress.inetAddressFromIpStringUnsafe(ip, 4773));
 
   expect(hostFor("0.0.0.0")).toBe("127.0.0.1");
   expect(hostFor("::")).toBe("127.0.0.1");

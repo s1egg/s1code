@@ -4,7 +4,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
-import * as NetService from "@t3tools/shared/Net";
+import * as NetService from "@s1tools/shared/Net";
 
 import * as DesktopBackendConfiguration from "../backend/DesktopBackendConfiguration.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
@@ -53,9 +53,9 @@ const primarySnapshot: DesktopBackendSnapshot = {
 const layerServerExposure = Layer.succeed(DesktopServerExposure.DesktopServerExposure, {
   getState: Effect.die("unexpected getState"),
   backendConfig: Effect.succeed({
-    port: 3773,
+    port: 4773,
     bindHost: "127.0.0.1",
-    httpBaseUrl: new URL("http://127.0.0.1:3773"),
+    httpBaseUrl: new URL("http://127.0.0.1:4773"),
     tailscaleServeEnabled: false,
     tailscaleServePort: 443,
   }),
@@ -149,7 +149,7 @@ describe("DesktopWslBackend", () => {
 
       yield* recordOwnershipFailure();
       const refusal = yield* backend.lastPreflightError;
-      assert.include(Option.getOrThrow(refusal), "Another T3 Code server");
+      assert.include(Option.getOrThrow(refusal), "Another S1 Code server");
       yield* backend.reconcile;
       assert.equal(startCount, 1);
       assert.deepEqual(yield* backend.lastPreflightError, refusal);

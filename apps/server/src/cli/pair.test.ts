@@ -6,9 +6,9 @@ import * as NodePath from "node:path";
 
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { AuthStandardClientScopes, ORCHESTRATION_PROTOCOL_VERSION } from "@t3tools/contracts";
-import * as NetService from "@t3tools/shared/Net";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import { AuthStandardClientScopes, ORCHESTRATION_PROTOCOL_VERSION } from "@s1tools/contracts";
+import * as NetService from "@s1tools/shared/Net";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import { assert, describe, expect, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as ConfigProvider from "effect/ConfigProvider";
@@ -46,35 +46,35 @@ import {
 } from "./pair.ts";
 
 import packageJson from "../../package.json" with { type: "json" };
-import { buildPairingAppLink } from "@t3tools/shared/remote";
+import { buildPairingAppLink } from "@s1tools/shared/remote";
 
 const layerCliRuntime = Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer);
 
 const baseState = {
   version: 1,
   pid: 123,
-  port: 3_773,
-  origin: "http://127.0.0.1:3773",
+  port: 4_773,
+  origin: "http://127.0.0.1:4773",
   startedAt: "2026-06-20T00:00:00.000Z",
 } as const satisfies PersistedServerRuntimeState;
 
 describe("pair tailscale local target", () => {
   it("proxies the dev web port for dev servers", () => {
-    expect(resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://localhost:5733/" })).toEqual(
-      { localPort: 5_733 },
+    expect(resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://localhost:4780/" })).toEqual(
+      { localPort: 4_780 },
     );
     // tailscale serve defaults to loopback, so non-loopback dev servers need an explicit target.
     expect(
-      resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://192.168.1.10:5733/" }),
-    ).toEqual({ localPort: 5_733, localHost: "192.168.1.10" });
+      resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://192.168.1.10:4780/" }),
+    ).toEqual({ localPort: 4_780, localHost: "192.168.1.10" });
     expect(
-      resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://[fd7a:115c::1]:5733/" }),
-    ).toEqual({ localPort: 5_733, localHost: "[fd7a:115c::1]" });
+      resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://[fd7a:115c::1]:4780/" }),
+    ).toEqual({ localPort: 4_780, localHost: "[fd7a:115c::1]" });
   });
 
   it("rejects HTTPS dev URLs, which tailscale serve cannot proxy", () => {
     expect(
-      resolveTailscaleLocalTarget({ ...baseState, devUrl: "https://localhost:5733/" }),
+      resolveTailscaleLocalTarget({ ...baseState, devUrl: "https://localhost:4780/" }),
     ).toBeInstanceOf(DevServerNotProxiableError);
   });
 });
@@ -113,7 +113,7 @@ const withDescriptorServer = <A, E, R>(
   Effect.acquireUseRelease(
     Effect.callback<NodeHttp.Server>((resume) => {
       const server = NodeHttp.createServer((request, response) => {
-        if (request.url === "/.well-known/t3/environment") {
+        if (request.url === "/.well-known/s1/environment") {
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify(descriptor));
           return;
@@ -133,7 +133,7 @@ const withDescriptorServer = <A, E, R>(
     (server) => Effect.sync(() => server.close()),
   );
 
-describe("t3 pair", () => {
+describe("s1 pair", () => {
   it.effect("publishes an IPv6-only server through Tailscale Serve when pairing", () =>
     withDescriptorServer(
       (origin) =>
@@ -147,7 +147,7 @@ describe("t3 pair", () => {
               if (command.args[0] === "serve" && command.args[1] === "--bg") {
                 const target = String(command.args.at(-1));
                 const descriptor = yield* Effect.promise(async () =>
-                  (await fetch(new URL("/.well-known/t3/environment", target))).json(),
+                  (await fetch(new URL("/.well-known/s1/environment", target))).json(),
                 );
                 expect(descriptor).toEqual(testDescriptor);
                 serving = true;
@@ -170,7 +170,7 @@ describe("t3 pair", () => {
             }),
           );
 
-          const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-ipv6-test-"));
+          const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-ipv6-test-"));
           yield* persistServerRuntimeState({
             path: NodePath.join(baseDir, "userdata", "server-runtime.json"),
             state: yield* makePersistedServerRuntimeState({
@@ -186,7 +186,7 @@ describe("t3 pair", () => {
                 if (String(input).startsWith(origin)) return fetch(input, init);
                 assert.equal(
                   String(input),
-                  "https://pair-test.tail.ts.net/.well-known/t3/environment",
+                  "https://pair-test.tail.ts.net/.well-known/s1/environment",
                 );
                 return serving
                   ? Response.json(testDescriptor)
@@ -251,7 +251,7 @@ describe("t3 pair", () => {
               );
             });
 
-            const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-ts-held-"));
+            const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-ts-held-"));
             yield* persistServerRuntimeState({
               path: NodePath.join(baseDir, "userdata", "server-runtime.json"),
               state: yield* makePersistedServerRuntimeState({
@@ -286,7 +286,7 @@ describe("t3 pair", () => {
   it.effect("mints a token and prints a QR pairing URL for a live server", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {
-        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-test-"));
+        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-test-"));
         const port = Number(new URL(origin).port);
         const statePath = NodePath.join(baseDir, "userdata", "server-runtime.json");
         yield* persistServerRuntimeState({
@@ -316,7 +316,7 @@ describe("t3 pair", () => {
           readonly scopes: ReadonlyArray<string>;
         }>;
         assert.equal(credentials.length, 1);
-        assert.equal(credentials[0]?.label, "t3 pair");
+        assert.equal(credentials[0]?.label, "s1 pair");
         assert.deepEqual(credentials[0]?.scopes, AuthStandardClientScopes);
       }),
     ).pipe(
@@ -340,20 +340,20 @@ describe("t3 pair", () => {
   it.effect("pairs through the recorded dev web URL for dev servers", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {
-        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-dev-test-"));
+        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-dev-test-"));
         const port = Number(new URL(origin).port);
         const statePath = NodePath.join(baseDir, "dev", "server-runtime.json");
         yield* persistServerRuntimeState({
           path: statePath,
           state: yield* makePersistedServerRuntimeState({
-            config: { host: undefined, devUrl: new URL("http://localhost:5733") },
+            config: { host: undefined, devUrl: new URL("http://localhost:4780") },
             port,
           }),
         });
 
         const output = yield* captureStdout(runCli(["pair", "--base-dir", baseDir]));
 
-        assert.include(output, "Pairing URL: http://localhost:5733/pair#token=");
+        assert.include(output, "Pairing URL: http://localhost:4780/pair#token=");
       }),
     ).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
@@ -361,7 +361,7 @@ describe("t3 pair", () => {
   it.effect("refuses --tailscale before turning on Serve when the policy keeps clients local", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {
-        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-policy-test-"));
+        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-policy-test-"));
         const policyPath = NodePath.join(baseDir, "policy.json");
         NodeFS.writeFileSync(
           policyPath,
@@ -387,7 +387,7 @@ describe("t3 pair", () => {
             ),
             Effect.provide(
               ConfigProvider.layer(
-                ConfigProvider.fromEnv({ env: { T3CODE_DEV_MANAGED_POLICY_PATH: policyPath } }),
+                ConfigProvider.fromEnv({ env: { S1CODE_DEV_MANAGED_POLICY_PATH: policyPath } }),
               ),
             ),
             Effect.flip,
@@ -405,7 +405,7 @@ describe("t3 pair", () => {
   it.effect("ignores runtime state whose recorded pid is no longer alive", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {
-        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3 pair pid test-"));
+        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1 pair pid test-"));
         const statePath = NodePath.join(baseDir, "userdata", "server-runtime.json");
         const state = yield* makePersistedServerRuntimeState({
           config: { host: "127.0.0.1", devUrl: undefined },
@@ -423,7 +423,7 @@ describe("t3 pair", () => {
         const rendered = String(
           typeof error === "object" && error !== null && "cause" in error ? error.cause : error,
         );
-        assert.include(rendered, "No running T3 Code server found.");
+        assert.include(rendered, "No running S1 Code server found.");
         for (const subcommand of ["serve", "connect"]) {
           const { command } = yield* resolveHostCliCommand(subcommand, ["--base-dir", baseDir]);
           assert.include(rendered, `\`${command}\``);
@@ -437,7 +437,7 @@ describe("t3 pair", () => {
   it.effect("does not fall back to the shared home from a linked worktree", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {
-        const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-worktree-test-"));
+        const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-worktree-test-"));
         const worktree = NodePath.join(root, "worktree");
         NodeFS.mkdirSync(worktree);
         NodeFS.writeFileSync(
@@ -457,13 +457,13 @@ describe("t3 pair", () => {
           runCli(["pair"]).pipe(
             Effect.provideService(HostProcess.WorkingDirectory, worktree),
             Effect.provide(
-              ConfigProvider.layer(ConfigProvider.fromEnv({ env: { T3CODE_HOME: sharedHome } })),
+              ConfigProvider.layer(ConfigProvider.fromEnv({ env: { S1CODE_HOME: sharedHome } })),
             ),
             Effect.flip,
           ),
         );
 
-        assert.include(String(error), "No running T3 Code server found.");
+        assert.include(String(error), "No running S1 Code server found.");
         assert.notInclude(String(error), sharedHome);
         assert.deepEqual(NodeFS.readdirSync(NodePath.join(sharedHome, "userdata")), [
           "server-runtime.json",
@@ -479,7 +479,7 @@ describe("t3 pair", () => {
       (origin) =>
         Effect.gen(function* () {
           const baseDir = NodeFS.mkdtempSync(
-            NodePath.join(NodeOS.tmpdir(), "t3-pair-protocol-test-"),
+            NodePath.join(NodeOS.tmpdir(), "s1-pair-protocol-test-"),
           );
           yield* persistServerRuntimeState({
             path: NodePath.join(baseDir, "userdata", "server-runtime.json"),
@@ -500,7 +500,7 @@ describe("t3 pair", () => {
           if (Exit.isFailure(exit)) {
             assert.include(
               String(Cause.squash(exit.cause)),
-              `t3@0.0.45 pair --base-dir ${baseDir}`,
+              `s1@0.0.45 pair --base-dir ${baseDir}`,
             );
           }
         }),
@@ -514,7 +514,7 @@ describe("t3 pair", () => {
   it.effect("explains a tailnet without HTTPS serve instead of running tailscale serve", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {
-        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-ts-test-"));
+        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-ts-test-"));
         yield* persistServerRuntimeState({
           path: NodePath.join(baseDir, "userdata", "server-runtime.json"),
           state: yield* makePersistedServerRuntimeState({
@@ -565,12 +565,12 @@ describe("t3 pair", () => {
   // localhost, 127.0.0.1 and ::1, so a specific bind needs an explanation.
   it.effect("names the bind address when Tailscale refuses it as a Serve target", () =>
     Effect.gen(function* () {
-      const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-remote-"));
+      const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-remote-"));
       yield* persistServerRuntimeState({
         path: NodePath.join(baseDir, "userdata", "server-runtime.json"),
         state: yield* makePersistedServerRuntimeState({
           config: { host: "127.0.0.2", devUrl: undefined },
-          port: 3773,
+          port: 4773,
         }),
       });
       const spawner = ChildProcessSpawner.make((command) => {
@@ -612,10 +612,10 @@ describe("t3 pair", () => {
           Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
           Effect.provideService(HostProcess.Platform, "darwin"),
           Effect.provideService(FetchHttpClient.Fetch, async (input) => {
-            if (String(input) === "http://127.0.0.2:3773/.well-known/t3/environment") {
+            if (String(input) === "http://127.0.0.2:4773/.well-known/s1/environment") {
               return Response.json(testDescriptor);
             }
-            assert.equal(String(input), "https://pair-test.tail.ts.net/.well-known/t3/environment");
+            assert.equal(String(input), "https://pair-test.tail.ts.net/.well-known/s1/environment");
             return new Response(null, { status: 503 });
           }),
           Effect.flip,
@@ -631,12 +631,12 @@ describe("t3 pair", () => {
   // from a normal user, and the CLI must say how to fix it.
   it.effect("explains the operator fix when Tailscale denies the Serve config", () =>
     Effect.gen(function* () {
-      const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-remote-"));
+      const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-pair-remote-"));
       yield* persistServerRuntimeState({
         path: NodePath.join(baseDir, "userdata", "server-runtime.json"),
         state: yield* makePersistedServerRuntimeState({
           config: { host: "127.0.0.1", devUrl: undefined },
-          port: 3773,
+          port: 4773,
         }),
       });
       const spawner = ChildProcessSpawner.make((command) => {
@@ -662,7 +662,7 @@ describe("t3 pair", () => {
             stderr: Stream.make(
               new TextEncoder().encode(
                 serve
-                  ? "sending serve config: Access denied: serve config denied\n\nUse 'sudo tailscale serve --https=443 --bg http://127.0.0.1:3773'.\nTo not require root, use 'sudo tailscale set --operator=$USER' once.\n"
+                  ? "sending serve config: Access denied: serve config denied\n\nUse 'sudo tailscale serve --https=443 --bg http://127.0.0.1:4773'.\nTo not require root, use 'sudo tailscale set --operator=$USER' once.\n"
                   : "",
               ),
             ),
@@ -678,10 +678,10 @@ describe("t3 pair", () => {
           Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
           Effect.provideService(HostProcess.Platform, "linux"),
           Effect.provideService(FetchHttpClient.Fetch, async (input) => {
-            if (String(input) === "http://127.0.0.1:3773/.well-known/t3/environment") {
+            if (String(input) === "http://127.0.0.1:4773/.well-known/s1/environment") {
               return Response.json(testDescriptor);
             }
-            assert.equal(String(input), "https://pair-test.tail.ts.net/.well-known/t3/environment");
+            assert.equal(String(input), "https://pair-test.tail.ts.net/.well-known/s1/environment");
             return new Response(null, { status: 503 });
           }),
           Effect.flip,
@@ -742,7 +742,7 @@ describe("auth session revoke", () => {
   ] as const)("$label", ({ recorded, lockHeld, server, outcome }) =>
     provideCliTestLayers(
       Effect.gen(function* () {
-        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-cli-revoke-test-"));
+        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-cli-revoke-test-"));
         const statePath = NodePath.join(baseDir, "userdata", "server-runtime.json");
         const issued = JSON.parse(
           yield* captureStdout(
@@ -845,7 +845,7 @@ describe("auth scope options", () => {
     ({ group, action }) =>
       Effect.gen(function* () {
         const baseDir = NodeFS.mkdtempSync(
-          NodePath.join(NodeOS.tmpdir(), "t3-cli-auth-scopes-test-"),
+          NodePath.join(NodeOS.tmpdir(), "s1-cli-auth-scopes-test-"),
         );
         const output = yield* captureStdout(
           runCli([
@@ -895,7 +895,7 @@ describe("auth scope options", () => {
       if (!CliError.isCliError(error) || error._tag !== "ShowHelp") {
         assert.fail(`Expected ShowHelp, got ${String(error)}`);
       }
-      assert.deepEqual(error.commandPath, ["t3", ...command]);
+      assert.deepEqual(error.commandPath, ["s1", ...command]);
       const scopeError = error.errors[0];
       if (scopeError?._tag !== "InvalidValue") {
         assert.fail(`Expected InvalidValue, got ${String(scopeError?._tag)}`);
@@ -907,11 +907,11 @@ describe("auth scope options", () => {
 });
 
 describe("auth pairing create --base-url", () => {
-  it.effect.each(["192.168.1.5:3773", "localhost:3773", "ftp://localhost:3773"])(
+  it.effect.each(["192.168.1.5:4773", "localhost:4773", "ftp://localhost:4773"])(
     "rejects %s before issuing a token",
     (baseUrl) =>
       Effect.gen(function* () {
-        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-cli-base-url-test-"));
+        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-cli-base-url-test-"));
         const error = yield* runCli([
           "auth",
           "pairing",
@@ -939,11 +939,11 @@ describe("auth pairing create --base-url", () => {
       }),
   );
 
-  it.effect.each(["http://192.168.1.5:3773", "https://example.com", "http:localhost:3773"])(
+  it.effect.each(["http://192.168.1.5:4773", "https://example.com", "http:localhost:4773"])(
     "prints a pair URL for %s",
     (baseUrl) =>
       Effect.gen(function* () {
-        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-cli-base-url-test-"));
+        const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-cli-base-url-test-"));
         const output = yield* captureStdout(
           runCli([
             "auth",
@@ -975,7 +975,7 @@ describe("scripted auth output", () => {
     ].map((command) => ({ command, label: command.join(" ") })),
   )("prints only the result for $label after removing an abandoned upload", ({ command }) =>
     Effect.gen(function* () {
-      const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-cli-quiet-test-"));
+      const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-cli-quiet-test-"));
       const attachmentsDir = NodePath.join(baseDir, "userdata", "attachments");
       NodeFS.mkdirSync(attachmentsDir, { recursive: true });
       // An abandoned upload makes config resolution log that it removed it.

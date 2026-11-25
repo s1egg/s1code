@@ -11,7 +11,7 @@ import * as Path from "effect/Path";
 import * as PlatformError from "effect/PlatformError";
 import * as References from "effect/References";
 
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import { CLOUD_LINKED_USER_ID } from "../cloud/config.ts";
 import * as ServerConfig from "../config.ts";
@@ -83,7 +83,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("telemetry identi
         ),
         { distinctId: installId, installId },
       );
-    }).pipe(Effect.provide(layerIdentity("t3-telemetry-identify-install-"))),
+    }).pipe(Effect.provide(layerIdentity("s1-telemetry-identify-install-"))),
   );
 
   it.effect("leaves no torn anonymous id behind when its write fails midway", () =>
@@ -120,7 +120,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("telemetry identi
 
       assert.deepEqual(identity, { distinctId: null, installId: null });
       assert.isFalse(yield* fileSystem.exists(config.anonymousIdPath));
-    }).pipe(Effect.provide(layerIdentity("t3-telemetry-identify-torn-"))),
+    }).pipe(Effect.provide(layerIdentity("s1-telemetry-identify-torn-"))),
   );
 
   it.effect("does not overwrite the anonymous id path after a non-NotFound read failure", () => {
@@ -140,7 +140,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("telemetry identi
       assert.notEqual(readLog?.annotations.platformReason, "NotFound");
       assert.notProperty(readLog?.annotations ?? {}, "cause");
       assert.isUndefined(findIdentityLog(logs, "TelemetryAnonymousIdPersistenceError"));
-    }).pipe(Effect.provide(layerIdentity("t3-telemetry-identify-read-", logs)));
+    }).pipe(Effect.provide(layerIdentity("s1-telemetry-identify-read-", logs)));
   });
 
   it.effect("reads only the linked Connect account as an owner", () =>
@@ -153,6 +153,6 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("telemetry identi
       assert.deepEqual(yield* Identify.getServerOwners, [
         { source: "connect", ownerId: yield* sha256("user_connect") },
       ]);
-    }).pipe(Effect.provide(layerIdentity("t3-telemetry-identify-owners-"))),
+    }).pipe(Effect.provide(layerIdentity("s1-telemetry-identify-owners-"))),
   );
 });

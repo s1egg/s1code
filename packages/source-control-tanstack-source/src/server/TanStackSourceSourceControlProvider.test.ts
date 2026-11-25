@@ -1,8 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
-import { GitCommandError } from "@t3tools/contracts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { SpawnExecutableResolution } from "@t3tools/shared/shell";
-import * as TestSourceControlHost from "@t3tools/source-control-testing/TestSourceControlHost";
+import { GitCommandError } from "@s1tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { SpawnExecutableResolution } from "@s1tools/shared/shell";
+import * as TestSourceControlHost from "@s1tools/source-control-testing/TestSourceControlHost";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -120,7 +120,7 @@ function checkout(options: {
 
 describe("TanStackSourceSourceControlProvider.checkoutChangeRequest", () => {
   it.effect(
-    "refuses a pr-<n> branch T3 did not make for this pull request, and leaves it alone",
+    "refuses a pr-<n> branch S1 did not make for this pull request, and leaves it alone",
     () => {
       // An unrelated branch at the pull request's base is an ancestor of its head.
       const { run, git, config } = checkout({ recordedOwner: null, isAncestor: true });

@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
-import { type ReleaseChannel, releaseResourceAttributes } from "@t3tools/shared/releaseResource";
-import * as RelayTracing from "@t3tools/shared/relayTracing";
+import { type ReleaseChannel, releaseResourceAttributes } from "@s1tools/shared/releaseResource";
+import * as RelayTracing from "@s1tools/shared/relayTracing";
 
 import { hasTracingPublicConfig, resolveCloudPublicConfig } from "../cloud/publicConfig";
 import { connectionTracesEnabled } from "./diagnosticsSetting";
@@ -40,7 +40,7 @@ export function layerFromConfig(config: TracingConfig | null, resource: TracingR
   return RelayTracing.layer(
     config,
     {
-      serviceName: "t3code-mobile",
+      serviceName: "s1code-mobile",
       serviceVersion: resource.serviceVersion,
       runtime: "react-native",
       serviceInstanceId: resource.serviceInstanceId,

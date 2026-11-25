@@ -1,4 +1,4 @@
-// Agent steps in a linked environment: the same three operations, as that environment's T3 tools.
+// Agent steps in a linked environment: the same three operations, as that environment's S1 tools.
 import {
   type EnvironmentId,
   OrchestratorMcpFailure,
@@ -6,12 +6,12 @@ import {
   OrchestratorMcpThreadReadResult,
   OrchestratorMcpThreadSendResult,
   OrchestratorMcpThreadWaitResult,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   fileBasename,
   isWindowsDrivePath,
   normalizeProjectPathForComparison,
-} from "@t3tools/shared/path";
+} from "@s1tools/shared/path";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -35,7 +35,7 @@ import {
 // only ceiling on what it starts there is the access the link was paired with.
 const LIMITS = { runtimeMode: "full-access", interactionMode: "default" } as const;
 
-// T3 Connect's edge drops a request that is idle for about 100 s, so a wait goes out in pieces.
+// S1 Connect's edge drops a request that is idle for about 100 s, so a wait goes out in pieces.
 const WAIT_PIECE = Duration.seconds(50);
 
 /** The link is gone or the thread is: asking again cannot help. */
@@ -85,11 +85,11 @@ export const make = Effect.gen(function* () {
     const target = normalizeProjectPathForComparison(path);
     let cursor: number | null = 0;
     while (cursor !== null) {
-      const page: Schema.Schema.Type<typeof ProjectToolkit.tools.t3_project_list.successSchema> =
+      const page: Schema.Schema.Type<typeof ProjectToolkit.tools.s1_project_list.successSchema> =
         yield* call(
           environment,
-          "t3_project_list",
-          ProjectToolkit.tools.t3_project_list.successSchema,
+          "s1_project_list",
+          ProjectToolkit.tools.s1_project_list.successSchema,
           { cursor, limit: 100 },
         );
       const found = page.projects.find(
@@ -117,8 +117,8 @@ export const make = Effect.gen(function* () {
       : (path.split("/").findLast((part) => part.length > 0) ?? path);
     const created = yield* call(
       environment,
-      "t3_project_create",
-      ProjectToolkit.tools.t3_project_create.successSchema,
+      "s1_project_create",
+      ProjectToolkit.tools.s1_project_create.successSchema,
       { title, workspaceRoot: path },
     ).pipe(Effect.result);
     if (Result.isSuccess(created)) return created.success.id;
@@ -133,7 +133,7 @@ export const make = Effect.gen(function* () {
     let last: OrchestratorMcpThreadReadResult["items"][number] | undefined;
     let afterPosition: number | undefined;
     while (true) {
-      const read = yield* call(environment, "t3_thread_read", OrchestratorMcpThreadReadResult, {
+      const read = yield* call(environment, "s1_thread_read", OrchestratorMcpThreadReadResult, {
         threadId: turn.threadId,
         view: "messages",
         limit: 100,
@@ -150,7 +150,7 @@ export const make = Effect.gen(function* () {
     let text = last.text ?? "";
     let textOffset = last.textTruncated ? (last.nextTextOffset ?? null) : null;
     while (textOffset !== null) {
-      const rest = yield* call(environment, "t3_thread_read", OrchestratorMcpThreadReadResult, {
+      const rest = yield* call(environment, "s1_thread_read", OrchestratorMcpThreadReadResult, {
         threadId: turn.threadId,
         itemId: last.itemId,
         textOffset,
@@ -180,7 +180,7 @@ export const make = Effect.gen(function* () {
       input.outputSchema === undefined ? {} : { outputSchema: input.outputSchema };
     if (input.thread !== undefined) {
       if (input.launch !== undefined) return yield* launchOnContinue;
-      const sent = yield* call(environment, "t3_thread_send", OrchestratorMcpThreadSendResult, {
+      const sent = yield* call(environment, "s1_thread_send", OrchestratorMcpThreadSendResult, {
         threadId: input.thread,
         message: input.prompt,
         mode: "queue",
@@ -199,8 +199,8 @@ export const make = Effect.gen(function* () {
       : input.project;
     const launched = yield* call(
       environment,
-      "t3_thread_launch",
-      ProjectToolkit.tools.t3_thread_launch.successSchema,
+      "s1_thread_launch",
+      ProjectToolkit.tools.s1_thread_launch.successSchema,
       {
         projectId,
         title: input.title,
@@ -242,7 +242,7 @@ export const make = Effect.gen(function* () {
       let counted = turn.turnId;
       while (true) {
         const piece = Math.min(left, Duration.toMillis(WAIT_PIECE));
-        const waited = yield* call(environment, "t3_thread_wait", OrchestratorMcpThreadWaitResult, {
+        const waited = yield* call(environment, "s1_thread_wait", OrchestratorMcpThreadWaitResult, {
           threadId: turn.threadId,
           runId: turn.turnId,
           untilOutput: true,
@@ -253,7 +253,7 @@ export const make = Effect.gen(function* () {
         if (!waited.timedOut) return Option.none<Schema.Json>();
         left -= piece;
         if (left > 0) continue;
-        const read = yield* call(environment, "t3_thread_read", OrchestratorMcpThreadReadResult, {
+        const read = yield* call(environment, "s1_thread_read", OrchestratorMcpThreadReadResult, {
           threadId: turn.threadId,
           limit: 1,
           runLimit: 1,
@@ -266,13 +266,13 @@ export const make = Effect.gen(function* () {
       }
     });
     while (true) {
-      const waited = yield* call(environment, "t3_thread_wait", OrchestratorMcpThreadWaitResult, {
+      const waited = yield* call(environment, "s1_thread_wait", OrchestratorMcpThreadWaitResult, {
         threadId: turn.threadId,
         runId: turn.turnId,
         timeoutMs: Duration.toMillis(WAIT_PIECE),
       });
       if (waited.timedOut) continue;
-      const read = yield* call(environment, "t3_thread_read", OrchestratorMcpThreadReadResult, {
+      const read = yield* call(environment, "s1_thread_read", OrchestratorMcpThreadReadResult, {
         threadId: turn.threadId,
         limit: 1,
         runLimit: 50,
@@ -310,7 +310,7 @@ export const make = Effect.gen(function* () {
 
   const interrupt = (threadId: string, environment: string, runId?: string) =>
     Effect.map(
-      call(environment, "t3_thread_interrupt", OrchestratorMcpThreadInterruptResult, {
+      call(environment, "s1_thread_interrupt", OrchestratorMcpThreadInterruptResult, {
         threadId,
         ...(runId === undefined ? {} : { runId }),
         reason: "Its workflow run was cancelled",

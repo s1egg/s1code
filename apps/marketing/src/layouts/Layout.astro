@@ -76,7 +76,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
     <meta name="description" content={description} />
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonicalUrl} />}
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="T3 Code" />
+    <meta property="og:site_name" content="S1 Code" />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -185,7 +185,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
               loading="lazy"
               decoding="async"
             />
-            <span>&copy; {new Date().getFullYear()} T3 Tools Inc · {t.mitLicensed}</span>
+            <span>&copy; {new Date().getFullYear()} S1 Tools Inc · {t.mitLicensed}</span>
           </div>
           <div class="footer-links">
             <a href={GITHUB_REPOSITORY_URL} target="_blank" rel="noopener noreferrer">GitHub</a>

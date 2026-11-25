@@ -9,13 +9,13 @@ import {
   type WorkspaceListFoldersResult,
   type WorkspaceScanFoldersInput,
   type WorkspaceScanFoldersResult,
-} from "@t3tools/contracts";
-import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
-import { splitsSurrogatePair } from "@t3tools/shared/assistantCitations";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { fromLenientJson } from "@t3tools/shared/schemaJson";
-import { T3_PROJECT_FILE_NAME } from "@t3tools/contracts";
-import { parseT3ProjectFile } from "@t3tools/shared/t3ProjectFile";
+} from "@s1tools/contracts";
+import { expandHomePath } from "@s1tools/provider-core/server/pathExpansion";
+import { splitsSurrogatePair } from "@s1tools/shared/assistantCitations";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { fromLenientJson } from "@s1tools/shared/schemaJson";
+import { S1_PROJECT_FILE_NAME } from "@s1tools/contracts";
+import { parseT3ProjectFile } from "@s1tools/shared/t3ProjectFile";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -75,7 +75,7 @@ export class WorkspaceFolders extends Context.Service<
       input: WorkspaceScanFoldersInput,
     ) => Effect.Effect<WorkspaceScanFoldersResult, WorkspaceFoldersError>;
   }
->()("t3/workspace/WorkspaceFolders") {}
+>()("s1/workspace/WorkspaceFolders") {}
 
 const DETECTION_CONCURRENCY = 8;
 // What `ProjectTrackedFolder.name` allows.
@@ -274,7 +274,7 @@ const scanFolders = Effect.fn("WorkspaceFolders.scan")(function* (
 
 /**
  * The repositories inside a project folder, read from disk: the ones a scan finds there, less
- * those the project's `t3.json` leaves out. A folder outside it is never found this way, since
+ * those the project's `s1.json` leaves out. A folder outside it is never found this way, since
  * tracking one grants agents a place they could not reach before.
  */
 export const discoverFolders = Effect.fn("WorkspaceFolders.discover")(function* (
@@ -287,7 +287,7 @@ export const discoverFolders = Effect.fn("WorkspaceFolders.discover")(function* 
   const ignored = (
     parseT3ProjectFile(
       yield* fileSystem
-        .readFileString(path.join(root, T3_PROJECT_FILE_NAME))
+        .readFileString(path.join(root, S1_PROJECT_FILE_NAME))
         .pipe(Effect.orElseSucceed(() => "")),
     )?.ignoreRepositories ?? []
   ).map((entry) => path.resolve(root, entry));

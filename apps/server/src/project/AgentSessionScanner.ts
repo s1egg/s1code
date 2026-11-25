@@ -14,7 +14,7 @@ import {
   type AgentSessionProjectGit,
   type AgentSessionScanResult,
   type ProviderInstanceConfig,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -29,20 +29,20 @@ import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 
-import { splitsSurrogatePair } from "@t3tools/shared/assistantCitations";
-import { isBareGitConfig, parseOriginUrlFromGitConfig } from "@t3tools/shared/git";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { normalizeProjectPathForComparison } from "@t3tools/shared/path";
-import { repositoryPathFromRemoteUrl } from "@t3tools/source-control-core/server/SourceControlProvider";
+import { splitsSurrogatePair } from "@s1tools/shared/assistantCitations";
+import { isBareGitConfig, parseOriginUrlFromGitConfig } from "@s1tools/shared/git";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { normalizeProjectPathForComparison } from "@s1tools/shared/path";
+import { repositoryPathFromRemoteUrl } from "@s1tools/source-control-core/server/SourceControlProvider";
 
 import * as ServerConfig from "../config.ts";
 import * as ProcessRunner from "../processRunner.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ProviderSessionRuntime from "../persistence/ProviderSessionRuntime.ts";
 import { resolveCodexHomeLayout } from "../provider/Drivers/CodexHomeLayout.ts";
-import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/instanceEnvironment";
-import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
-import { piHome, resolvePiSessionsDir } from "@t3tools/provider-pi/server/usage";
+import { mergeProviderInstanceEnvironment } from "@s1tools/provider-core/server/instanceEnvironment";
+import { expandHomePath } from "@s1tools/provider-core/server/pathExpansion";
+import { piHome, resolvePiSessionsDir } from "@s1tools/provider-pi/server/usage";
 import * as ServerSettings from "../serverSettings.ts";
 import { sourceControlDefinitions } from "../sourceControl/sourceControlDefinitions.ts";
 import {
@@ -251,7 +251,7 @@ export class AgentSessionScanner extends Context.Service<
       completedSources?: ReadonlyArray<AgentSessionImportSource>,
     ) => Stream.Stream<AgentSessionRecentThread, AgentSessionScanError>;
   }
->()("t3/project/AgentSessionScanner") {}
+>()("s1/project/AgentSessionScanner") {}
 
 type AgentSessionSource = AgentSessionProjectCandidate["sources"][number];
 
@@ -879,7 +879,7 @@ function isT3ManagedWorktree(
   const normalized = normalizeForWorktreeMatch(candidatePath, caseFold);
   return (
     normalized.startsWith(normalizeForWorktreeMatch(worktreesDir, caseFold)) ||
-    normalized.includes("/.t3/worktrees/")
+    normalized.includes("/.s1/worktrees/")
   );
 }
 
@@ -971,7 +971,7 @@ export const make = Effect.gen(function* () {
     baseDir: path.resolve(serverConfig.baseDir),
     worktreesDir: path.resolve(serverConfig.worktreesDir),
   };
-  // Resolved candidates are compared with T3's folders as resolved too, so a symlinked base still matches.
+  // Resolved candidates are compared with S1's folders as resolved too, so a symlinked base still matches.
   const realPathOf = (directory: string) =>
     fileSystem.realPath(directory).pipe(Effect.orElseSucceed(() => directory));
   const realT3Dirs = {
@@ -1690,7 +1690,7 @@ export const make = Effect.gen(function* () {
     }).pipe(Effect.orElseSucceed((): ReadonlyMap<string, ReadonlyArray<string>> => new Map()));
   });
 
-  // Only chats left in a scratch folder, such as Codex's, take their project's root; T3's own stay excluded.
+  // Only chats left in a scratch folder, such as Codex's, take their project's root; S1's own stay excluded.
   const projectCwd = Effect.fnUntraced(function* (
     cwd: string,
     projectRoots: ReadonlyArray<string> | undefined,

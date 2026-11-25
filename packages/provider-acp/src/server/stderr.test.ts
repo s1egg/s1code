@@ -9,7 +9,7 @@ describe("AcpStderr", () => {
         "Invalid project config at /Users/ada/.cursor/cli.json",
         "Authorization: Bearer secret-token-value",
         "Sign in: https://accounts.google.com/o/oauth2/v2/auth?state=oauth-state-value",
-        "Visit http://localhost:5733/pair#token=ABCDEF for pairing",
+        "Visit http://localhost:4780/pair#token=ABCDEF for pairing",
         "key=sk-abcdefghijklmnopqrstuv",
       ].join("\n"),
       "/home/server",

@@ -3,7 +3,7 @@ import {
   type PullRequestCapabilities,
   type PullRequestListState,
   type PullRequestViewerPermissions,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   PullRequestProviderError,
   tailLogLines,
@@ -12,7 +12,7 @@ import {
   type ProviderCheckRerun,
   type ProviderRepositoryRef,
   type PullRequestProviderApi,
-} from "@t3tools/source-control-core/server/PullRequestProvider";
+} from "@s1tools/source-control-core/server/PullRequestProvider";
 import * as Cache from "effect/Cache";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -786,7 +786,7 @@ export const make = Effect.gen(function* () {
         default:
           return yield* failure(
             input.action,
-            `TanStack Source cannot ${input.action} from T3 Code.`,
+            `TanStack Source cannot ${input.action} from S1 Code.`,
           );
       }
     }),

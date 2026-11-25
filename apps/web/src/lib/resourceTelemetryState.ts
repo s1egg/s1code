@@ -1,10 +1,10 @@
-import { AuthDiagnosticsReadScope } from "@t3tools/contracts";
-import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
+import { AuthDiagnosticsReadScope } from "@s1tools/contracts";
+import { AuthEnvironmentMaintainScope } from "@s1tools/contracts";
 import type {
   EnvironmentId,
   ResourceTelemetryHistoryInput,
   ResourceTelemetrySnapshot,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as Cause from "effect/Cause";
 import { msg, useMessages } from "gt-react";
 

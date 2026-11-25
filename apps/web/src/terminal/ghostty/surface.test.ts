@@ -3,7 +3,7 @@ import {
   applyTerminalAttachStreamEvent,
   INITIAL_TERMINAL_OUTPUT_CURSOR,
   nextTerminalAttachSeedState,
-} from "@t3tools/client-runtime/state/terminal";
+} from "@s1tools/client-runtime/state/terminal";
 import { synchronizeTerminalSession } from "../../components/ThreadTerminalDrawer";
 
 import { GhosttyTerminalCore, type GhosttyCell, type GhosttyRow } from "./core";
@@ -898,7 +898,7 @@ describe("terminalLinkAtPositionWithRange", () => {
     const cells = [
       cell("🙂"),
       cell(""),
-      ...Array.from("https://t3.codes", (character) => cell(character)),
+      ...Array.from("https://s1.codes", (character) => cell(character)),
     ];
     const row: GhosttyRow = {
       cells,
@@ -910,9 +910,9 @@ describe("terminalLinkAtPositionWithRange", () => {
       wrapsToNext: false,
     };
 
-    expect(terminalLinkAtPositionWithRange([row], 0, 2)?.text).toBe("https://t3.codes");
+    expect(terminalLinkAtPositionWithRange([row], 0, 2)?.text).toBe("https://s1.codes");
     expect(terminalLinkAtPositionWithRange([row], 0, cells.length - 1)?.text).toBe(
-      "https://t3.codes",
+      "https://s1.codes",
     );
     expect(terminalLinkAtPositionWithRange([row], 0, 0)).toBeNull();
     expect(terminalLinkAtPositionWithRange([row], 0, 8)?.range).toEqual({
@@ -965,32 +965,32 @@ describe("terminalLinkAtPositionWithRange", () => {
     });
     const headCut = [row("ple.com/missing", true), row("head", true)];
     expect(terminalLinkAtPositionWithRange(headCut, 0, 4)).toBeNull();
-    const tailCut = [row("https://t3.codes", false, true)];
+    const tailCut = [row("https://s1.codes", false, true)];
     expect(terminalLinkAtPositionWithRange(tailCut, 0, 8)).toBeNull();
-    const complete = [row("https://t3.codes", false), row("", false)];
-    expect(terminalLinkAtPositionWithRange(complete, 0, 8)?.text).toBe("https://t3.codes");
+    const complete = [row("https://s1.codes", false), row("", false)];
+    expect(terminalLinkAtPositionWithRange(complete, 0, 8)?.text).toBe("https://s1.codes");
     const wideFull: GhosttyRow = {
       cells: [
         { ...cell("🙂"), wide: 1 },
         { ...cell(""), wide: 2 },
-        ...Array.from("https://t3.code", (character) => cell(character)),
+        ...Array.from("https://s1.code", (character) => cell(character)),
       ],
-      text: "🙂 https://t3.code",
+      text: "🙂 https://s1.code",
       isWrapContinuation: false,
       wrapsToNext: true,
     };
     expect(terminalLinkAtPositionWithRange([wideFull], 0, 8)).toBeNull();
     const unwrittenTail: GhosttyRow = {
       cells: [
-        ...Array.from("https://t3.codes", (character) => cell(character)),
+        ...Array.from("https://s1.codes", (character) => cell(character)),
         cell(""),
         cell(""),
       ],
-      text: "https://t3.codes",
+      text: "https://s1.codes",
       isWrapContinuation: false,
       wrapsToNext: false,
     };
-    expect(terminalLinkAtPositionWithRange([unwrittenTail], 0, 8)?.text).toBe("https://t3.codes");
+    expect(terminalLinkAtPositionWithRange([unwrittenTail], 0, 8)?.text).toBe("https://s1.codes");
   });
 });
 

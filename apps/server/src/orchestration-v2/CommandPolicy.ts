@@ -9,9 +9,9 @@ import {
   OrchestrationV2ThreadProjection,
   ProviderInstanceId,
   ThreadId,
-} from "@t3tools/contracts";
-import { isSlashCommand } from "@t3tools/shared/composerTrigger";
-import { latestExecutedRun } from "@t3tools/shared/orchestrationV2ThreadError";
+} from "@s1tools/contracts";
+import { isSlashCommand } from "@s1tools/shared/composerTrigger";
+import { latestExecutedRun } from "@s1tools/shared/orchestrationV2ThreadError";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -74,7 +74,7 @@ export function isProviderSignOutPrompt(message: {
 export function isNativeMaintenanceCommand(message: {
   readonly text: string;
   readonly attachments: ReadonlyArray<ChatAttachment>;
-  readonly context?: import("@t3tools/contracts").OrchestrationMessageContext | undefined;
+  readonly context?: import("@s1tools/contracts").OrchestrationMessageContext | undefined;
 }): boolean {
   return (
     message.attachments.length === 0 &&
@@ -289,7 +289,7 @@ export interface CommandPolicyV2Shape {
 }
 
 export class CommandPolicyV2 extends Context.Service<CommandPolicyV2, CommandPolicyV2Shape>()(
-  "t3/orchestration-v2/CommandPolicy/CommandPolicyV2",
+  "s1/orchestration-v2/CommandPolicy/CommandPolicyV2",
 ) {}
 
 function unsupported(

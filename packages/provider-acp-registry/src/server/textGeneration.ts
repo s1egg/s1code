@@ -1,5 +1,5 @@
-import { TextGenerationError } from "@t3tools/contracts";
-import { readCustomModelEntries } from "@t3tools/shared/model";
+import { TextGenerationError } from "@s1tools/contracts";
+import { readCustomModelEntries } from "@s1tools/shared/model";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as FileSystem from "effect/FileSystem";
 import * as Effect from "effect/Effect";
@@ -7,10 +7,10 @@ import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
-import type { ProviderTextGeneration } from "@t3tools/provider-core/server/textGeneration";
-import * as TextGenerationOperations from "@t3tools/provider-core/server/textGenerationOperations";
-import { findModelConfigOption } from "@t3tools/provider-acp/server/runtimeModel";
-import { flattenSelectChoices } from "@t3tools/provider-acp/server/sessionConfig";
+import type { ProviderTextGeneration } from "@s1tools/provider-core/server/textGeneration";
+import * as TextGenerationOperations from "@s1tools/provider-core/server/textGenerationOperations";
+import { findModelConfigOption } from "@s1tools/provider-acp/server/runtimeModel";
+import { flattenSelectChoices } from "@s1tools/provider-acp/server/sessionConfig";
 
 import * as AcpRegistrySupport from "./AcpRegistrySupport.ts";
 import {
@@ -30,7 +30,7 @@ export const makeAcpRegistryTextGeneration = Effect.fn("AcpRegistryTextGeneratio
   const fs = yield* FileSystem.FileSystem;
   const run: TextGenerationOperations.Runner = Effect.fn("AcpRegistryTextGeneration.run")(
     function* (request) {
-      const cwd = yield* fs.makeTempDirectoryScoped({ prefix: "t3-acp-text-" });
+      const cwd = yield* fs.makeTempDirectoryScoped({ prefix: "s1-acp-text-" });
       const runtime = yield* makeAcpRegistryManagementRuntime({ ...input, cwd });
       const output = yield* Ref.make("");
       yield* runtime.handleSessionUpdate(({ update }) => {

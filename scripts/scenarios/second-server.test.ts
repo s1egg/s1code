@@ -12,7 +12,7 @@ const root = await vi.hoisted(async () => {
 
 vi.mock("../e2e.config.ts", () => ({
   APP_DIR: root,
-  T3_HOME: NodePath.join(root, "home"),
+  S1_HOME: NodePath.join(root, "home"),
 }));
 
 import { startSecondServer } from "./second-server.ts";
@@ -20,7 +20,7 @@ import { startSecondServer } from "./second-server.ts";
 it("rejects readiness when the second server exits before printing a token", async () => {
   await NodeFSP.mkdir(NodePath.join(root, "apps/server/src"), { recursive: true });
   await NodeFSP.writeFile(NodePath.join(root, "apps/server/src/bin.ts"), "process.exit(1);\n");
-  const server = startSecondServer("http://127.0.0.1:5733");
+  const server = startSecondServer("http://127.0.0.1:4780");
   try {
     await expect(server.ready).rejects.toMatchObject({
       message: "The second server exited with code 1 at startup.",

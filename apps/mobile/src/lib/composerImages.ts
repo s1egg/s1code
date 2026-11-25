@@ -1,8 +1,8 @@
 import {
   clampFileAttachmentUploadBytes,
   fileAttachmentTooLargeMessage,
-} from "@t3tools/client-runtime/state/attachments";
-import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
+} from "@s1tools/client-runtime/state/attachments";
+import { errorDisplayMessage } from "@s1tools/client-runtime/errors";
 import {
   isProviderSendTurnSupportedImageMimeType,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
@@ -11,8 +11,8 @@ import {
   type EnvironmentId,
   type PastedTextAttachmentSource,
   type UploadChatImageAttachment,
-} from "@t3tools/contracts";
-import type { AttachmentUploadStatus } from "@t3tools/client-runtime/state/attachment-uploads";
+} from "@s1tools/contracts";
+import type { AttachmentUploadStatus } from "@s1tools/client-runtime/state/attachment-uploads";
 import type { DocumentPickerResult } from "expo-document-picker";
 import { msg } from "gt-react-native";
 import { m } from "../i18n/messages";
@@ -22,8 +22,8 @@ import {
   isComposerAttachmentFileRetained,
   resolveOwnedComposerAttachmentFileUri,
 } from "./composerAttachmentFiles";
-import { imageMimeType } from "@t3tools/shared/image";
-import { videoMimeType } from "@t3tools/shared/video";
+import { imageMimeType } from "@s1tools/shared/image";
+import { videoMimeType } from "@s1tools/shared/video";
 import { fitComposerImage, renderPhoto } from "./composerImageFit";
 import { beginForegroundHandoff } from "./foreground-handoff";
 import { uuidv4 } from "./uuid";
@@ -134,7 +134,7 @@ export function composerAttachmentInlineUri(
   return attachment.type === "image" ? (attachment.dataUrl ?? attachment.previewUri) : undefined;
 }
 
-const OWNED_PASTED_IMAGE_DIRECTORY = "t3-composer-paste";
+const OWNED_PASTED_IMAGE_DIRECTORY = "s1-composer-paste";
 const ATTACHMENT_COPY_CHUNK_BYTES = 64 * 1024;
 
 // Android's java.net.URI rejects characters expo-file-system leaves unencoded, such as `[` and `]`.

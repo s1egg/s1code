@@ -1,4 +1,4 @@
-import { resolveQueuedEditExit } from "@t3tools/client-runtime/queued-run-edit";
+import { resolveQueuedEditExit } from "@s1tools/client-runtime/queued-run-edit";
 import type {
   ChatAttachment,
   ChatFileAttachment,
@@ -9,7 +9,7 @@ import type {
   ModelSelection,
   OrchestrationMessageContext,
   ResponseContextRecord,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as Equal from "effect/Equal";
 import {
   composerDraftHasUserContent,

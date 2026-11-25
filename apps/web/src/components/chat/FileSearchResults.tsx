@@ -1,6 +1,6 @@
-import type { OrchestrationV2FileSearchResult } from "@t3tools/contracts";
-import { groupFileSearchResults } from "@t3tools/client-runtime/work-log/item-detail";
-import { splitSearchText, type SearchRange } from "@t3tools/shared/paletteSearch";
+import type { OrchestrationV2FileSearchResult } from "@s1tools/contracts";
+import { groupFileSearchResults } from "@s1tools/client-runtime/work-log/item-detail";
+import { splitSearchText, type SearchRange } from "@s1tools/shared/paletteSearch";
 import { useGT } from "gt-react";
 
 import { formatWorkspaceRelativePath } from "../../filePathDisplay";

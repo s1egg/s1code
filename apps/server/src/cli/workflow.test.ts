@@ -1,9 +1,9 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
-import { AuthSessionId, type WorkflowRun } from "@t3tools/contracts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import * as NetService from "@t3tools/shared/Net";
+import { AuthSessionId, type WorkflowRun } from "@s1tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import * as NetService from "@s1tools/shared/Net";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -64,7 +64,7 @@ const makeRun = (status: WorkflowRun["status"]): WorkflowRun => ({
   endedAt: ["running", "waiting", "paused"].includes(status) ? null : "2026-11-20T00:00:00.000Z",
 });
 
-/** Runs `t3 workflow <args>` against a live-looking server whose t3_workflow is `call`. */
+/** Runs `s1 workflow <args>` against a live-looking server whose s1_workflow is `call`. */
 const runCli = (
   args: ReadonlyArray<string>,
   call: McpBridge.McpToolSession["call"] = () => Effect.die("no tool call expected"),
@@ -73,12 +73,12 @@ const runCli = (
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-workflow-cli-" });
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "s1-workflow-cli-" });
     yield* persistServerRuntimeState({
       path: path.join(baseDir, "userdata", "server-runtime.json"),
       state: yield* makePersistedServerRuntimeState({
         config: { host: "127.0.0.1", devUrl: undefined },
-        port: 3_773,
+        port: 4_773,
       }),
     });
     const calls: Array<Readonly<Record<string, unknown>>> = [];
@@ -108,7 +108,7 @@ const runCli = (
         NodeServices.layer,
         NodeCrypto.layer,
         NetService.layer,
-        ConfigProvider.layer(ConfigProvider.fromEnv({ env: { T3CODE_PORT: "3773" } })),
+        ConfigProvider.layer(ConfigProvider.fromEnv({ env: { S1CODE_PORT: "4773" } })),
       ),
     ),
   );
@@ -158,7 +158,7 @@ it.effect("reports what the server refused instead of calling it unreachable", (
     const refused = yield* runCli(["start", "review", "--key", "r1"], () =>
       Effect.fail(
         new McpBridge.AcpMcpBridgeError({
-          message: "T3 Code MCP tools/call failed.",
+          message: "S1 Code MCP tools/call failed.",
           rpcError: {
             code: -32602,
             message: 'Expected a non-blank string\n  at ["idempotencyKey"]',
@@ -207,12 +207,12 @@ it.effect("signal from an agent's shell answers in the name of the agent's threa
     const answer = ["signal", '{"choice":"Ship"}', "--run", "run-1", "--wait", "approve"];
     const delivered = Effect.succeed({ structuredContent: { delivery: "delivered" } });
     const read = (tool: string) =>
-      tool === "t3_thread_read"
+      tool === "s1_thread_read"
         ? Effect.succeed({ structuredContent: { thread: { title: "Release reviewer agent" } } })
         : delivered;
 
     sessionLabels.length = 0;
-    const fromThread = yield* runCli(answer, read, { T3CODE_THREAD_ID: "thread-7" });
+    const fromThread = yield* runCli(answer, read, { S1CODE_THREAD_ID: "thread-7" });
     assert.isUndefined(fromThread.error);
     assert.deepStrictEqual(fromThread.calls.at(0), { threadId: "thread-7", limit: 1, runLimit: 1 });
     assert.strictEqual(sessionLabels.at(-1), "Release reviewer agent");
@@ -220,9 +220,9 @@ it.effect("signal from an agent's shell answers in the name of the agent's threa
     // A thread it cannot read, or no thread at all, answers as the command.
     for (const [env, call] of [
       [
-        { T3CODE_THREAD_ID: "gone" },
+        { S1CODE_THREAD_ID: "gone" },
         (tool: string) =>
-          tool === "t3_thread_read"
+          tool === "s1_thread_read"
             ? Effect.fail(new McpBridge.AcpMcpBridgeError({ message: "Thread not found." }))
             : delivered,
       ],
@@ -231,7 +231,7 @@ it.effect("signal from an agent's shell answers in the name of the agent's threa
       sessionLabels.length = 0;
       const { error } = yield* runCli(answer, call, env);
       assert.isUndefined(error);
-      assert.strictEqual(sessionLabels.at(-1), "t3 workflow signal");
+      assert.strictEqual(sessionLabels.at(-1), "s1 workflow signal");
     }
   }),
 );

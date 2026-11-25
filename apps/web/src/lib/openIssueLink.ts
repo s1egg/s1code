@@ -2,8 +2,8 @@ import type {
   EnvironmentId,
   IssueTrackerConnectionList,
   ScopedThreadRef,
-} from "@t3tools/contracts";
-import { resolveIssueLinkTarget } from "@t3tools/client-runtime/issue-links";
+} from "@s1tools/contracts";
+import { resolveIssueLinkTarget } from "@s1tools/client-runtime/issue-links";
 import { useNavigate } from "@tanstack/react-router";
 import type { MouseEvent } from "react";
 

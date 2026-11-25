@@ -1,5 +1,5 @@
 /**
- * Translatable copies of the English labels in `@t3tools/contracts` helpers. Same ids, same
+ * Translatable copies of the English labels in `@s1tools/contracts` helpers. Same ids, same
  * English; apps call these instead of the contracts helpers so the text follows the UI language.
  */
 import {
@@ -13,8 +13,8 @@ import {
   type RuntimeMode,
   type WorktreeSetupStageId,
   worktreeSetupStageLabel as contractsWorktreeSetupStageLabel,
-} from "@t3tools/contracts";
-import type { IdleCompactionMode } from "@t3tools/contracts/settings";
+} from "@s1tools/contracts";
+import type { IdleCompactionMode } from "@s1tools/contracts/settings";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 
@@ -70,7 +70,7 @@ export function managedUpdatesMessage(
   organization: string,
   resolve: MFunctionType = mFallback,
 ): string {
-  return resolve(msg("{organization} manages T3 Code updates.", { organization }));
+  return resolve(msg("{organization} manages S1 Code updates.", { organization }));
 }
 
 /** @public */
@@ -79,7 +79,7 @@ export function managedNightlyDeniedMessage(
   resolve: MFunctionType = mFallback,
 ): string {
   return resolve(
-    msg("{organization} manages T3 Code updates. Only stable releases can be installed.", {
+    msg("{organization} manages S1 Code updates. Only stable releases can be installed.", {
       organization,
     }),
   );
@@ -146,7 +146,7 @@ function managedCapabilityDeniedMessage(
         }),
       );
     case "connect":
-      return resolve(msg("{organization}'s policy does not allow T3 Connect.", { organization }));
+      return resolve(msg("{organization}'s policy does not allow S1 Connect.", { organization }));
     case "webhookTasks":
       return resolve(
         msg("{organization}'s policy does not allow webhook tasks.", { organization }),
@@ -207,7 +207,7 @@ const BROWSER_IMPORT_FAILURE_MESSAGES: Record<BrowserImportFailureReason, string
     "No encryption key in your Keychain. Sign in to that browser once, then retry.",
   ),
   needsFullDiskAccess: msg(
-    "Give T3 Code Full Disk Access in System Settings → Privacy & Security, then retry.",
+    "Give S1 Code Full Disk Access in System Settings → Privacy & Security, then retry.",
   ),
   browserRunning: msg("Quit the browser first so its cookie database can be read."),
   unsupportedPlatform: msg("Importing from this browser isn't possible on this platform."),

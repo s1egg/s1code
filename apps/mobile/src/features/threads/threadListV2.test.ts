@@ -1,9 +1,9 @@
-import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
-import { createInboxReturnTracker } from "@t3tools/client-runtime/state/thread-inbox";
-import { presentThreadShell } from "@t3tools/client-runtime/state/models";
+import { threadSearchMatchKey } from "@s1tools/client-runtime/state/thread-search";
+import { createInboxReturnTracker } from "@s1tools/client-runtime/state/thread-inbox";
+import { presentThreadShell } from "@s1tools/client-runtime/state/models";
 import * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
-import { planPinnedReorder } from "@t3tools/client-runtime/state/thread-sort";
+import { planPinnedReorder } from "@s1tools/client-runtime/state/thread-sort";
 import {
   createPendingThreadOrder,
   createThreadMovePlanner,
@@ -13,8 +13,8 @@ import {
   type PendingThreadOrder,
   type ThreadMoveAvailability,
 } from "./threadOrder";
-import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
-import { canSnooze, resolveSnoozePresets } from "@t3tools/client-runtime/state/thread-settled";
+import type { EnvironmentThreadShell } from "@s1tools/client-runtime/state/shell";
+import { canSnooze, resolveSnoozePresets } from "@s1tools/client-runtime/state/thread-settled";
 import {
   CommandId,
   EnvironmentId,
@@ -25,7 +25,7 @@ import {
   RunId,
   RuntimeRequestId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import type { MenuAction } from "@react-native-menu/menu";
 import { describe, expect, it, vi } from "vite-plus/test";
 

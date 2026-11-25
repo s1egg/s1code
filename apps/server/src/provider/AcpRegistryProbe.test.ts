@@ -5,15 +5,15 @@ import * as NodeURL from "node:url";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as Layer from "effect/Layer";
-import { ProviderInstanceId } from "@t3tools/contracts";
-import { AcpRegistrySettings } from "@t3tools/provider-acp-registry/settings";
+import { ProviderInstanceId } from "@s1tools/contracts";
+import { AcpRegistrySettings } from "@s1tools/provider-acp-registry/settings";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Schema from "effect/Schema";
 import * as EffectAcpErrors from "effect-acp/errors";
 
-import type * as AcpSessionRuntime from "@t3tools/provider-acp/server/AcpSessionRuntime";
+import type * as AcpSessionRuntime from "@s1tools/provider-acp/server/AcpSessionRuntime";
 import {
   acpRegistryProbeFailure,
   acpRegistryProbeResult,
@@ -23,8 +23,8 @@ import {
   normalizeAcpRegistryAuthMethods,
   normalizeAcpRegistryCommands,
   probeAcpRegistryConfiguration,
-} from "@t3tools/provider-acp-registry/testing";
-import * as AcpRegistrySupport from "@t3tools/provider-acp-registry/server/AcpRegistrySupport";
+} from "@s1tools/provider-acp-registry/testing";
+import * as AcpRegistrySupport from "@s1tools/provider-acp-registry/server/AcpRegistrySupport";
 
 const instanceId = ProviderInstanceId.make("acpRegistry_codex");
 const __dirname = NodePath.dirname(NodeURL.fileURLToPath(import.meta.url));
@@ -382,8 +382,8 @@ describe("ACP Registry probe", () => {
             args: [mockAgentPath],
             env: {
               ...process.env,
-              T3_ACP_SESSION_LIFECYCLE: "1",
-              T3_ACP_AUTH_METHOD_ID: "mock-login",
+              S1_ACP_SESSION_LIFECYCLE: "1",
+              S1_ACP_AUTH_METHOD_ID: "mock-login",
             },
           },
         }),
@@ -445,9 +445,9 @@ describe("ACP Registry probe", () => {
                 args: [mockAgentPath],
                 env: {
                   ...process.env,
-                  T3_ACP_V2_MANAGEMENT: "1",
-                  T3_ACP_REQUEST_LOG_PATH: requestLogPath,
-                  ...(deleteOutcome === "fails" ? { T3_ACP_FAIL_DELETE_SESSION: "1" } : {}),
+                  S1_ACP_V2_MANAGEMENT: "1",
+                  S1_ACP_REQUEST_LOG_PATH: requestLogPath,
+                  ...(deleteOutcome === "fails" ? { S1_ACP_FAIL_DELETE_SESSION: "1" } : {}),
                 },
               },
             }),
@@ -569,11 +569,11 @@ await import(pathToFileURL(agentPath).href);
                     args: [mockAgentPath],
                     env: {
                       ...process.env,
-                      T3_ACP_SESSION_LIFECYCLE: "1",
-                      T3_ACP_V2_MANAGEMENT: "1",
-                      T3_ACP_REQUEST_LOG_PATH: requestLogPath,
-                      T3_ACP_PROMPT_RESPONSE_TEXT: '{"title":"Migrate Sessions to Postgres"}',
-                      T3_ACP_OMIT_MODEL_OPTIONS: omitModelOptions ? "1" : "0",
+                      S1_ACP_SESSION_LIFECYCLE: "1",
+                      S1_ACP_V2_MANAGEMENT: "1",
+                      S1_ACP_REQUEST_LOG_PATH: requestLogPath,
+                      S1_ACP_PROMPT_RESPONSE_TEXT: '{"title":"Migrate Sessions to Postgres"}',
+                      S1_ACP_OMIT_MODEL_OPTIONS: omitModelOptions ? "1" : "0",
                     },
                   },
                 }),

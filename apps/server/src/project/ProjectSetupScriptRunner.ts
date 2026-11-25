@@ -1,12 +1,12 @@
-import { linkOriginIsFenced, ProjectId, type ProjectScript, ThreadId } from "@t3tools/contracts";
-import { splitsSurrogatePair } from "@t3tools/shared/assistantCitations";
+import { linkOriginIsFenced, ProjectId, type ProjectScript, ThreadId } from "@s1tools/contracts";
+import { splitsSurrogatePair } from "@s1tools/shared/assistantCitations";
 import {
   projectScriptRuntimeEnv,
   projectScriptTerminalInput,
   resolveProjectScripts,
   settleProjectScript,
   setupProjectScript,
-} from "@t3tools/shared/projectScripts";
+} from "@s1tools/shared/projectScripts";
 
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -50,7 +50,7 @@ export interface ProjectSetupScriptOutputLine {
 
 /**
  * A thread a link below full access started does not run this project's setup
- * script: the script is the user's own code, and such a link only grants T3's
+ * script: the script is the user's own code, and such a link only grants S1's
  * tools (see `mcp/linkOrigin.ts`).
  */
 export interface ProjectSetupScriptRunnerResultSkippedForLink {
@@ -131,11 +131,11 @@ export class ProjectSetupScriptRunner extends Context.Service<
       input: ProjectSetupScriptRunnerInput,
     ) => Effect.Effect<ProjectSetupScriptRunnerResult, ProjectSetupScriptRunnerError>;
   }
->()("t3/project/ProjectSetupScriptRunner") {}
+>()("s1/project/ProjectSetupScriptRunner") {}
 
 /** @public */
 // Random per-run tokens prevent script output from spoofing completion.
-const COMPLETION_SENTINEL_PREFIX = "__T3_SETUP_DONE__";
+const COMPLETION_SENTINEL_PREFIX = "__S1_SETUP_DONE__";
 const OUTPUT_LINE_MAX_LENGTH = 400;
 const PARTIAL_LINE_MAX_LENGTH = 4_096;
 
@@ -180,7 +180,7 @@ function resolveCompletionShell(shell: string): CompletionShell | null {
 const utf8 = new TextEncoder();
 // Canonical TTY input (before a line editor starts reading) caps a line below 1 KiB on Linux.
 const POSIX_MAX_LINE_BYTES = 1_023;
-const POSIX_APPEND = '__t3_command="$__t3_command"';
+const POSIX_APPEND = '__s1_command="$__s1_command"';
 
 function encodePosixScript(text: string): string {
   let encoded = "";
@@ -202,13 +202,13 @@ function wrapPosixCommand(command: string, sentinel: string): string {
   const normalized = command.replace(/\r\n/g, "\n");
   // The `_` suffix keeps trailing newlines; the subshell contains exits and syntax errors.
   const evaluate = (payload: string) =>
-    `( __t3_command=$(printf '%b_' ${payload}); eval "\${__t3_command%_}" ); printf '\\n${sentinel}%s\\n' "$?"`;
+    `( __s1_command=$(printf '%b_' ${payload}); eval "\${__s1_command%_}" ); printf '\\n${sentinel}%s\\n' "$?"`;
   const inline = evaluate(`'${encodePosixScript(normalized)}'`);
   if (utf8.encode(` ${inline}\r`).byteLength <= POSIX_MAX_LINE_BYTES) return inline;
 
   const maxChunkBytes = POSIX_MAX_LINE_BYTES - utf8.encode(` ${POSIX_APPEND}''\r`).byteLength;
   const lines: string[] = [];
-  let prefix = "__t3_command=";
+  let prefix = "__s1_command=";
   let chunk = "";
   let chunkBytes = 0;
   for (const character of normalized) {
@@ -223,7 +223,7 @@ function wrapPosixCommand(command: string, sentinel: string): string {
     chunk += encoded;
     chunkBytes += bytes;
   }
-  lines.push(`${prefix}'${chunk}'`, `${evaluate('"$__t3_command"')}; unset __t3_command`);
+  lines.push(`${prefix}'${chunk}'`, `${evaluate('"$__s1_command"')}; unset __s1_command`);
   // The leading space gives every line the history suppression a short command gets.
   return lines.join("\r ");
 }
@@ -246,8 +246,8 @@ function wrapCommandForCompletion(
       // Nu resolves imports before running cd; source a file rooted in the worktree.
       return [
         "$env.LAST_EXIT_CODE = 0",
-        "let __t3f = try { mktemp --tmpdir-path $env.T3CODE_WORKTREE_PATH --suffix .nu .t3-setup-XXXXXXXX } catch {|e| print -e $e.msg; null }",
-        `if $__t3f == null { $env.LAST_EXIT_CODE = 1 } else { try { [$"rm --permanent ($__t3f | to nuon)" "${escaped}"] | str join (char newline) | save --force --raw $__t3f; ^$nu.current-exe --login --commands $"cd $env.T3CODE_WORKTREE_PATH; source ($__t3f | to nuon)" } catch {|e| if $e != null and $e.exit_code? == null { print -e $e.msg }; if $env.LAST_EXIT_CODE == 0 { $env.LAST_EXIT_CODE = 1 } } }`,
+        "let __t3f = try { mktemp --tmpdir-path $env.S1CODE_WORKTREE_PATH --suffix .nu .s1-setup-XXXXXXXX } catch {|e| print -e $e.msg; null }",
+        `if $__t3f == null { $env.LAST_EXIT_CODE = 1 } else { try { [$"rm --permanent ($__t3f | to nuon)" "${escaped}"] | str join (char newline) | save --force --raw $__t3f; ^$nu.current-exe --login --commands $"cd $env.S1CODE_WORKTREE_PATH; source ($__t3f | to nuon)" } catch {|e| if $e != null and $e.exit_code? == null { print -e $e.msg }; if $env.LAST_EXIT_CODE == 0 { $env.LAST_EXIT_CODE = 1 } } }`,
         "let __t3c = $env.LAST_EXIT_CODE",
         "try { if $__t3f != null and ($__t3f | path exists) { rm --permanent $__t3f } } catch {|e| print -e $e.msg }",
         `print $"\\n${sentinel}($__t3c)"`,
@@ -529,7 +529,7 @@ export const make = Effect.gen(function* () {
       // Before client attachment, truecolor probes wait for terminal replies nobody can send.
       COLORTERM: "",
       // Project scripts keep the default shell; the preference is for interactive terminals only.
-      T3CODE_TERMINAL_SHELL: "",
+      S1CODE_TERMINAL_SHELL: "",
     };
     const observe = input.observeCompletion;
     const completionToken = observe ? (yield* random.uuidV4()).replaceAll("-", "") : null;

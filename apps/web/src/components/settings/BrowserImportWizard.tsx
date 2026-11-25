@@ -1,7 +1,7 @@
 import { PermissionChecklist, PermissionContinueButton } from "../permissions/PermissionChecklist";
 import { usePermissionStatus } from "../permissions/usePermissionStatus";
-import { browserImportFailureMessage } from "@t3tools/client-runtime/contract-labels";
-import type { BROWSER_IMPORT_FAILURE_COPY, BrowserImportSource } from "@t3tools/contracts";
+import { browserImportFailureMessage } from "@s1tools/client-runtime/contract-labels";
+import type { BROWSER_IMPORT_FAILURE_COPY, BrowserImportSource } from "@s1tools/contracts";
 import { ArrowDownIcon, ArrowRightIcon, CheckIcon, HardDriveIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { msg, T, useGT, useMessages, Var } from "gt-react";
@@ -282,12 +282,12 @@ function FullDiskAccessStep({
       <DialogHeader>
         <DialogTitle>
           <T>
-            Let T3 Code read <Var>{source.name}</Var>&rsquo;s cookies
+            Let S1 Code read <Var>{source.name}</Var>&rsquo;s cookies
           </T>
         </DialogTitle>
         <DialogDescription>
           <T>
-            To import cookies from <Var>{source.name}</Var>, T3 Code needs Full Disk Access. Turn it
+            To import cookies from <Var>{source.name}</Var>, S1 Code needs Full Disk Access. Turn it
             on in System Settings, then come back to finish the import. You can revoke it again once
             the import is done.
           </T>
@@ -323,10 +323,10 @@ function FullDiskAccessStep({
           <p className="mt-3 text-xs text-muted-foreground">
             {stillRequired
               ? gt(
-                  "Access is still required. Quit and reopen T3 Code if you just allowed it, then retry the import.",
+                  "Access is still required. Quit and reopen S1 Code if you just allowed it, then retry the import.",
                 )
               : gt(
-                  "If access doesn't update after you allow it, quit and reopen T3 Code, then retry the import.",
+                  "If access doesn't update after you allow it, quit and reopen S1 Code, then retry the import.",
                 )}
           </p>
         ) : null}

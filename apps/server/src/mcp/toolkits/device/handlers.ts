@@ -8,8 +8,8 @@ import {
   type DeviceSummary,
   DeviceToolUnavailableError,
   LOCAL_DEVICE_HOST_ID,
-} from "@t3tools/contracts";
-import { splitsSurrogatePair } from "@t3tools/shared/assistantCitations";
+} from "@s1tools/contracts";
+import { splitsSurrogatePair } from "@s1tools/shared/assistantCitations";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as DeviceService from "../../../device/DeviceService.ts";
@@ -42,7 +42,7 @@ export function agentDeviceQuickStart(
   const platformNotes =
     host?.kind === "simlock"
       ? [
-          "This device is leased from a Simlock pool (alpha in T3 Code). The lease returns it to the pool, wiped, when it ends, so call device_close with shutdown: true when you are done. It starts with no apps installed.",
+          "This device is leased from a Simlock pool (alpha in S1 Code). The lease returns it to the pool, wiped, when it ends, so call device_close with shutdown: true when you are done. It starts with no apps installed.",
           host.installDirectory
             ? `agent-device accepts install for this lease only when run from ${host.installDirectory}.`
             : "",
@@ -78,7 +78,7 @@ export function agentDeviceQuickStart(
     "Each device_open returns its own command; opening another device does not retarget this one.",
     ...(target === ""
       ? [
-          "The command is removed when the device closes or T3 Code restarts. If it is missing, call device_open again.",
+          "The command is removed when the device closes or S1 Code restarts. If it is missing, call device_open again.",
         ]
       : []),
     platformNotes,

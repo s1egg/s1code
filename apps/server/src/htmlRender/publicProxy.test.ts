@@ -16,7 +16,7 @@ vi.mock("node:os", async (importOriginal) => {
     ...actual,
     networkInterfaces: () => ({
       ...actual.networkInterfaces(),
-      "t3-test": [
+      "s1-test": [
         {
           address: OWN_PUBLIC_IPV4,
           netmask: "255.255.255.0",

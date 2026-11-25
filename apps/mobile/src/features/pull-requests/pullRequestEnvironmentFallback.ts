@@ -1,5 +1,5 @@
-import type { EnvironmentProject } from "@t3tools/client-runtime/state/models";
-import type { EnvironmentConnectionSummary } from "@t3tools/client-runtime/state/presentation";
+import type { EnvironmentProject } from "@s1tools/client-runtime/state/models";
+import type { EnvironmentConnectionSummary } from "@s1tools/client-runtime/state/presentation";
 
 export type PullRequestEnvironmentTarget = {
   readonly environmentId: string;

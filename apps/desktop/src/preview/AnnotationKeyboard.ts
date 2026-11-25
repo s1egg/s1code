@@ -1,4 +1,4 @@
-import type { PreviewAnnotationSubmission } from "@t3tools/contracts";
+import type { PreviewAnnotationSubmission } from "@s1tools/contracts";
 
 interface AnnotationKeyboardEvent {
   readonly isTrusted: boolean;

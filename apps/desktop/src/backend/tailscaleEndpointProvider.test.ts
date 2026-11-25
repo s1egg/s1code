@@ -26,13 +26,13 @@ describe("tailscale endpoint provider", () => {
   it.effect("does not advertise Proton's CGNAT address as a Tailscale pairing endpoint", () =>
     Effect.gen(function* () {
       const endpoints = yield* resolveTailscaleAdvertisedEndpoints({
-        port: 3773,
+        port: 4773,
         networkInterfaces: protonAndTailscaleInterfaces,
         statusJson: `{"Self":{"TailscaleIPs":["100.74.126.34"]}}`,
       });
       assert.deepEqual(
         endpoints.map((endpoint) => endpoint.httpBaseUrl),
-        ["http://100.74.126.34:3773/"],
+        ["http://100.74.126.34:4773/"],
       );
     }).pipe(Effect.provide(layerUnusedTailscaleExternalServices)),
   );
@@ -42,7 +42,7 @@ describe("tailscale endpoint provider", () => {
       for (const interfaceName of ["tailscale0", "Tailscale"]) {
         for (const statusJson of [null, "not-json", `{"Self":{"TailscaleIPs":[]}}`]) {
           const endpoints = yield* resolveTailscaleAdvertisedEndpoints({
-            port: 3773,
+            port: 4773,
             networkInterfaces: {
               pvpnksintrf1: protonAndTailscaleInterfaces.pvpnksintrf1,
               [interfaceName]: protonAndTailscaleInterfaces.tailscale0,
@@ -51,7 +51,7 @@ describe("tailscale endpoint provider", () => {
           });
           assert.deepEqual(
             endpoints.map((endpoint) => endpoint.httpBaseUrl),
-            ["http://100.74.126.34:3773/"],
+            ["http://100.74.126.34:4773/"],
           );
         }
       }
@@ -63,7 +63,7 @@ describe("tailscale endpoint provider", () => {
     () =>
       Effect.gen(function* () {
         const endpoints = yield* resolveTailscaleAdvertisedEndpoints({
-          port: 3773,
+          port: 4773,
           networkInterfaces: {
             utun3: [{ address: "100.85.0.1", family: "IPv4", internal: false }],
             utun4: [
@@ -75,7 +75,7 @@ describe("tailscale endpoint provider", () => {
         });
         assert.deepEqual(
           endpoints.map((endpoint) => endpoint.httpBaseUrl),
-          ["http://100.74.126.34:3773/"],
+          ["http://100.74.126.34:4773/"],
         );
       }).pipe(Effect.provide(layerUnusedTailscaleExternalServices)),
   );
@@ -84,7 +84,7 @@ describe("tailscale endpoint provider", () => {
     Effect.gen(function* () {
       const magicDnsStatus = (servedEnvironmentId: string) =>
         resolveTailscaleAdvertisedEndpoints({
-          port: 3773,
+          port: 4773,
           serveEnabled: true,
           networkInterfaces: {},
           statusJson: `{"Self":{"DNSName":"desktop.example.ts.net.","TailscaleIPs":[]}}`,
@@ -101,7 +101,7 @@ describe("tailscale endpoint provider", () => {
                       new URL(request.url).hostname === "127.0.0.1"
                         ? "desktop-backend"
                         : servedEnvironmentId,
-                    label: "T3 server",
+                    label: "S1 server",
                     platform: { os: "linux", arch: "x64" },
                     serverVersion: "0.1.9",
                     capabilities: { repositoryIdentity: true },

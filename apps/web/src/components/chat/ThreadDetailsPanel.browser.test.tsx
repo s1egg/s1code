@@ -4,12 +4,12 @@ import {
   ThreadId,
   type ScopedThreadRef,
   type ThreadPullRequestLink,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
-const SCRATCH_ROOT = "/home/user/.t3/scratch";
+const SCRATCH_ROOT = "/home/user/.s1/scratch";
 
 const state = vi.hoisted(() => ({
   workspaceRoot: "",
@@ -18,7 +18,7 @@ const state = vi.hoisted(() => ({
   configLoaded: true,
 }));
 
-// The read of t3.json is a cache: a re-read is the only way to see what is on disk now.
+// The read of s1.json is a cache: a re-read is the only way to see what is on disk now.
 const t3File = vi.hoisted(() => ({
   disk: "",
   cached: "",
@@ -43,7 +43,7 @@ vi.mock(import("~/components/files/projectFilesQueryState"), async (importOrigin
         for (const listener of t3File.listeners) listener();
       };
       const data =
-        relativePath === "t3.json" && contents !== ""
+        relativePath === "s1.json" && contents !== ""
           ? { relativePath, contents, byteLength: contents.length, truncated: false }
           : null;
       return {
@@ -137,9 +137,9 @@ const container = { width: 1200, height: 800 };
 const placement = { x: 908, y: 0, right: 12, width: 280, height: 400 } as const;
 const linkedPullRequest: ThreadPullRequestLink = {
   host: "github.com",
-  repository: "pingdotgg/t3code",
+  repository: "s1egg/s1code",
   number: 27513,
-  url: "https://github.com/pingdotgg/t3code/pull/27513",
+  url: "https://github.com/s1egg/s1code/pull/27513",
   source: "manual",
   linkedAt: "2026-10-30T00:00:00.000Z",
   snapshot: null,
@@ -295,7 +295,7 @@ it("offers no Initialize Git before the server config says where No project live
     .not.toBeInTheDocument();
 });
 
-it("lists the t3.json actions on disk when the actions menu opens again after the file changed", async () => {
+it("lists the s1.json actions on disk when the actions menu opens again after the file changed", async () => {
   using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
   const t3Json = (name: string) =>
     JSON.stringify({ scripts: [{ name, command: `npm run dev -- --port ${name.slice(-4)}` }] });
@@ -309,7 +309,7 @@ it("lists the t3.json actions on disk when the actions menu opens again after th
   await chooser.click();
   await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 
-  // A setup hook rewrites this checkout's t3.json outside T3 Code.
+  // A setup hook rewrites this checkout's s1.json outside S1 Code.
   t3File.disk = t3Json("Dev 4200");
 
   await chooser.click();

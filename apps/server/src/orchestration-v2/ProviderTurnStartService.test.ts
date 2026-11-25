@@ -1,7 +1,7 @@
 import {
   serializeAssistantCitation,
   expandAssistantCitationsForProvider,
-} from "@t3tools/shared/assistantCitations";
+} from "@s1tools/shared/assistantCitations";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it, vi } from "vite-plus/test";
@@ -30,7 +30,7 @@ import {
   PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
   type OrchestrationV2ThreadProjection,
   OrchestrationV2DomainEvent,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -78,11 +78,11 @@ import * as RuntimeRequestService from "./RuntimeRequestService.ts";
 import * as ThreadCommandExecutor from "./ThreadCommandExecutor.ts";
 import * as ThreadManagementService from "./ThreadManagementService.ts";
 import * as ThreadTitleRegenerationService from "./ThreadTitleRegenerationService.ts";
-import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
+import * as IdAllocator from "@s1tools/provider-core/server/IdAllocator";
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
 import * as ProjectionMaintenance from "./ProjectionMaintenance.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
-import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
+import * as ProviderAdapter from "@s1tools/provider-core/server/ProviderAdapter";
 import * as ProviderSessionManager from "./ProviderSessionManager.ts";
 import * as ProviderTurnStart from "./ProviderTurnStartService.ts";
 import * as RunExecutionService from "./RunExecutionService.ts";
@@ -421,8 +421,8 @@ effectIt.effect("restores into a leftover worktree folder that cannot itself be 
 });
 
 it.each([
-  { label: "directly in the scratch root", folder: "/tmp/t3-home/scratch/notes", recreated: true },
-  { label: "below another folder", folder: "/tmp/t3-home/scratch/notes/deep", recreated: false },
+  { label: "directly in the scratch root", folder: "/tmp/s1-home/scratch/notes", recreated: true },
+  { label: "below another folder", folder: "/tmp/s1-home/scratch/notes/deep", recreated: false },
   {
     label: "in another project",
     folder: "/tmp/elsewhere/notes",
@@ -452,7 +452,7 @@ it.each([
             } as never),
             Path.layer,
             Layer.mock(ServerConfig.ServerConfig)({
-              baseDir: "/tmp/t3-home",
+              baseDir: "/tmp/s1-home",
               worktreesDir: managedWorktreesDir,
             } as ServerConfig.ServerConfig["Service"]),
             ServerSettings.layerTest(),
@@ -460,7 +460,7 @@ it.each([
             Layer.mock(ProjectService.ProjectService)({
               getById: () =>
                 Effect.succeedSome({
-                  workspaceRoot: input.workspaceRoot ?? "/tmp/t3-home/scratch",
+                  workspaceRoot: input.workspaceRoot ?? "/tmp/s1-home/scratch",
                 } as never),
             }),
           ),
@@ -1592,7 +1592,7 @@ effectIt.effect(
           failure: {
             class: "unknown",
             message:
-              "T3 Code could not start this turn. Send the message again; if it keeps failing, check the server logs.",
+              "S1 Code could not start this turn. Send the message again; if it keeps failing, check the server logs.",
           },
         },
       ]);
@@ -1957,7 +1957,7 @@ effectIt.effect(
       const path = yield* Path.Path;
       const gitWorkflow = yield* GitWorkflow.GitWorkflowService;
       const driver = yield* GitVcsDriver.GitVcsDriver;
-      const root = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-recreate-repo-" });
+      const root = yield* fileSystem.makeTempDirectoryScoped({ prefix: "s1-recreate-repo-" });
       const workspaceRoot = path.join(root, "project");
       const originRoot = path.join(root, "origin.git");
       const worktreesDir = path.join(root, "worktrees");
@@ -2083,7 +2083,7 @@ effectIt.effect(
                 yield* git(worktreePath, ["rev-parse", "--symbolic-full-name", "@{upstream}"]),
               ).toBe(expected.upstream);
             }
-            expect(yield* branchConfig("t3-merge-base")).toBe(expected.base);
+            expect(yield* branchConfig("s1-merge-base")).toBe(expected.base);
             return yield* open();
           }).pipe(Effect.orDie),
         );
@@ -2105,7 +2105,7 @@ effectIt.effect("leaves a managed worktree folder without .git that holds user f
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const worktreesDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-leftover-" });
+    const worktreesDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "s1-leftover-" });
     const worktreePath = path.join(worktreesDir, "project", "restore");
     yield* fileSystem.makeDirectory(path.join(worktreePath, "node_modules"), { recursive: true });
     yield* fileSystem.writeFileString(path.join(worktreePath, "notes.md"), "keep me");
@@ -2130,7 +2130,7 @@ effectIt.effect.each([
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const worktreesDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-restore-setup-" });
+    const worktreesDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "s1-restore-setup-" });
     const worktreePath = path.join(worktreesDir, "project", "restore");
     const setupStarted = yield* Deferred.make<void>();
     const setupDone = yield* Deferred.make<ProjectSetupScriptRunner.ProjectSetupScriptCompletion>();
@@ -2192,7 +2192,7 @@ effectIt.effect("runs setup for a worktree a send recreated before dispatch", ()
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const worktreesDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-sent-setup-" });
+    const worktreesDir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "s1-sent-setup-" });
     const worktreePath = path.join(worktreesDir, "project", "restore");
     yield* fileSystem.makeDirectory(path.join(worktreePath, ".git"), { recursive: true });
     const runSetup = vi.fn(() => Effect.succeed({ status: "no-script" as const }));
@@ -2219,7 +2219,7 @@ effectIt.effect(
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const worktreesDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-recreate-failure-",
+        prefix: "s1-recreate-failure-",
       });
       const worktreePath = path.join(worktreesDir, "project", "restore");
       const harness = makeLocalCommandHarness({
@@ -2935,7 +2935,7 @@ effectIt.effect.each(["cleanup-first", "startup-first"])(
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const workspaceRoot = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-start-" });
+      const workspaceRoot = yield* fileSystem.makeTempDirectoryScoped({ prefix: "s1-start-" });
       const worktreePath = path.join(workspaceRoot, "project", "worktree");
       yield* fileSystem.makeDirectory(path.join(worktreePath, ".git"), { recursive: true });
       const release = yield* Deferred.make<void>();

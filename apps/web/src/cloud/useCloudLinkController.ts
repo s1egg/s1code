@@ -1,13 +1,13 @@
 import { useAtomValue } from "@effect/atom-react";
 import { useAuth } from "@clerk/react";
-import { findErrorTraceId, thrownErrorMessage } from "@t3tools/client-runtime/errors";
-import { AuthRelayReadScope, AuthRelayWriteScope, type EnvironmentId } from "@t3tools/contracts";
-import { ManagedRelay } from "@t3tools/client-runtime/relay";
+import { findErrorTraceId, thrownErrorMessage } from "@s1tools/client-runtime/errors";
+import { AuthRelayReadScope, AuthRelayWriteScope, type EnvironmentId } from "@s1tools/contracts";
+import { ManagedRelay } from "@s1tools/client-runtime/relay";
 import {
   isAtomCommandInterrupted,
   settlePromise,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@s1tools/client-runtime/state/runtime";
 import * as Schema from "effect/Schema";
 import { useState } from "react";
 import { msg } from "gt-react";
@@ -76,16 +76,16 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
   const [tunnelLimit, setTunnelLimit] = useState<number | null>(null);
 
   const reportUpdateFailure = (cause: unknown, reason?: string) => {
-    const message = thrownErrorMessage(cause, m) ?? m(msg("Could not update T3 Connect access."));
+    const message = thrownErrorMessage(cause, m) ?? m(msg("Could not update S1 Connect access."));
     const traceId = findErrorTraceId(cause);
-    console.error("[t3-connect] Could not update T3 Connect", { message, traceId, cause });
+    console.error("[s1-connect] Could not update S1 Connect", { message, traceId, cause });
     setOperationError(
       traceId ? m(msg("{message} Trace ID: {traceId}", { message, traceId })) : message,
     );
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: m(msg("Could not update T3 Connect")),
+        title: m(msg("Could not update S1 Connect")),
         description: reason ?? relayFailureReason(cause) ?? message,
         ...(traceId
           ? {
@@ -131,7 +131,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
       ) {
         reportUpdateFailure(
           new Error(
-            m(msg("This connection needs permission to view and manage T3 Connect settings.")),
+            m(msg("This connection needs permission to view and manage S1 Connect settings.")),
           ),
         );
         return false;
@@ -142,7 +142,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
       const state = readCachedCloudLinkState(target);
       if (state === null) {
         reportUpdateFailure(
-          new Error(m(msg("Wait until the current T3 Connect settings can be read."))),
+          new Error(m(msg("Wait until the current S1 Connect settings can be read."))),
         );
       }
       return state;
@@ -170,7 +170,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
           reportUpdateFailure(
             cause,
             relayKeptLink
-              ? m(msg("Disconnected here, but T3 Connect still lists it. Remove it in Account."))
+              ? m(msg("Disconnected here, but S1 Connect still lists it. Remove it in Account."))
               : undefined,
           );
         }
@@ -187,7 +187,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
       }
       const clerkToken = tokenResult.value;
       if (!clerkToken) {
-        reportUpdateFailure(new Error(m(msg("Sign in to T3 Connect before enabling this."))));
+        reportUpdateFailure(new Error(m(msg("Sign in to S1 Connect before enabling this."))));
         return false;
       }
       if (cloudChangeReplacesLink(currentLinkState, relayProviderKind, desired)) {
@@ -196,7 +196,7 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
             new Error(
               m(
                 msg(
-                  "This connection needs the relay configuration permission to configure T3 Connect.",
+                  "This connection needs the relay configuration permission to configure S1 Connect.",
                 ),
               ),
             ),

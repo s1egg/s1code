@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/desktop",
+  "name": "@s1tools/desktop",
   "version": "0.1.12",
   "private": true,
   "type": "module",
@@ -16,11 +16,11 @@
     "@crowecawcaw/xa11y": "0.15.4",
     "@effect/platform-node": "catalog:",
     "@napi-rs/keyring": "^1.3.0",
-    "@t3tools/client-runtime": "workspace:*",
-    "@t3tools/contracts": "workspace:*",
-    "@t3tools/shared": "workspace:*",
-    "@t3tools/ssh": "workspace:*",
-    "@t3tools/tailscale": "workspace:*",
+    "@s1tools/client-runtime": "workspace:*",
+    "@s1tools/contracts": "workspace:*",
+    "@s1tools/shared": "workspace:*",
+    "@s1tools/ssh": "workspace:*",
+    "@s1tools/tailscale": "workspace:*",
     "dbus-next": "0.10.2",
     "effect": "catalog:",
     "electron": "44.10.1",
@@ -44,5 +44,5 @@
     "tailwindcss": "^4.0.0",
     "vite-plus": "catalog:"
   },
-  "productName": "T3 Code (Beta)"
+  "productName": "S1 Code (Beta)"
 }

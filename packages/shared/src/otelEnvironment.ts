@@ -6,7 +6,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 
-import type { OtlpEndpointSource } from "@t3tools/contracts";
+import type { OtlpEndpointSource } from "@s1tools/contracts";
 
 import { OtlpHeadersFromString, OtlpProtocol, type SignalExport } from "./observability.ts";
 
@@ -77,8 +77,8 @@ const flag = (
   );
 
 // `Config.Boolean`'s literals, which effect does not export on their own.
-const T3CODE_TRUE = ["true", "yes", "on", "1", "y"];
-const T3CODE_FALSE = ["false", "no", "off", "0", "n"];
+const S1CODE_TRUE = ["true", "yes", "on", "1", "y"];
+const S1CODE_FALSE = ["false", "no", "off", "0", "n"];
 
 const RESOURCE_ATTRIBUTES = "OTEL_RESOURCE_ATTRIBUTES";
 
@@ -176,7 +176,7 @@ const exporter = (name: string): Config.Config<Setting<Exporter>> =>
         ? { value }
         : {
             value,
-            warning: `${name} names ${ignored.join(", ")}, which T3 Code does not export to, so ${ignored.length === 1 ? "it was" : "they were"} ignored`,
+            warning: `${name} names ${ignored.join(", ")}, which S1 Code does not export to, so ${ignored.length === 1 ? "it was" : "they were"} ignored`,
           };
     }),
   );
@@ -252,11 +252,11 @@ const endpointSignal = (name: OtlpSignalName, own: Settings, generic: Settings):
 };
 
 const sdkFlags = {
-  t3: flag(
-    "T3CODE_OTEL_SDK_DISABLED",
-    T3CODE_TRUE,
-    T3CODE_FALSE,
-    (value) => `T3CODE_OTEL_SDK_DISABLED=${value} is not a yes or a no and was ignored`,
+  s1: flag(
+    "S1CODE_OTEL_SDK_DISABLED",
+    S1CODE_TRUE,
+    S1CODE_FALSE,
+    (value) => `S1CODE_OTEL_SDK_DISABLED=${value} is not a yes or a no and was ignored`,
   ),
   // OTEL booleans are true only for case-insensitive true; warn on unrecognized values.
   spec: flag(
@@ -264,7 +264,7 @@ const sdkFlags = {
     ["true"],
     ["false"],
     (value) =>
-      `OTEL_SDK_DISABLED=${value} was read as false; the OpenTelemetry specification recognizes only the string true, so use OTEL_SDK_DISABLED=true or T3CODE_OTEL_SDK_DISABLED to say it any other way`,
+      `OTEL_SDK_DISABLED=${value} was read as false; the OpenTelemetry specification recognizes only the string true, so use OTEL_SDK_DISABLED=true or S1CODE_OTEL_SDK_DISABLED to say it any other way`,
   ),
 };
 
@@ -281,8 +281,8 @@ export const load: Effect.Effect<OtelEnvironment> = Config.all({
     logs: exporter("OTEL_LOGS_EXPORTER"),
   }),
 }).pipe(
-  Effect.map(({ t3, spec, resource, generic, exporters, ...own }) => {
-    const disabled = t3.value ?? spec.value ?? false;
+  Effect.map(({ s1, spec, resource, generic, exporters, ...own }) => {
+    const disabled = s1.value ?? spec.value ?? false;
     const signals = disabled
       ? undefined
       : {
@@ -294,16 +294,16 @@ export const load: Effect.Effect<OtelEnvironment> = Config.all({
       signals === undefined ? [] : Object.values(signals).flatMap((resolved) => resolved.used),
     );
     const warnings = [
-      t3.warning,
+      s1.warning,
       spec.warning,
       resource.warning,
       ...Array.from(used, (setting) => setting.warning),
     ].filter((warning) => warning !== undefined);
     if (disabled) {
       warnings.push(
-        t3.value
-          ? "T3CODE_OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it"
-          : "OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it; set T3CODE_OTEL_SDK_DISABLED=false to export anyway",
+        s1.value
+          ? "S1CODE_OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it"
+          : "OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it; set S1CODE_OTEL_SDK_DISABLED=false to export anyway",
       );
     }
     return {
@@ -335,7 +335,7 @@ const CI_VARIABLES = [
   "APPVEYOR",
 ] as const;
 
-/** CI runs are not installs, so telemetry is off there unless `T3CODE_TELEMETRY_ENABLED` says otherwise. */
+/** CI runs are not installs, so telemetry is off there unless `S1CODE_TELEMETRY_ENABLED` says otherwise. */
 export const isCiEnvironment = (env: Readonly<Record<string, string | undefined>>) =>
   CI_VARIABLES.some((name) => {
     const value = env[name]?.trim().toLowerCase();
@@ -344,18 +344,18 @@ export const isCiEnvironment = (env: Readonly<Record<string, string | undefined>
 
 /** The cross-tool `DO_NOT_TRACK=1` convention turns off product analytics and relay tracing. */
 export const isDoNotTrackSet = (env: Readonly<Record<string, string | undefined>>) =>
-  T3CODE_TRUE.includes(env.DO_NOT_TRACK?.trim().toLowerCase() ?? "");
+  S1CODE_TRUE.includes(env.DO_NOT_TRACK?.trim().toLowerCase() ?? "");
 
 export const isRelayTracingEnabled = (env: Readonly<Record<string, string | undefined>>) =>
   Config.all({
     ...sdkFlags,
-    telemetry: flag("T3CODE_TELEMETRY_ENABLED", T3CODE_TRUE, T3CODE_FALSE, String),
+    telemetry: flag("S1CODE_TELEMETRY_ENABLED", S1CODE_TRUE, S1CODE_FALSE, String),
   }).pipe(
     Effect.map(
-      ({ telemetry, t3, spec }) =>
+      ({ telemetry, s1, spec }) =>
         (telemetry.value ?? !isCiEnvironment(env)) &&
         !isDoNotTrackSet(env) &&
-        !(t3.value ?? spec.value ?? false),
+        !(s1.value ?? spec.value ?? false),
     ),
     Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord(env))),
     Effect.orDie,
@@ -375,25 +375,25 @@ export interface SignalEndpoint {
 export const resolveSignalEndpoint = (
   otel: OtelEnvironment,
   signal: SignalName,
-  t3: { readonly url: string | undefined; readonly export: SignalExport },
+  s1: { readonly url: string | undefined; readonly export: SignalExport },
   fallback: { readonly bootstrapUrl: string | undefined; readonly settingsUrl: string | undefined },
 ): SignalEndpoint | undefined => {
   if (otel.disabled) {
     return undefined;
   }
-  const t3Url = blankAsUnset(t3.url);
+  const t3Url = blankAsUnset(s1.url);
   if (t3Url !== undefined) {
     return {
       url: t3Url,
-      export: t3.export,
+      export: s1.export,
       source: "environment",
-      variable: `T3CODE_OTLP_${signal.toUpperCase()}_URL`,
+      variable: `S1CODE_OTLP_${signal.toUpperCase()}_URL`,
     };
   }
   return OtelSignal.$match(otel[signal], {
     Export: ({ url, variable, protocol, headers }): SignalEndpoint => ({
       url,
-      export: { protocol, headers, exportIntervalMs: t3.export.exportIntervalMs },
+      export: { protocol, headers, exportIntervalMs: s1.export.exportIntervalMs },
       source: "environment",
       variable,
     }),
@@ -404,7 +404,7 @@ export const resolveSignalEndpoint = (
       // the desktop's own.
       const url = blankAsUnset(fallback.bootstrapUrl) ?? settingsUrl;
       if (url === undefined) return undefined;
-      return { url, export: t3.export, source: url === settingsUrl ? "settings" : "bootstrap" };
+      return { url, export: s1.export, source: url === settingsUrl ? "settings" : "bootstrap" };
     },
   });
 };

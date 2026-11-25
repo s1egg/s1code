@@ -1,5 +1,5 @@
-import type { ResolvedKeybindingsConfig, ScopedThreadRef } from "@t3tools/contracts";
-import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
+import type { ResolvedKeybindingsConfig, ScopedThreadRef } from "@s1tools/contracts";
+import { DEFAULT_RESOLVED_KEYBINDINGS } from "@s1tools/shared/keybindings";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -365,13 +365,13 @@ describe("root reopen shortcut", () => {
   it("includes the reopened issue selection in the /issues URL", async () => {
     setup();
     const issueSurface = {
-      id: "issue:remote:project-1:github:github.com:pingdotgg/t3code:42" as const,
+      id: "issue:remote:project-1:github:github.com:s1egg/s1code:42" as const,
       kind: "issue" as const,
       environmentId: "remote",
       projectId: "project-1",
       tracker: "github",
       host: "github.com",
-      scope: "pingdotgg/t3code",
+      scope: "s1egg/s1code",
       key: "42",
     };
     useClosedViewStore.getState().remember({
@@ -393,7 +393,7 @@ describe("root reopen shortcut", () => {
           selectedProjectId: "project-1",
           selectedHost: "github.com",
           tracker: "github",
-          scope: "pingdotgg/t3code",
+          scope: "s1egg/s1code",
           key: "42",
         }),
       }),

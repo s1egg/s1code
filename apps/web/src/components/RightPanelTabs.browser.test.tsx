@@ -1,7 +1,7 @@
 import "~/index.css";
 
-import { EnvironmentId } from "@t3tools/contracts";
-import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
+import { EnvironmentId } from "@s1tools/contracts";
+import { DEFAULT_RESOLVED_KEYBINDINGS } from "@s1tools/shared/keybindings";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 

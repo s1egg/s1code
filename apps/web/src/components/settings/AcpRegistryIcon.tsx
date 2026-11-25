@@ -5,12 +5,12 @@ import { useId, useState } from "react";
 import {
   resolveOfficialAcpRegistryIconUrl,
   officialAcpRegistryIconUrlForAgentId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 
 import { cn } from "../../lib/utils";
 import { ACPRegistryIcon } from "../Icons";
 
-const ACP_REGISTRY_ICON_CACHE = "t3-acp-registry-icons-v1";
+const ACP_REGISTRY_ICON_CACHE = "s1-acp-registry-icons-v1";
 const MAX_ICON_BYTES = 512 * 1_024;
 const inFlightIcons = new Map<string, Promise<Blob>>();
 

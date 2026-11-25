@@ -1,4 +1,4 @@
-import type { ThreadTitleMessage } from "@t3tools/provider-core/server/threadTitleContext";
+import type { ThreadTitleMessage } from "@s1tools/provider-core/server/threadTitleContext";
 
 export const threadTitleEvaluationCases = [
   {
@@ -9,7 +9,7 @@ export const threadTitleEvaluationCases = [
     messages: [
       {
         role: "user",
-        text: "[xlsx: chart data labels use the cells' number format](t3-context://v1/thread/thread_labels) why could this thread not start up? [Run chart format tests on external target](t3-context://v1/thread/thread_tests) why did i have to say it like this over here to get it working?",
+        text: "[xlsx: chart data labels use the cells' number format](s1-context://v1/thread/thread_labels) why could this thread not start up? [Run chart format tests on external target](s1-context://v1/thread/thread_tests) why did i have to say it like this over here to get it working?",
       },
     ],
     rubric:
@@ -23,7 +23,7 @@ export const threadTitleEvaluationCases = [
     messages: [
       {
         role: "user",
-        text: "Continue [xlsx: chart data labels use the cells' number format](t3-context://v1/thread/thread_labels). Make the chart labels inherit the cells' number formats.",
+        text: "Continue [xlsx: chart data labels use the cells' number format](s1-context://v1/thread/thread_labels). Make the chart labels inherit the cells' number formats.",
       },
     ],
     rubric:
@@ -119,10 +119,10 @@ export const threadTitleEvaluationCases = [
   {
     id: "research",
     source: "Maintainer title generation request",
-    request: "How can we improve title generation in T3 Code?",
+    request: "How can we improve title generation in S1 Code?",
     previousTitle: "Research title gen improvements",
     messages: [
-      { role: "user", text: "How can we improve title gen further in T3 Code?" },
+      { role: "user", text: "How can we improve title gen further in S1 Code?" },
       {
         role: "assistant",
         text: "Prioritize user messages, refine vague titles once, and resolve PR subjects.",

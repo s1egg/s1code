@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { scopeProjectRef } from "@t3tools/client-runtime/environment";
+import { scopeProjectRef } from "@s1tools/client-runtime/environment";
 import {
   type BrowserProfileId,
   EnvironmentId,
@@ -8,7 +8,7 @@ import {
   type PreviewSessionSnapshot,
   ProjectId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 
 const { readPreparedConnection, entities, settingsHydration } = vi.hoisted(() => ({
   readPreparedConnection: vi.fn<() => { httpBaseUrl: string } | null>(() => null),
@@ -35,7 +35,7 @@ vi.mock("~/state/entities", () => ({
   useQuietThreadShell: () => null,
 }));
 vi.mock("./hooks/useSettings", async () => {
-  const { DEFAULT_CLIENT_SETTINGS } = await import("@t3tools/contracts/settings");
+  const { DEFAULT_CLIENT_SETTINGS } = await import("@s1tools/contracts/settings");
   return {
     getClientSettings: () => DEFAULT_CLIENT_SETTINGS,
     useClientSettings: () => DEFAULT_CLIENT_SETTINGS,
@@ -306,13 +306,13 @@ describe("useBrowserHistoryStore", () => {
   it("matches a requested localhost URL to the resolved environment host", () => {
     useBrowserHistoryStore.getState().registerThreadProject(threadRef, "proj-a");
     recordVisitForThread(threadRef, "http://localhost:5173/app", 1);
-    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://192.168.64.2:3773" });
+    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://192.168.64.2:4773" });
     settle("http://192.168.64.2:5173/app", "Local App");
     expect(useBrowserHistoryStore.getState().byProjectKey["proj-a"]?.[0]?.title).toBe("Local App");
   });
 
   it("deduplicates loopback aliases and the resolved environment host", () => {
-    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://192.168.64.2:3773" });
+    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://192.168.64.2:4773" });
     useBrowserHistoryStore.getState().registerThreadProject(threadRef, "proj-a");
     recordVisitForThread(threadRef, "http://localhost:5173/app", 1);
     recordVisitForThread(threadRef, "http://127.0.0.1:5173/app", 2);

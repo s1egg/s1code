@@ -10,8 +10,8 @@ afterEach(() => {
 describe("hasCloudPublicConfig", () => {
   it("rejects an insecure relay URL", () => {
     vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", "pk_test_example");
-    vi.stubEnv("VITE_CLERK_JWT_TEMPLATE", "t3-relay");
-    vi.stubEnv("VITE_T3CODE_RELAY_URL", "http://relay.example.test");
+    vi.stubEnv("VITE_CLERK_JWT_TEMPLATE", "s1-relay");
+    vi.stubEnv("VITE_S1CODE_RELAY_URL", "http://relay.example.test");
 
     expect(hasCloudPublicConfig()).toBe(false);
   });
@@ -19,8 +19,8 @@ describe("hasCloudPublicConfig", () => {
   describe("browser origins", () => {
     beforeEach(() => {
       vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", `pk_live_${btoa("clerk.example.com$")}`);
-      vi.stubEnv("VITE_CLERK_JWT_TEMPLATE", "t3-relay");
-      vi.stubEnv("VITE_T3CODE_RELAY_URL", "https://relay.example.test");
+      vi.stubEnv("VITE_CLERK_JWT_TEMPLATE", "s1-relay");
+      vi.stubEnv("VITE_S1CODE_RELAY_URL", "https://relay.example.test");
     });
 
     it.each(["https://example.com", "https://nightly.app.example.com:443"])(
@@ -32,7 +32,7 @@ describe("hasCloudPublicConfig", () => {
       },
     );
 
-    it.each(["http://localhost:3773", "https://machine.example.ts.net"])(
+    it.each(["http://localhost:4773", "https://machine.example.ts.net"])(
       "disables production auth on private browser origins: %s",
       (origin) => {
         vi.stubGlobal("window", { location: new URL(origin) });
@@ -41,7 +41,7 @@ describe("hasCloudPublicConfig", () => {
       },
     );
 
-    it.each(["http://app.example.com:443", "https://app.example.com:3773"])(
+    it.each(["http://app.example.com:443", "https://app.example.com:4773"])(
       "rejects unsupported schemes and ports even on the configured domain: %s",
       (origin) => {
         vi.stubGlobal("window", { location: new URL(origin) });

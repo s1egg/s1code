@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import * as SqlError from "effect/sql/SqlError";
-import { DEFAULT_MANAGED_TUNNEL_LIMIT, T3CHAT_PLAN_TUNNEL_LIMITS } from "@t3tools/contracts/relay";
+import { DEFAULT_MANAGED_TUNNEL_LIMIT, T3CHAT_PLAN_TUNNEL_LIMITS } from "@s1tools/contracts/relay";
 
 import * as RelayDb from "../db.ts";
 import {
@@ -106,25 +106,25 @@ export class ManagedTunnelLimits extends Context.Service<
       input: { readonly userId: string; readonly environmentId: string },
       reserve: Effect.Effect<A, E, R>,
     ) => Effect.Effect<A, E | ManagedTunnelLimitExceeded | ManagedTunnelLimitPersistenceError, R>;
-    /** The user's manual cap, which replaces the default and any T3 Chat plan cap. */
+    /** The user's manual cap, which replaces the default and any S1 Chat plan cap. */
     readonly getOverride: (input: {
       readonly userId: string;
     }) => Effect.Effect<number | null, ManagedTunnelLimitPersistenceError>;
   }
->()("t3code-relay/environments/ManagedTunnelLimits") {}
+>()("s1code-relay/environments/ManagedTunnelLimits") {}
 
 const make = Effect.gen(function* () {
   const db = yield* RelayDb.RelayDb;
   const t3Chat = yield* T3ChatAccounts.T3ChatAccounts;
 
-  // Asked only at the cap, so most links never call T3 Chat. Any failure keeps the lower cap.
+  // Asked only at the cap, so most links never call S1 Chat. Any failure keeps the lower cap.
   const t3ChatTunnelLimit = (userId: string) =>
     t3Chat.getLink({ userId }).pipe(
       Effect.map((link) =>
         link && link.plan !== "free" ? T3CHAT_PLAN_TUNNEL_LIMITS[link.plan] : 0,
       ),
       Effect.catch((error) =>
-        Effect.logWarning("T3 Chat plan check failed", { userId, error: error.message }).pipe(
+        Effect.logWarning("S1 Chat plan check failed", { userId, error: error.message }).pipe(
           Effect.as(0),
         ),
       ),
@@ -196,12 +196,12 @@ const make = Effect.gen(function* () {
         const activeTunnels = yield* countSlots(ne);
         if (activeTunnels < baseMaxTunnels) return yield* reserve;
 
-        // An environment that already holds a counted slot relinks without asking T3 Chat,
-        // so a downgrade or a T3 Chat outage only blocks new environments.
+        // An environment that already holds a counted slot relinks without asking S1 Chat,
+        // so a downgrade or a S1 Chat outage only blocks new environments.
         if ((yield* countSlots(eq)) > 0) return yield* reserve;
 
-        // A manual override is the exact cap; a T3 Chat plan raises only the default.
-        // Runs under the user lock, bounded by the T3 Chat request timeout.
+        // A manual override is the exact cap; a S1 Chat plan raises only the default.
+        // Runs under the user lock, bounded by the S1 Chat request timeout.
         const maxTunnels =
           t3Chat.available && override === null
             ? Math.max(baseMaxTunnels, yield* t3ChatTunnelLimit(input.userId))

@@ -1,6 +1,6 @@
-export const BUILT_IN_THEME_IDS = ["t3-chat", "grove", "ocean", "ember", "iris"] as const;
+export const BUILT_IN_THEME_IDS = ["s1-chat", "grove", "ocean", "ember", "iris"] as const;
 
-export const MOBILE_DEFAULT_THEME_ID = "t3-code";
+export const MOBILE_DEFAULT_THEME_ID = "s1-code";
 
 export const MOBILE_THEME_IDS = [MOBILE_DEFAULT_THEME_ID, ...BUILT_IN_THEME_IDS] as const;
 
@@ -10,11 +10,11 @@ export const RESERVED_THEME_IDS: ReadonlySet<string> = new Set([
   "light",
   "dark",
   ...BUILT_IN_THEME_IDS,
-  "t3-chat-dark",
-  "t3-grove",
-  "t3-ocean",
-  "t3-ember",
-  "t3-iris",
+  "s1-chat-dark",
+  "s1-grove",
+  "s1-ocean",
+  "s1-ember",
+  "s1-iris",
 ]);
 
 /** The mobile default id is valid in saved themes but cannot be published because web/desktop cannot resolve it. */
@@ -107,7 +107,7 @@ export type ThemeDefinition = Readonly<{
   css?: string;
 }>;
 
-export const T3_CODE_LIGHT_THEME_COLORS: ThemeColors = {
+export const S1_CODE_LIGHT_THEME_COLORS: ThemeColors = {
   searchMatchBackground: "#ffde8b",
   searchMatchForeground: "#21180a",
   searchMatchActiveBackground: "#eea52b",
@@ -171,7 +171,7 @@ export const T3_CODE_LIGHT_THEME_COLORS: ThemeColors = {
   terminalScrollbarHover: "#bdbdbd",
 };
 
-export const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
+export const S1_CODE_DARK_THEME_COLORS: ThemeColors = {
   searchMatchBackground: "#8c6c1f",
   searchMatchForeground: "#f5f5f5",
   searchMatchActiveBackground: "#eea52b",
@@ -235,9 +235,9 @@ export const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
   terminalScrollbarHover: "#363636",
 };
 
-export const T3_CHAT_THEME: ThemeDefinition = {
-  id: "t3-chat",
-  label: "T3 Chat",
+export const S1_CHAT_THEME: ThemeDefinition = {
+  id: "s1-chat",
+  label: "S1 Chat",
   appearance: "light",
   colors: {
     canvas: "oklch(0.982446 0.010114 325.653)",
@@ -911,7 +911,7 @@ export const IRIS_THEME: ThemeDefinition = {
 };
 
 export const BUILT_IN_THEMES: ReadonlyArray<ThemeDefinition> = [
-  T3_CHAT_THEME,
+  S1_CHAT_THEME,
   GROVE_THEME,
   OCEAN_THEME,
   EMBER_THEME,

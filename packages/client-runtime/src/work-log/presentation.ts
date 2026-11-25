@@ -8,27 +8,27 @@ import {
   type ToolActivityIcon,
   type OrchestrationV2TurnItem,
   type ThreadId,
-} from "@t3tools/contracts";
-import type { ToolCallVisibility } from "@t3tools/contracts/settings";
+} from "@s1tools/contracts";
+import type { ToolCallVisibility } from "@s1tools/contracts/settings";
 import {
   resolveT3McpSummaryAction,
   resolveT3McpToolDefinition,
   type T3McpToolDefinition,
   type T3McpToolSummaryAction,
-} from "@t3tools/shared/t3McpToolPresentation";
-import { classifyMarkdownImageSource } from "@t3tools/client-runtime/markdown-images";
-import { resolveMediaSource } from "@t3tools/client-runtime/media-source";
-import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
-import { isWorkspaceImagePreviewPath } from "@t3tools/shared/mediaPreview";
-import { formatTokens } from "@t3tools/shared/usageFormat";
-import { classifyToolActivity } from "@t3tools/shared/toolActivity";
-import { toolOutputIndicatesFailure } from "@t3tools/shared/toolOutput";
+} from "@s1tools/shared/t3McpToolPresentation";
+import { classifyMarkdownImageSource } from "@s1tools/client-runtime/markdown-images";
+import { resolveMediaSource } from "@s1tools/client-runtime/media-source";
+import { sourceControlClients } from "@s1tools/client-runtime/source-control-clients";
+import { isWorkspaceImagePreviewPath } from "@s1tools/shared/mediaPreview";
+import { formatTokens } from "@s1tools/shared/usageFormat";
+import { classifyToolActivity } from "@s1tools/shared/toolActivity";
+import { toolOutputIndicatesFailure } from "@s1tools/shared/toolOutput";
 
 import {
   summarizeT3ToolCalls,
   t3ToolResultIndicatesFailure,
   type T3ToolSummaryCall,
-} from "@t3tools/client-runtime/t3ToolSummary";
+} from "@s1tools/client-runtime/t3ToolSummary";
 import { mFallback, msg } from "gt-i18n";
 import { t3ToolSentence } from "./t3ToolSentences.ts";
 import type { MFunctionType } from "gt-i18n/types";
@@ -87,7 +87,7 @@ export function contextCompactionLabel(
 }
 
 export interface WorkLogPresentationEntry {
-  readonly questionAnswer?: import("@t3tools/contracts").UserInputAttachmentAnswerPayload;
+  readonly questionAnswer?: import("@s1tools/contracts").UserInputAttachmentAnswerPayload;
   readonly id: string;
   readonly createdAt: string;
   readonly label: string;

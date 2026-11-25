@@ -1,6 +1,6 @@
-import { isActiveSubagentStatus } from "@t3tools/client-runtime/state/subagentRuntime";
-import type { OrchestrationV2Subagent } from "@t3tools/contracts";
-import { formatDuration } from "@t3tools/shared/orchestrationTimingCopy";
+import { isActiveSubagentStatus } from "@s1tools/client-runtime/state/subagentRuntime";
+import type { OrchestrationV2Subagent } from "@s1tools/contracts";
+import { formatDuration } from "@s1tools/shared/orchestrationTimingCopy";
 import * as DateTime from "effect/DateTime";
 
 import { m, type MessageResolver } from "../../i18n/messages";

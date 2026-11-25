@@ -1,4 +1,4 @@
-import { MessageId, RunId } from "@t3tools/contracts";
+import { MessageId, RunId } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 import { observeTimelineRun, resolveDisclosureRevealScrollDelta } from "./timelineScrollAnchoring";
 

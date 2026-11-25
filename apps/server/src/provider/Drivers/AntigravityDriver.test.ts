@@ -9,8 +9,8 @@ import {
   ProviderSessionId,
   ThreadId,
   type AntigravitySettings,
-} from "@t3tools/contracts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+} from "@s1tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -28,12 +28,12 @@ import {
   ANTIGRAVITY_AUTH_STDOUT_PREFIX,
   resolveAntigravityInstanceDirectories,
 } from "../antigravityAuthSupport.ts";
-import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+import * as ProviderEventLoggers from "@s1tools/provider-core/server/ProviderEventLoggers";
+import * as McpProviderSessions from "@s1tools/provider-core/server/McpProviderSessions";
 import * as ModelManifest from "../ModelManifest.ts";
-import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
-import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
-import { knownProviderFailureMessage } from "@t3tools/provider-core/server/failure";
+import * as IdAllocator from "@s1tools/provider-core/server/IdAllocator";
+import * as ProviderAdapter from "@s1tools/provider-core/server/ProviderAdapter";
+import { knownProviderFailureMessage } from "@s1tools/provider-core/server/failure";
 import { resolveProviderCompatibility } from "../providerCompatibility.ts";
 import { AntigravityDriver } from "./AntigravityDriver.ts";
 import * as ProviderHostLive from "../ProviderHostLive.ts";
@@ -64,7 +64,7 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
   options: {
     readonly config?: Partial<AntigravitySettings>;
     readonly enabled?: boolean;
-    /** Extra instance variables, such as ones a parent T3 turn already exported. */
+    /** Extra instance variables, such as ones a parent S1 turn already exported. */
     readonly environment?: ReadonlyArray<{ readonly name: string; readonly value: string }>;
   } = {},
 ) {
@@ -74,7 +74,7 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const nodePath = yield* HostProcess.ExecutablePath;
   const baseEnv = yield* HostProcess.Environment;
-  const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-antigravity-driver-" });
+  const root = yield* fs.makeTempDirectoryScoped({ prefix: "s1-antigravity-driver-" });
   const instanceId = ProviderInstanceId.make(path.basename(root));
   const mockAgentPath = yield* path.fromFileUrl(
     new URL("../../../scripts/acp-mock-agent.ts", import.meta.url),
@@ -110,12 +110,12 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
         ...(options.newSessionErrorData === undefined
           ? []
           : [
-              `export T3_ACP_NEW_SESSION_ERROR_DATA=${shellQuote(JSON.stringify(options.newSessionErrorData))}`,
+              `export S1_ACP_NEW_SESSION_ERROR_DATA=${shellQuote(JSON.stringify(options.newSessionErrorData))}`,
             ]),
         ...(options.initialMode === undefined
           ? []
-          : [`export T3_ACP_INITIAL_MODE=${shellQuote(options.initialMode)}`]),
-        `export T3_ACP_AGENT_VERSION=${shellQuote(options.agentVersion ?? "1.5.12")}`,
+          : [`export S1_ACP_INITIAL_MODE=${shellQuote(options.initialMode)}`]),
+        `export S1_ACP_AGENT_VERSION=${shellQuote(options.agentVersion ?? "1.5.12")}`,
         `exec ${shellQuote(nodePath)} ${shellQuote(mockAgentPath)} "$@"`,
         "",
       ].join("\n"),
@@ -228,8 +228,8 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
     config: { ...AntigravityDriver.defaultConfig(), ...options.config },
     environment: [
       { name: "PATH", value: instancePath },
-      { name: "T3_ACP_ANTIGRAVITY", value: "1" },
-      { name: "T3_ACP_REQUEST_LOG_PATH", value: requestLog },
+      { name: "S1_ACP_ANTIGRAVITY", value: "1" },
+      { name: "S1_ACP_REQUEST_LOG_PATH", value: requestLog },
       { name: "GEMINI_API_KEY", value: "must-not-be-used" },
       { name: "google_api_key", value: "must-not-be-used" },
       { name: "GOOGLE_APPLICATION_CREDENTIALS", value: "/must-not-be-used.json" },
@@ -281,7 +281,7 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
 });
 
 const layerDeps = ServerConfig.layerTest(process.cwd(), {
-  prefix: "t3-antigravity-driver-config-",
+  prefix: "s1-antigravity-driver-config-",
 }).pipe(
   Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
   Layer.provideMerge(
@@ -382,7 +382,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
             modelSelection: { instanceId: h.instance.instanceId, model: "gemini-test-low" },
           })
           .pipe(Effect.ignore);
-        const workspace = yield* h.fs.makeTempDirectoryScoped({ prefix: "t3-ag-chat-" });
+        const workspace = yield* h.fs.makeTempDirectoryScoped({ prefix: "s1-ag-chat-" });
         const threadId = ThreadId.make("thread-antigravity-capabilities");
         const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
           runtimeMode: "approval-required",
@@ -420,7 +420,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
           },
         ]);
 
-        // The agy CLI rejects `yolo` and `auto_edit`; it stays in `default` and T3 answers its requests.
+        // The agy CLI rejects `yolo` and `auto_edit`; it stays in `default` and S1 answers its requests.
         h.controls.selected = yield* h.makeExecutable("runtime cli", { initialMode: "auto_edit" });
         for (const runtimeMode of ["full-access", "auto-accept-edits"] as const) {
           const requestsBefore = (yield* h.readRequests).length;
@@ -463,16 +463,16 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
   );
 
   it.effect.skipIf(windowsHost)(
-    "gives a thread session its own T3 thread and MCP fallback environment",
+    "gives a thread session its own S1 thread and MCP fallback environment",
     () =>
       Effect.gen(function* () {
         const h = yield* makeHarness({
           environment: [
-            { name: "T3CODE_THREAD_ID", value: "thread-antigravity-ambient" },
-            { name: "T3_ACP_MCP_ENDPOINT", value: "http://127.0.0.1:9/ambient" },
-            { name: "T3_ACP_MCP_AUTHORIZATION", value: "Bearer ambient-token" },
-            { name: "T3_ACP_MCP_NODE", value: "/ambient/node" },
-            { name: "T3_ACP_MCP_ENTRYPOINT", value: "/ambient/entrypoint.mjs" },
+            { name: "S1CODE_THREAD_ID", value: "thread-antigravity-ambient" },
+            { name: "S1_ACP_MCP_ENDPOINT", value: "http://127.0.0.1:9/ambient" },
+            { name: "S1_ACP_MCP_AUTHORIZATION", value: "Bearer ambient-token" },
+            { name: "S1_ACP_MCP_NODE", value: "/ambient/node" },
+            { name: "S1_ACP_MCP_ENTRYPOINT", value: "/ambient/entrypoint.mjs" },
           ],
         });
         yield* h.refresh();
@@ -491,7 +491,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         const entrypoint = h.path.resolve(process.argv[1]!);
         yield* Effect.scoped(
           Effect.gen(function* () {
-            const workspace = yield* h.fs.makeTempDirectoryScoped({ prefix: "t3-ag-environment-" });
+            const workspace = yield* h.fs.makeTempDirectoryScoped({ prefix: "s1-ag-environment-" });
             const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
               runtimeMode: "approval-required",
               interactionMode: "default",
@@ -517,19 +517,19 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         );
         expect(agentLaunches).toHaveLength(2);
         expect(agentLaunches[1]?.environment).toMatchObject({
-          T3CODE_THREAD_ID: threadId,
-          T3_ACP_MCP_ENDPOINT: endpoint,
-          T3_ACP_MCP_AUTHORIZATION: "Bearer antigravity-thread-token",
-          T3_ACP_MCP_NODE: process.execPath,
-          T3_ACP_MCP_ENTRYPOINT: entrypoint,
+          S1CODE_THREAD_ID: threadId,
+          S1_ACP_MCP_ENDPOINT: endpoint,
+          S1_ACP_MCP_AUTHORIZATION: "Bearer antigravity-thread-token",
+          S1_ACP_MCP_NODE: process.execPath,
+          S1_ACP_MCP_ENTRYPOINT: entrypoint,
         });
         // Model refresh and sign-in launches are not part of a thread.
         expect(agentLaunches[0]?.environment).toMatchObject({
-          T3CODE_THREAD_ID: "thread-antigravity-ambient",
-          T3_ACP_MCP_ENDPOINT: "http://127.0.0.1:9/ambient",
-          T3_ACP_MCP_AUTHORIZATION: "Bearer ambient-token",
-          T3_ACP_MCP_NODE: "/ambient/node",
-          T3_ACP_MCP_ENTRYPOINT: "/ambient/entrypoint.mjs",
+          S1CODE_THREAD_ID: "thread-antigravity-ambient",
+          S1_ACP_MCP_ENDPOINT: "http://127.0.0.1:9/ambient",
+          S1_ACP_MCP_AUTHORIZATION: "Bearer ambient-token",
+          S1_ACP_MCP_NODE: "/ambient/node",
+          S1_ACP_MCP_ENTRYPOINT: "/ambient/entrypoint.mjs",
         });
         yield* h.assertClosed;
       }),
@@ -546,7 +546,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         const modelSelection = { instanceId: h.instance.instanceId, model: "gemini-test-low" };
         const error = yield* Effect.scoped(
           Effect.gen(function* () {
-            const workspace = yield* h.fs.makeTempDirectoryScoped({ prefix: "t3-ag-old-runtime-" });
+            const workspace = yield* h.fs.makeTempDirectoryScoped({ prefix: "s1-ag-old-runtime-" });
             const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
               runtimeMode: "approval-required",
               interactionMode: "default",
@@ -561,7 +561,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
             yield* session.ensureThread({ threadId, modelSelection, runtimePolicy });
           }),
         ).pipe(Effect.flip);
-        const message = `Antigravity 1.4.5 does not work with this T3 Code release. Update the Antigravity executable at ${old.executablePath} to >=1.5.12 <2, then retry.`;
+        const message = `Antigravity 1.4.5 does not work with this S1 Code release. Update the Antigravity executable at ${old.executablePath} to >=1.5.12 <2, then retry.`;
         expect(knownProviderFailureMessage(error)).toBe(message);
         expect((yield* h.refresh().pipe(Effect.flip)).detail).toBe(message);
         const methods = (yield* h.readRequests).map((request) => request.method);

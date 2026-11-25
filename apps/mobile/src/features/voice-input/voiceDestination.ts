@@ -8,7 +8,7 @@ import {
   type EnvironmentId,
   DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS,
   type VoiceTranscriptionDestination,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   getEnvironmentSpeechModels,
   getCloudSpeechKeys,
@@ -18,10 +18,10 @@ import {
   getEnvironmentSpeechStatus,
   transcribeEnvironmentPcm,
   VoiceTranscriptionError,
-} from "@t3tools/client-runtime/voice-input";
+} from "@s1tools/client-runtime/voice-input";
 import { FetchHttpClient, type HttpClient } from "effect/http";
-import type { PreparedConnection } from "@t3tools/client-runtime/connection";
-import { effectiveSpeechLanguage } from "@t3tools/shared/speech";
+import type { PreparedConnection } from "@s1tools/client-runtime/connection";
+import { effectiveSpeechLanguage } from "@s1tools/shared/speech";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import { Atom, AsyncResult, AtomRegistry } from "effect/reactivity";
@@ -178,7 +178,7 @@ function environmentTranscriber(
       if (!native?.decodeRecording)
         throw new VoiceTranscriptionError({
           code: "unavailable",
-          message: m(msg("Update T3 Code to transcribe on an environment.")),
+          message: m(msg("Update S1 Code to transcribe on an environment.")),
         });
       return native.decodeRecording(uri);
     },

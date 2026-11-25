@@ -4,12 +4,12 @@ import {
   DesktopBackendBootstrap,
   type DesktopBackendBootstrap as DesktopBackendBootstrapValue,
   DesktopTelemetryControlMessage,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   DATABASE_MIGRATION_PROGRESS_MESSAGE,
   DATABASE_MIGRATIONS_FINISHED_MESSAGE,
   DATABASE_MIGRATIONS_STARTED_MESSAGE,
-} from "@t3tools/shared/databaseMigrationLog";
+} from "@s1tools/shared/databaseMigrationLog";
 import { assert, describe, it } from "@effect/vitest";
 import * as Clock from "effect/Clock";
 import * as Deferred from "effect/Deferred";
@@ -52,8 +52,8 @@ const baseConfig: DesktopBackendManager.DesktopBackendStartConfig = {
   bootstrap: {
     mode: "desktop",
     noBrowser: true,
-    port: 3773,
-    t3Home: "/tmp/t3",
+    port: 4773,
+    t3Home: "/tmp/s1",
     host: "127.0.0.1",
     desktopBootstrapToken: "token",
     tailscaleServeEnabled: false,
@@ -63,7 +63,7 @@ const baseConfig: DesktopBackendManager.DesktopBackendStartConfig = {
   },
   bootstrapDelivery: "fd3",
   extendEnv: true,
-  httpBaseUrl: new URL("http://127.0.0.1:3773"),
+  httpBaseUrl: new URL("http://127.0.0.1:4773"),
   captureOutput: true,
   preflightFailure: Option.none(),
 };
@@ -300,7 +300,7 @@ describe("DesktopBackendManager", () => {
       assert.isFalse((yield* instance.snapshot).ready);
       assert.deepStrictEqual(
         [...new Set(yield* Ref.get(probedUrls))],
-        ["http://127.0.0.1:3773/launch-proof?challenge=abc"],
+        ["http://127.0.0.1:4773/launch-proof?challenge=abc"],
       );
 
       yield* Ref.set(answersAsLaunch, true);
@@ -316,7 +316,7 @@ describe("DesktopBackendManager", () => {
       const ready = yield* Deferred.make<void>();
       const exit = yield* Deferred.make<ChildProcessSpawner.ExitCode>();
       const instance = yield* makeTestInstance({
-        config: { ...pollingConfig, httpBaseUrl: new URL("http://172.20.84.98:3773") },
+        config: { ...pollingConfig, httpBaseUrl: new URL("http://172.20.84.98:4773") },
         onReady: Deferred.succeed(ready, undefined).pipe(Effect.asVoid),
         spawnerLayer: Layer.succeed(
           ChildProcessSpawner.ChildProcessSpawner,

@@ -6,8 +6,8 @@ import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { unsetInheritedGitRepositoryEnv } from "@t3tools/shared/testing/gitRepositoryEnv";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { unsetInheritedGitRepositoryEnv } from "@s1tools/shared/testing/gitRepositoryEnv";
 
 class ReplayFixtureGitCommandError extends Schema.TaggedError<ReplayFixtureGitCommandError>()(
   "ReplayFixtureGitCommandError",
@@ -61,11 +61,11 @@ const makeCheckpointWorkspaceEffect = Effect.fn("makeCheckpointWorkspace")(funct
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const cwd = yield* fs.makeTempDirectory({
-    prefix: `t3-orchestrator-v2-${fixtureName}-`,
+    prefix: `s1-orchestrator-v2-${fixtureName}-`,
   });
   yield* runGit(cwd, ["init"]);
-  yield* runGit(cwd, ["config", "user.name", "T3 Code Test"]);
-  yield* runGit(cwd, ["config", "user.email", "t3code-test@example.com"]);
+  yield* runGit(cwd, ["config", "user.name", "S1 Code Test"]);
+  yield* runGit(cwd, ["config", "user.email", "s1code-test@example.com"]);
   yield* fs.writeFileString(path.join(cwd, "README.md"), `# ${fixtureName}\n`);
   for (const [relativePath, contents] of Object.entries(files)) {
     const filePath = path.join(cwd, relativePath);

@@ -7,10 +7,10 @@ import {
   ProviderInstanceId,
   type RunId,
   ThreadId,
-} from "@t3tools/contracts";
-import { subagentResultForRun } from "@t3tools/provider-core/server/subagentProjection";
-import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
-import { resolveNewThreadModelSelection } from "@t3tools/shared/usageLimits";
+} from "@s1tools/contracts";
+import { subagentResultForRun } from "@s1tools/provider-core/server/subagentProjection";
+import { resolveProjectSettings } from "@s1tools/shared/projectSettings";
+import { resolveNewThreadModelSelection } from "@s1tools/shared/usageLimits";
 import * as Digest from "effect/crypto/Digest";
 import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";

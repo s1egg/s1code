@@ -5,7 +5,7 @@ import {
   ORCHESTRATION_PROTOCOL_VERSION,
   type ExecutionEnvironmentDescriptor,
   type ServerConfig,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
@@ -67,7 +67,7 @@ import * as EnvironmentSupervisor from "./supervisor.ts";
 import * as ConnectionWakeups from "./wakeups.ts";
 import { watchDiscoveredCompatibility } from "./layer.ts";
 import * as RelayEnvironmentDiscovery from "../relay/discovery.ts";
-import type { RelayEnvironmentStatusResponse } from "@t3tools/contracts/relay";
+import type { RelayEnvironmentStatusResponse } from "@s1tools/contracts/relay";
 import { runDesktopCommitWithReconnectObserver } from "../state/server.ts";
 import { v2ShellSnapshot } from "../state/orchestrationV2TestFixtures.ts";
 
@@ -936,7 +936,7 @@ describe("EnvironmentRegistry", () => {
         const profile = new BearerConnectionProfile({
           ...BEARER_PROFILE,
           learned: true,
-          authorization: "t3-connect",
+          authorization: "s1-connect",
         });
         const harness = yield* makeHarness(
           learned ? [relay, BEARER_TARGET] : [relay],
@@ -2041,13 +2041,13 @@ describe("EnvironmentRegistry routes", () => {
     connectionId: LAN_TARGET.connectionId,
     environmentId: LAN_TARGET.environmentId,
     label: LAN_TARGET.label,
-    httpBaseUrl: "http://192.168.1.10:3773/",
-    wsBaseUrl: "ws://192.168.1.10:3773/",
+    httpBaseUrl: "http://192.168.1.10:4773/",
+    wsBaseUrl: "ws://192.168.1.10:4773/",
   });
   const lanRegistration = (target = LAN_TARGET, profile = LAN_PROFILE) =>
     new BearerConnectionRegistration({ target, profile, credential: BEARER_CREDENTIAL });
 
-  it.effect("adds a paired LAN route ahead of T3 Connect instead of replacing it", () =>
+  it.effect("adds a paired LAN route ahead of S1 Connect instead of replacing it", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness([RELAY_TARGET]);
       yield* Effect.gen(function* () {
@@ -2101,8 +2101,8 @@ describe("EnvironmentRegistry routes", () => {
           new BearerConnectionProfile({
             ...LAN_PROFILE,
             connectionId,
-            httpBaseUrl: `http://${host}:3773/`,
-            wsBaseUrl: `ws://${host}:3773/`,
+            httpBaseUrl: `http://${host}:4773/`,
+            wsBaseUrl: `ws://${host}:4773/`,
           }),
         ] as const;
       const [savedTarget, savedProfile] = loopback("bearer:ip", "127.0.0.1");
@@ -2154,7 +2154,7 @@ describe("EnvironmentRegistry routes", () => {
       }),
   );
 
-  it.effect("signing out of T3 Connect keeps an environment that still has a LAN route", () =>
+  it.effect("signing out of S1 Connect keeps an environment that still has a LAN route", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness(
         [LAN_TARGET, RELAY_TARGET, SECOND_RELAY_TARGET],
@@ -2283,15 +2283,15 @@ describe("EnvironmentRegistry routes", () => {
 
   it.effect("saves the Tailscale mark when the server reports a learned address as tailnet", () =>
     Effect.gen(function* () {
-      const httpBaseUrl = "http://100.101.102.103:3773/";
-      const learnedId = `learned:${LAN_TARGET.environmentId}:http://100.101.102.103:3773@${LAN_TARGET.connectionId}`;
+      const httpBaseUrl = "http://100.101.102.103:4773/";
+      const learnedId = `learned:${LAN_TARGET.environmentId}:http://100.101.102.103:4773@${LAN_TARGET.connectionId}`;
       const learned = new BearerConnectionTarget({ ...LAN_TARGET, connectionId: learnedId });
       const learnedProfile = new BearerConnectionProfile({
         connectionId: learnedId,
         environmentId: LAN_TARGET.environmentId,
         label: LAN_TARGET.label,
         httpBaseUrl,
-        wsBaseUrl: "ws://100.101.102.103:3773/",
+        wsBaseUrl: "ws://100.101.102.103:4773/",
         learned: true,
       });
       const harness = yield* makeHarness(
@@ -2324,7 +2324,7 @@ describe("EnvironmentRegistry routes", () => {
 
   it.effect("drops a learned route whose profile was not saved instead of duplicating it", () =>
     Effect.gen(function* () {
-      const learnedId = `learned:${LAN_TARGET.environmentId}:100.64.0.9:3773@${LAN_TARGET.connectionId}`;
+      const learnedId = `learned:${LAN_TARGET.environmentId}:100.64.0.9:4773@${LAN_TARGET.connectionId}`;
       const learned = new BearerConnectionTarget({ ...LAN_TARGET, connectionId: learnedId });
       const harness = yield* makeHarness(
         [LAN_TARGET, learned, learned],

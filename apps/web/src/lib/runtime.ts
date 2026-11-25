@@ -3,8 +3,8 @@ import type * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Socket from "effect/socket/Socket";
 
-import { layerRemoteHttpClient } from "@t3tools/client-runtime/rpc";
-import * as RelayTracing from "@t3tools/shared/relayTracing";
+import { layerRemoteHttpClient } from "@s1tools/client-runtime/rpc";
+import * as RelayTracing from "@s1tools/shared/relayTracing";
 import * as PrimaryEnvironmentHttpClient from "../environments/primary/httpClient";
 import * as PrimaryEnvironmentHttpLayer from "../environments/primary/httpLayer";
 
@@ -25,7 +25,7 @@ const layerHttpClient = layerRemoteHttpClient((input, init) => globalThis.fetch(
 const layerRelayTracing = RelayTracing.layer(
   resolveRelayTracingConfig(),
   {
-    serviceName: "t3code-web",
+    serviceName: "s1code-web",
     serviceVersion: import.meta.env.APP_VERSION,
     runtime: "browser",
     serviceInstanceId: ClientTracer.serviceInstanceId,

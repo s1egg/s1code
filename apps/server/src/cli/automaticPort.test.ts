@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import * as NetService from "@t3tools/shared/Net";
+import * as NetService from "@s1tools/shared/Net";
 import * as Effect from "effect/Effect";
 import * as CliError from "effect/cli/CliError";
 import * as FileSystem from "effect/FileSystem";
@@ -93,7 +93,7 @@ const select = (scenario: Scenario) => {
   );
   return Effect.gen(function* () {
     const selectAutomaticPort = yield* AutomaticPort.make;
-    const port = yield* selectAutomaticPort(3773, scenario.host);
+    const port = yield* selectAutomaticPort(4773, scenario.host);
     return { port, commands };
   }).pipe(Effect.provide(layer));
 };
@@ -102,10 +102,10 @@ describe("automatic port selection", () => {
   it.effect("moves off the default port only when Windows already listens on it", () =>
     Effect.gen(function* () {
       const free = yield* select({ kernelRelease: WSL_KERNEL, windowsPorts: [8080] });
-      expect(free.port).toBe(3773);
+      expect(free.port).toBe(4773);
       expect(free.commands).toEqual(["wslpath", NETSTAT_PATH, NETSTAT_PATH]);
 
-      const owned = yield* select({ kernelRelease: WSL_KERNEL, windowsPorts: [3773] });
+      const owned = yield* select({ kernelRelease: WSL_KERNEL, windowsPorts: [4773] });
       expect(owned.port).toBe(50_001);
     }),
   );
@@ -114,7 +114,7 @@ describe("automatic port selection", () => {
     Effect.gen(function* () {
       const result = yield* select({
         kernelRelease: WSL_KERNEL,
-        windowsPorts: [3773],
+        windowsPorts: [4773],
         windowsPortsV6: [50_001],
         reservedPorts: [50_001, 50_002],
       });
@@ -127,7 +127,7 @@ describe("automatic port selection", () => {
       const ports = Array.from({ length: 8 }, (_, index) => 50_001 + index);
       const error = yield* select({
         kernelRelease: WSL_KERNEL,
-        windowsPorts: [3773],
+        windowsPorts: [4773],
         windowsPortsV6: ports,
         reservedPorts: ports,
       }).pipe(Effect.flip);
@@ -140,13 +140,13 @@ describe("automatic port selection", () => {
     Effect.gen(function* () {
       const partial = yield* select({
         kernelRelease: WSL_KERNEL,
-        windowsPorts: [3773],
+        windowsPorts: [4773],
         tcpv6ExitCode: 1,
       });
-      expect(partial.port).toBe(3773);
+      expect(partial.port).toBe(4773);
 
       const noInterop = yield* select({ kernelRelease: WSL_KERNEL, wslpathMissing: true });
-      expect(noInterop.port).toBe(3773);
+      expect(noInterop.port).toBe(4773);
     }),
   );
 
@@ -156,10 +156,10 @@ describe("automatic port selection", () => {
         { kernelRelease: "6.8.0-45-generic\n" },
         // macOS and Windows have no kernel release file.
         {},
-        { kernelRelease: WSL_KERNEL, windowsPorts: [3773], host: "100.64.0.7" },
+        { kernelRelease: WSL_KERNEL, windowsPorts: [4773], host: "100.64.0.7" },
       ] satisfies ReadonlyArray<Scenario>) {
         const result = yield* select(scenario);
-        expect(result.port).toBe(3773);
+        expect(result.port).toBe(4773);
         expect(result.commands).toEqual([]);
       }
     }),

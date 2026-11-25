@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off -- The process fixture runs real shell commands with isolated config files.
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -39,9 +39,9 @@ const decodeCache = Schema.decodeUnknownEffect(cacheCodec);
 function envOutput(values: Readonly<Record<string, string>>): string {
   return Object.entries(values)
     .flatMap(([name, value]) => [
-      `__T3CODE_ENV_${name}_START__`,
+      `__S1CODE_ENV_${name}_START__`,
       value,
-      `__T3CODE_ENV_${name}_END__`,
+      `__S1CODE_ENV_${name}_END__`,
     ])
     .join("\n");
 }
@@ -185,10 +185,10 @@ function runShellEnvironment(input: {
 
 describe("DesktopShellEnvironment", () => {
   it.effect.each([
-    { platform: "linux" as const, runtime: { APPDIR: "/opt/t3.AppDir/" }, scrub: true },
-    { platform: "linux" as const, runtime: { APPIMAGE: "/opt/T3.AppImage" }, scrub: true },
+    { platform: "linux" as const, runtime: { APPDIR: "/opt/s1.AppDir/" }, scrub: true },
+    { platform: "linux" as const, runtime: { APPIMAGE: "/opt/S1.AppImage" }, scrub: true },
     { platform: "linux" as const, runtime: {}, scrub: false },
-    { platform: "darwin" as const, runtime: { APPDIR: "/opt/t3.AppDir/" }, scrub: false },
+    { platform: "darwin" as const, runtime: { APPDIR: "/opt/s1.AppDir/" }, scrub: false },
   ])(
     "keeps AppImage mounts out of cached and discovered PATH: %j",
     ({ platform, runtime, scrub }) =>
@@ -197,12 +197,12 @@ describe("DesktopShellEnvironment", () => {
         const stateDir = yield* fs.makeTempDirectoryScoped();
         const cachePath = `${stateDir}/shell-environment-cache.json`;
         const inheritedPath =
-          "/tmp/.mount_T3-Codold123/usr/bin:/launcher/bin:/opt/t3.AppDir/usr/bin";
+          "/tmp/.mount_T3-Codold123/usr/bin:/launcher/bin:/opt/s1.AppDir/usr/bin";
         const cachedPath = "/cached/bin:/tmp/.mount_T3-Codcache1/usr/bin";
         const discoveredPath = "/fresh/bin:/tmp/.mount_T3-Codprobe1/usr/bin";
-        const retainedPath = "/tmp/tools:/tmp/.mount_Other123/usr/bin:/opt/t3.AppDir-backup/bin";
+        const retainedPath = "/tmp/tools:/tmp/.mount_Other123/usr/bin:/opt/s1.AppDir-backup/bin";
         const cleanInherited = scrub
-          ? `/launcher/bin${runtime.APPDIR ? "" : ":/opt/t3.AppDir/usr/bin"}`
+          ? `/launcher/bin${runtime.APPDIR ? "" : ":/opt/s1.AppDir/usr/bin"}`
           : inheritedPath;
         const cleanCached = scrub ? "/cached/bin" : cachedPath;
         const cleanDiscovered = scrub ? "/fresh/bin" : discoveredPath;
@@ -354,7 +354,7 @@ describe("DesktopShellEnvironment", () => {
         const source = [
           "const values = { PATH: '/fresh/bin:' + process.env.PATH, __MISE_DIFF: 'fresh-mise', JAVA_HOME: process.env.JAVA_HOME, SSL_CERT_FILE: process.env.SSL_CERT_FILE };",
           "for (const [name, value] of Object.entries(values)) {",
-          "  if (value !== undefined) process.stdout.write('__T3CODE_ENV_' + name + '_START__\\n' + value + '\\n__T3CODE_ENV_' + name + '_END__\\n');",
+          "  if (value !== undefined) process.stdout.write('__S1CODE_ENV_' + name + '_START__\\n' + value + '\\n__S1CODE_ENV_' + name + '_END__\\n');",
           "}",
         ].join("\n");
         let calls = 0;
@@ -464,7 +464,7 @@ describe("DesktopShellEnvironment", () => {
             NODE_EXTRA_CA_CERTS: "/cached/ca.pem",
             SSL_CERT_FILE: "/cached/cert.pem",
             SSL_CERT_DIR: "/cached/certs",
-            T3CODE_TELEMETRY_ENABLED: "false",
+            S1CODE_TELEMETRY_ENABLED: "false",
             SSH_AUTH_SOCK: "/stale.sock",
             NODE_OPTIONS: "--bad",
           },
@@ -505,7 +505,7 @@ describe("DesktopShellEnvironment", () => {
         assert.equal(env.NODE_EXTRA_CA_CERTS, "/launcher/ca.pem");
         assert.equal(env.SSL_CERT_FILE, "");
         assert.equal(env.SSL_CERT_DIR, "/cached/certs");
-        assert.equal(env.T3CODE_TELEMETRY_ENABLED, "false");
+        assert.equal(env.S1CODE_TELEMETRY_ENABLED, "false");
         assert.equal(env.SSH_AUTH_SOCK, "/current.sock");
         assert.isUndefined(env.NODE_OPTIONS);
         assert.equal(yield* fs.readFileString(cachePath), contents);
@@ -1098,16 +1098,16 @@ describe("DesktopShellEnvironment", () => {
         platform: "win32",
         handler: (command) =>
           command._tag === "StandardCommand" &&
-          String(command.args.at(-1)).includes("T3CODE_TELEMETRY_ENABLED")
+          String(command.args.at(-1)).includes("S1CODE_TELEMETRY_ENABLED")
             ? envOutput({
                 PATH: "C:\\Windows\\System32",
-                T3CODE_TELEMETRY_ENABLED: "false",
+                S1CODE_TELEMETRY_ENABLED: "false",
                 DO_NOT_TRACK: "1",
               })
             : envOutput({ PATH: "C:\\Windows\\System32" }),
       });
 
-      assert.equal(env.T3CODE_TELEMETRY_ENABLED, "false");
+      assert.equal(env.S1CODE_TELEMETRY_ENABLED, "false");
       assert.equal(env.DO_NOT_TRACK, "1");
     }),
   );

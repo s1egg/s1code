@@ -1,4 +1,4 @@
-import type { EnvironmentId, ProjectId } from "@t3tools/contracts";
+import type { EnvironmentId, ProjectId } from "@s1tools/contracts";
 import { useRef, useState } from "react";
 
 import { useStableCallback } from "~/hooks/useStableCallback";

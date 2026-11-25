@@ -7,7 +7,7 @@ import {
   type PullRequestLinkedThreadsResult,
   type RepositoryIdentity,
   type ThreadPullRequestLink,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -29,27 +29,27 @@ describe("findPromptLinkProjects", () => {
     const projects = [
       {
         id: "fork",
-        repositoryIdentity: identity("github.com/pingdotgg/t3code", "github.com/me/t3code"),
+        repositoryIdentity: identity("github.com/s1egg/s1code", "github.com/me/s1code"),
       },
       { id: "none", repositoryIdentity: null },
-      { id: "recent", repositoryIdentity: identity("github.com/PingDotGG/T3Code") },
-      { id: "older", repositoryIdentity: identity("github.com/pingdotgg/t3code") },
+      { id: "recent", repositoryIdentity: identity("github.com/S1Egg/S1Code") },
+      { id: "older", repositoryIdentity: identity("github.com/s1egg/s1code") },
     ];
     const ids = (owner: string, name: string) =>
       findPromptLinkProjects(projects, { owner, name }).map((project) => project.id);
-    expect(ids("pingdotgg", "t3code")).toEqual(["recent", "older"]);
-    expect(ids("me", "t3code")).toEqual(["fork"]);
+    expect(ids("s1egg", "s1code")).toEqual(["recent", "older"]);
+    expect(ids("me", "s1code")).toEqual(["fork"]);
     expect(ids("gitlab", "x")).toEqual([]);
   });
 
   it("matches a checkout of the repository's GitCafe mirror", () => {
     const projects = [
-      { id: "gitcafe", repositoryIdentity: identity("git.cafe/pingdotgg/t3code") },
-      { id: "staging", repositoryIdentity: identity("staging.git.cafe/pingdotgg/t3code") },
-      { id: "gitlab", repositoryIdentity: identity("gitlab.com/pingdotgg/t3code") },
+      { id: "gitcafe", repositoryIdentity: identity("git.cafe/s1egg/s1code") },
+      { id: "staging", repositoryIdentity: identity("staging.git.cafe/s1egg/s1code") },
+      { id: "gitlab", repositoryIdentity: identity("gitlab.com/s1egg/s1code") },
     ];
     expect(
-      findPromptLinkProjects(projects, { owner: "pingdotgg", name: "t3code" }).map(
+      findPromptLinkProjects(projects, { owner: "s1egg", name: "s1code" }).map(
         (project) => project.id,
       ),
     ).toEqual(["gitcafe", "staging"]);

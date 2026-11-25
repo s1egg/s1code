@@ -12,10 +12,10 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import { HttpClient, HttpClientResponse, HttpServer, type HttpClientRequest } from "effect/http";
-import { RELAY_LINK_PROOF_TYP, signRelayJwt, verifyRelayJwt } from "@t3tools/shared/relayJwt";
+import { RELAY_LINK_PROOF_TYP, signRelayJwt, verifyRelayJwt } from "@s1tools/shared/relayJwt";
 import * as NetAddress from "effect/net/NetAddress";
 
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@s1tools/contracts";
 import * as EnvironmentKeys from "./environmentKeys.ts";
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
@@ -34,7 +34,7 @@ import * as CliTokenManager from "./CliTokenManager.ts";
 import {
   RelayEnvironmentLinkProofPayload,
   RelayManagedEndpointRecoveryRegistrationRequest,
-} from "@t3tools/contracts/relay";
+} from "@s1tools/contracts/relay";
 import {
   CLOUD_ENDPOINT_CONFIRMED_ORIGIN,
   CLOUD_ENDPOINT_RUNTIME_CONFIG,
@@ -75,7 +75,7 @@ const idleAwarenessRelay = AgentAwarenessRelay.AgentAwarenessRelay.of({
 });
 
 const idleHttpServer = HttpServer.HttpServer.of({
-  address: NetAddress.inetAddressFromIpStringUnsafe("127.0.0.1", 3773),
+  address: NetAddress.inetAddressFromIpStringUnsafe("127.0.0.1", 4773),
   serve: (() => Effect.void) as HttpServer.HttpServer["Service"]["serve"],
 });
 
@@ -259,11 +259,11 @@ describe("releaseManagedTunnelOnShutdown", () => {
         ),
 
         Effect.provide([
-          ServerConfigModule.layerTest("/", { prefix: "t3-http-release-test-" }).pipe(
+          ServerConfigModule.layerTest("/", { prefix: "s1-http-release-test-" }).pipe(
             Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
           ),
           ConfigProvider.layer(
-            ConfigProvider.fromEnv({ env: { T3CODE_RELAY_URL: "https://relay.example.test" } }),
+            ConfigProvider.fromEnv({ env: { S1CODE_RELAY_URL: "https://relay.example.test" } }),
           ),
         ]),
         Effect.scoped,
@@ -285,7 +285,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
         );
         const challenge = yield* signRelayJwt({
           privateKey: relayKeys.privateKey,
-          typ: "t3-link-challenge+jwt",
+          typ: "s1-link-challenge+jwt",
           payload: {
             kind: "environment_link_challenge",
             iss: relayIssuer,
@@ -305,11 +305,11 @@ describe("releaseManagedTunnelOnShutdown", () => {
           challenge,
           relayIssuer,
           endpoint: {
-            httpBaseUrl: "http://127.0.0.1:3773",
-            wsBaseUrl: "ws://127.0.0.1:3773",
+            httpBaseUrl: "http://127.0.0.1:4773",
+            wsBaseUrl: "ws://127.0.0.1:4773",
             providerKind: "manual",
           },
-          origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
+          origin: { localHttpHost: "127.0.0.1", localHttpPort: 4773 },
         });
         const environmentKeys =
           yield* EnvironmentKeys.getOrCreateEnvironmentKeyPairFromSecretStore(store);
@@ -318,7 +318,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
           publicKey: environmentKeys.publicKey,
           token: proof,
           typ: RELAY_LINK_PROOF_TYP,
-          issuer: "t3-env:env_123",
+          issuer: "s1-env:env_123",
           audience: relayIssuer,
         });
 
@@ -350,7 +350,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
       values.delete(CLOUD_CLI_DESIRED_LINK_SECRET);
 
-      expect(yield* link.reconcileDesiredLinkIfStillDesired("http://127.0.0.1:3773")).toBeNull();
+      expect(yield* link.reconcileDesiredLinkIfStillDesired("http://127.0.0.1:4773")).toBeNull();
       expect(requests).toEqual([]);
       expect(applyConfigCalls).toEqual([]);
     }).pipe(provideReleaseHarness({ store, applyConfigCalls, requests }));
@@ -550,7 +550,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      expect(yield* link.registerManagedTunnelRecovery("http://127.0.0.1:3773")).toMatchObject({
+      expect(yield* link.registerManagedTunnelRecovery("http://127.0.0.1:4773")).toMatchObject({
         status: "ready",
       });
       expect(requests).toHaveLength(1);
@@ -567,7 +567,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
         ).toMatchObject({
           cloudUserId: "user-123",
           tunnelId: "existing-tunnel",
-          origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
+          origin: { localHttpHost: "127.0.0.1", localHttpPort: 4773 },
         });
       }
       expect(applyConfigCalls).toHaveLength(1);
@@ -639,7 +639,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      expect(yield* link.registerManagedTunnelRecovery("http://127.0.0.1:3773")).toEqual({
+      expect(yield* link.registerManagedTunnelRecovery("http://127.0.0.1:4773")).toEqual({
         status: "revoked",
       });
       expect((yield* link.linkState()).linkRevoked).toBe(true);
@@ -680,7 +680,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      expect(yield* link.registerManagedTunnelRecovery("http://127.0.0.1:3773")).toEqual({
+      expect(yield* link.registerManagedTunnelRecovery("http://127.0.0.1:4773")).toEqual({
         status: "superseded",
       });
       expect(values.has(CLOUD_LINK_REVOKED)).toBe(false);
@@ -756,7 +756,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
       expect((yield* link.linkState()).linkRevoked).toBe(revoked && !partialDrop);
       const relink = Effect.gen(function* () {
         if (startup) {
-          yield* link.reconcileDesiredLinkIfStillDesired("http://127.0.0.1:3773");
+          yield* link.reconcileDesiredLinkIfStillDesired("http://127.0.0.1:4773");
         } else {
           yield* link.applyRelayConfig({
             relayUrl: "https://relay.example.test",
@@ -770,7 +770,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
       const result = yield* relink.pipe(
         Effect.provide(
           ConfigProvider.layer(
-            ConfigProvider.fromEnv({ env: { T3CODE_RELAY_URL: "https://relay.example.test" } }),
+            ConfigProvider.fromEnv({ env: { S1CODE_RELAY_URL: "https://relay.example.test" } }),
           ),
         ),
         Effect.flip,
@@ -808,8 +808,8 @@ describe("releaseManagedTunnelOnShutdown", () => {
             cloudUserId: "user-456",
             environmentId: "env_123",
             endpoint: {
-              httpBaseUrl: "http://127.0.0.1:3773",
-              wsBaseUrl: "ws://127.0.0.1:3773",
+              httpBaseUrl: "http://127.0.0.1:4773",
+              wsBaseUrl: "ws://127.0.0.1:4773",
               providerKind: "manual",
             },
             endpointRuntime: null,
@@ -835,7 +835,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
         [CLOUD_ENDPOINT_RUNTIME_CONFIG, configJson],
         [
           CLOUD_ENDPOINT_CONFIRMED_ORIGIN,
-          `{"config":${configJson},"origin":{"localHttpHost":"127.0.0.1","localHttpPort":3773}}`,
+          `{"config":${configJson},"origin":{"localHttpHost":"127.0.0.1","localHttpPort":4773}}`,
         ],
       ]);
       const applyConfigCalls: Array<unknown> = [];
@@ -843,7 +843,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
       return Effect.gen(function* () {
         const link = yield* CloudLink.CloudLink;
-        expect(yield* link.startManagedTunnelIfOriginConfirmed("http://127.0.0.1:3773")).toBe(true);
+        expect(yield* link.startManagedTunnelIfOriginConfirmed("http://127.0.0.1:4773")).toBe(true);
         expect(applyConfigCalls).toEqual([config]);
         expect(requests).toEqual([]);
       }).pipe(provideReleaseHarness({ store, applyConfigCalls, requests }));
@@ -851,11 +851,11 @@ describe("releaseManagedTunnelOnShutdown", () => {
   );
 
   it.effect.each([
-    { name: "missing", marker: undefined, origin: "http://127.0.0.1:3773" },
+    { name: "missing", marker: undefined, origin: "http://127.0.0.1:4773" },
     {
       name: "stale",
       marker:
-        '{"config":{"providerKind":"cloudflare_tunnel","connectorToken":"existing-token","tunnelId":"existing-tunnel"},"origin":{"localHttpHost":"127.0.0.1","localHttpPort":3773}}',
+        '{"config":{"providerKind":"cloudflare_tunnel","connectorToken":"existing-token","tunnelId":"existing-tunnel"},"origin":{"localHttpHost":"127.0.0.1","localHttpPort":4773}}',
       origin: "http://127.0.0.1:4884",
     },
   ])("does not start a connector with a $name origin marker", ({ marker, origin }) => {
@@ -896,7 +896,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
       return Effect.gen(function* () {
         const link = yield* CloudLink.CloudLink;
         expect(
-          yield* link.startManagedTunnelIfOriginConfirmed("http://127.0.0.1:3773", {
+          yield* link.startManagedTunnelIfOriginConfirmed("http://127.0.0.1:4773", {
             requireConfirmedOrigin: false,
           }),
         ).toBe(true);
@@ -922,7 +922,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
       return Effect.gen(function* () {
         const link = yield* CloudLink.CloudLink;
-        expect(yield* link.registerManagedTunnelRecovery("http://127.0.0.1:3773")).toEqual({
+        expect(yield* link.registerManagedTunnelRecovery("http://127.0.0.1:4773")).toEqual({
           status: "superseded",
         });
         expect(applyConfigCalls).toEqual([]);
@@ -965,7 +965,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      const registration = yield* link.registerManagedTunnelRecovery("http://127.0.0.1:3773");
+      const registration = yield* link.registerManagedTunnelRecovery("http://127.0.0.1:4773");
       expect(registration).toEqual({
         status: "recovery_required",
         config: { providerKind: "cloudflare_tunnel", connectorToken: "token" },
@@ -1004,7 +1004,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      expect(yield* link.recoverManagedTunnel("http://127.0.0.1:3773")).toBe(true);
+      expect(yield* link.recoverManagedTunnel("http://127.0.0.1:4773")).toBe(true);
       expect(requests).toHaveLength(1);
       expect(requests[0]?.method).toBe("POST");
       expect(requests[0]?.url).toBe("https://relay.example.test/v1/environments/env_123/tunnel");
@@ -1044,7 +1044,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      expect(yield* link.recoverManagedTunnel("http://127.0.0.1:3773")).toBe(false);
+      expect(yield* link.recoverManagedTunnel("http://127.0.0.1:4773")).toBe(false);
       expect(applyConfigCalls).toEqual([]);
       expect(requests).toEqual([]);
     }).pipe(provideReleaseHarness({ store, applyConfigCalls, requests }));
@@ -1066,7 +1066,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
       expect(
-        yield* link.recoverManagedTunnel("http://127.0.0.1:3773", {
+        yield* link.recoverManagedTunnel("http://127.0.0.1:4773", {
           providerKind: "cloudflare_tunnel",
           connectorToken: "old-token",
           tunnelId: "old-tunnel",
@@ -1102,7 +1102,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      const error = yield* Effect.flip(link.recoverManagedTunnel("http://127.0.0.1:3773"));
+      const error = yield* Effect.flip(link.recoverManagedTunnel("http://127.0.0.1:4773"));
 
       expect(error).toMatchObject({ _tag: "RelayRequestError", rejection });
       expect(CloudLink.shouldRetryCloudLink(error)).toBe(false);
@@ -1130,7 +1130,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      const error = yield* Effect.flip(link.recoverManagedTunnel("http://127.0.0.1:3773"));
+      const error = yield* Effect.flip(link.recoverManagedTunnel("http://127.0.0.1:4773"));
 
       expect(error).toMatchObject({ _tag: "RelayRequestError", rejection: "unavailable" });
       expect(error.message).toContain("Trace ID: trace-expired");
@@ -1166,7 +1166,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
 
     return Effect.gen(function* () {
       const link = yield* CloudLink.CloudLink;
-      expect(yield* link.recoverManagedTunnel("http://127.0.0.1:3773")).toBe(false);
+      expect(yield* link.recoverManagedTunnel("http://127.0.0.1:4773")).toBe(false);
       expect(values.get(CLOUD_ENDPOINT_RUNTIME_CONFIG)).toBe(freshConfig);
       expect(applyConfigCalls).toEqual([]);
     }).pipe(
@@ -1265,7 +1265,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
         "not_linked",
       );
       // The address shows before any check passes.
-      expect(state.tunnelHostname).toBe("prod-abc.t3coderelay.com");
+      expect(state.tunnelHostname).toBe("prod-abc.s1coderelay.com");
     }).pipe(
       provideReleaseHarness({
         store,
@@ -1275,7 +1275,7 @@ describe("releaseManagedTunnelOnShutdown", () => {
         connector: {
           pid: 123,
           readyConnections: 0,
-          hostname: "prod-abc.t3coderelay.com",
+          hostname: "prod-abc.s1coderelay.com",
           origin: null,
           protocol: null,
         },

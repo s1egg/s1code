@@ -1,4 +1,4 @@
-import { sessionHasLegacyPermissions, type EnvironmentId } from "@t3tools/contracts";
+import { sessionHasLegacyPermissions, type EnvironmentId } from "@s1tools/contracts";
 import type { AnyRouter } from "@tanstack/react-router";
 import { msg } from "gt-react";
 import * as Schema from "effect/Schema";
@@ -27,7 +27,7 @@ const legacyPermissionEnvironmentsAtom = Atom.make((get) =>
 ).pipe(Atom.withLabel("web-legacy-permission-environments"));
 
 const dismissalKey = (environmentId: EnvironmentId) =>
-  `t3code:permission-update:v1:${environmentId}`;
+  `s1code:permission-update:v1:${environmentId}`;
 
 /** Shows the notice and returns a withdraw that closes it without recording a dismissal. */
 function showPermissionNotice(

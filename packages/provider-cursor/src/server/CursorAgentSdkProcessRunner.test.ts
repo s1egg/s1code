@@ -1,8 +1,8 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { ProviderSessionId, ThreadId } from "@t3tools/contracts";
-import { AgentScope } from "@t3tools/shared/AgentScope";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import { ProviderSessionId, ThreadId } from "@s1tools/contracts";
+import { AgentScope } from "@s1tools/shared/AgentScope";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -248,9 +248,9 @@ describe("CursorAgentSdkWorkerProtocol", () => {
 describe("scrubCursorWorkerEnvironment", () => {
   it("removes the AppImage runtime env the worker inherited before agent shells see it", () => {
     const env: NodeJS.ProcessEnv = {
-      APPIMAGE: "/home/ada/T3-Code.AppImage",
+      APPIMAGE: "/home/ada/S1-Code.AppImage",
       APPDIR: "/tmp/.mount_T3-test",
-      ARGV0: "T3-Code.AppImage",
+      ARGV0: "S1-Code.AppImage",
       OWD: "/home/ada",
       ELECTRON_RUN_AS_NODE: "1",
       LD_LIBRARY_PATH: "/tmp/.mount_T3-test/usr/lib",
@@ -266,7 +266,7 @@ describe("CursorAgentSdkProcessRunner", () => {
   const writeFakeWorker = Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const dir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cursor-worker-test-" });
+    const dir = yield* fs.makeTempDirectoryScoped({ prefix: "s1-cursor-worker-test-" });
     const scriptPath = path.join(dir, "fake-worker.cjs");
     yield* fs.writeFileString(scriptPath, FAKE_WORKER_SCRIPT);
     return scriptPath;

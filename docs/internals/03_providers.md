@@ -21,7 +21,7 @@ clients read declared capabilities, never provider names.
   `ProviderAdapterV2` adapters are only for non-ACP protocols.
 - **Package boundaries.** Providers live in `packages/provider-<name>` (see
   [Pi](../../packages/provider-pi) as reference). Server code imports only
-  `@t3tools/provider-core/server/*`, contracts, and shared, reaching host capabilities through
+  `@s1tools/provider-core/server/*`, contracts, and shared, reaching host capabilities through
   `ProviderHost` rather than `apps/server`. Client definitions (`./client`) must stay browser- and
   React Native-safe.
 
@@ -36,7 +36,7 @@ the agent's maintainer, including a minimal protocol transcript and the relevant
 Missing portable capabilities belong upstream in ACP. Vendor-neutral primitives, including shared
 ACP text generation and user-hosted HTTP quota sources, are welcome.
 
-A misleading permission guarantee in T3 is a T3 bug. Correct the shared behavior so the capability
+A misleading permission guarantee in S1 is a S1 bug. Correct the shared behavior so the capability
 and permission claims match what the protocol can enforce.
 
 ## Honest capabilities and permissions
@@ -45,7 +45,7 @@ and permission claims match what the protocol can enforce.
   subagent capabilities the provider lacks so orchestration degrades cleanly (for example, portable
   context handoff for forks). A capability left enabled that fails at runtime is a bug.
 - **Never emulate missing permission modes.** Expose only modes the provider enforces natively; do
-  not fake a mode by auto-answering approvals in T3. Unoffered stored modes fall back to Supervised.
+  not fake a mode by auto-answering approvals in S1. Unoffered stored modes fall back to Supervised.
   Pass native approval and question option IDs through unchanged, and ensure every request can be
   declined.
 - **Hide plan mode unless it produces proposed-plan cards.**
@@ -69,7 +69,7 @@ and permission claims match what the protocol can enforce.
   read-only installs (such as Nix) manual-only.
 - **Attachments stay outside the project workspace.** Never copy uploads into the project tree to
   bypass a provider's sandbox or approval rules.
-- **T3 MCP tools.** Inject the thread's authenticated MCP server so agents can reach T3 tools, and
+- **S1 MCP tools.** Inject the thread's authenticated MCP server so agents can reach S1 tools, and
   keep turns working if that server is unreachable.
 
 ## Model manifest
@@ -97,7 +97,7 @@ Traps that have broken multiple adapters:
 - **Early Stop.** Cancelling before the provider registers the prompt can be ignored or strand a
   session. Gate cancellation on the provider's turn-started signal.
 - **Work outliving a turn.** Background tasks, subagents, and provider-initiated continuations can
-  report after T3's turn settles. Route subagent updates by subagent (not active run), request
+  report after S1's turn settles. Route subagent updates by subagent (not active run), request
   continuations when needed, and report pending background work so idle cleanup does not kill the
   session.
 - **Terminal settlement.** Every terminal path (completion, Stop, provider error, process exit) must

@@ -41,7 +41,7 @@ export interface NetServiceShape {
 }
 
 export class NetService extends Context.Service<NetService, NetServiceShape>()(
-  "@t3tools/shared/Net/NetService",
+  "@s1tools/shared/Net/NetService",
 ) {}
 
 /** @public */

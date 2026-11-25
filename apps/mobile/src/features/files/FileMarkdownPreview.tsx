@@ -1,8 +1,8 @@
-import { settlePromise } from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { settlePromise } from "@s1tools/client-runtime/state/runtime";
+import type { EnvironmentId, ThreadId } from "@s1tools/contracts";
 import { resolveMobileMarkdownMediaSource } from "../../lib/markdownMediaSource";
-import { getBrowseDirectoryPath } from "@t3tools/client-runtime/state/projects";
-import { maskMarkdownFrontmatter } from "@t3tools/shared/markdownFrontmatter";
+import { getBrowseDirectoryPath } from "@s1tools/client-runtime/state/projects";
+import { maskMarkdownFrontmatter } from "@s1tools/shared/markdownFrontmatter";
 import { useGT } from "gt-react-native";
 import { useState } from "react";
 import { StackActions, useNavigation } from "@react-navigation/native";
@@ -12,7 +12,7 @@ import {
   LARGE_MARKDOWN_CHUNK_MAX_CHARS,
   splitMarkdown,
   withMarkdownDefinitions,
-} from "@t3tools/shared/markdownChunks";
+} from "@s1tools/shared/markdownChunks";
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
 import { RefreshControl } from "../../components/ui/RefreshControl";
 
