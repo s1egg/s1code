@@ -524,8 +524,13 @@ jobs:
           S1CODE_TRANSFER_BUDGET_RESULT_PATH: ${{ runner.temp }}/thread-transfer-result.json
           S1CODE_TRANSFER_BUDGET_SCENARIOS_PATH: ${{ runner.temp }}/thread-transfer-scenarios.json
         # One process per file spends ~2s starting before its tests run; one file per vCPU overlaps that.
+        # A probe can still be exiting when its scoped temp directory is removed, which
+        # fails the file with ENOTEMPTY. One retry covers that race.
         run: >-
           vp run test:cached -- --shard ${{ matrix.shard }}/${{ strategy.job-total }} --concurrency 4
+          --uncached apps/server/integration/transferBudgetV2.integration.test.ts
+          --verify-hits 1 apps/server
+          || vp run test:cached -- --shard ${{ matrix.shard }}/${{ strategy.job-total }} --concurrency 4
           --uncached apps/server/integration/transferBudgetV2.integration.test.ts
           --verify-hits 1 apps/server
 
@@ -610,7 +615,9 @@ jobs:
     name: Mobile Native Static Analysis
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.mobile_native != 'false' }}
-    runs-on: macos-latest
+    # macos-latest is the arm64 macOS 26 image, and this account cannot acquire
+    # those runners. The Intel macOS 15 image is the closest one that starts.
+    runs-on: macos-15-intel
     timeout-minutes: 20
     steps:
       - name: Checkout

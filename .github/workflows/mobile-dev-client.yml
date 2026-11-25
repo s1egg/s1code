@@ -223,7 +223,9 @@ jobs:
   ios:
     name: iOS simulator
     if: github.repository == 's1egg/s1code' && (github.event_name != 'workflow_dispatch' || inputs.platform == 'ios')
-    runs-on: macos-latest
+    # macos-latest is the arm64 macOS 26 image, and this account cannot acquire
+    # those runners. The Intel macOS 15 image is the closest one that starts.
+    runs-on: macos-15-intel
     timeout-minutes: 60
     concurrency:
       group: mobile-dev-client-ios-${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.fingerprint || github.sha }}
