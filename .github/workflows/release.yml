@@ -51,9 +51,29 @@ jobs:
   # The PAUSE_NIGHTLY repository variable skips scheduled runs only; every later
   # job needs this one, so a skip here skips the whole run. `update_feed` runs
   # without it and checks the variable itself.
+  signing_secret:
+    name: Signing secret
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - id: check
+        name: Check for a code-signing certificate
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          if [ -n "$CSC_LINK" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "CSC_LINK is not set; skipping signed releases."
+          fi
+
   resolve_commit:
     name: Resolve release commit
-    if: github.repository == 's1egg/s1code' && secrets.CSC_LINK != '' && (github.event_name != 'schedule' || vars.PAUSE_NIGHTLY != 'true')
+    needs: signing_secret
+    if: needs.signing_secret.outputs.present == 'true' && github.repository == 's1egg/s1code' && (github.event_name != 'schedule' || vars.PAUSE_NIGHTLY != 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:

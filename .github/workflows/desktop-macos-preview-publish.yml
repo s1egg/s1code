@@ -45,6 +45,7 @@ jobs:
       pull-requests: write
     outputs:
       eligible: ${{ steps.gate.outputs.eligible }}
+      signing: ${{ steps.signing.outputs.present }}
       pr_number: ${{ steps.pr.outputs.pr_number }}
       head_sha: ${{ steps.pr.outputs.head_sha }}
       version: ${{ steps.version.outputs.version }}
@@ -53,6 +54,18 @@ jobs:
       clerk_cli_oauth_client_id: ${{ steps.version.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ steps.version.outputs.relay_url }}
     steps:
+      - id: signing
+        name: Check for a code-signing certificate
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          if [ -n "$CSC_LINK" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "CSC_LINK is not set; skipping the signed macOS preview."
+          fi
+
       - id: pr
         name: Resolve the pull request behind the build
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -283,7 +296,7 @@ jobs:
   build:
     name: Package and sign macOS arm64 preview
     needs: resolve
-    if: needs.resolve.outputs.eligible == 'true' && secrets.CSC_LINK != ''
+    if: needs.resolve.outputs.eligible == 'true' && needs.resolve.outputs.signing == 'true'
     concurrency:
       group: desktop-macos-preview-${{ needs.resolve.outputs.pr_number }}-build
       cancel-in-progress: true
