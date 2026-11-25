@@ -1,4 +1,4 @@
-import type { ModelSelection, OrchestrationV2ProviderCapabilities } from "@t3tools/contracts";
+import type { ModelSelection, OrchestrationV2ProviderCapabilities } from "@s1tools/contracts";
 
 export interface ProviderSelectionTransitionInput {
   readonly current: ModelSelection;

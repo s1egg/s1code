@@ -2,9 +2,9 @@ import {
   FILE_PREVIEW_SCROLL_SCRIPT,
   injectHtmlRenderBootstrap,
   readFilePreviewScroll,
-} from "@t3tools/shared/htmlRender";
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+} from "@s1tools/shared/htmlRender";
+import { EnvironmentId, ThreadId } from "@s1tools/contracts";
+import { scopeThreadRef } from "@s1tools/client-runtime/environment";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
@@ -76,7 +76,7 @@ describe("HtmlRenderDocument", () => {
   });
 
   it("opens a clicked issue link beside the thread, as chat Markdown does", async () => {
-    const issueUrl = "https://github.com/pingdotgg/t3code/issues/41939";
+    const issueUrl = "https://github.com/s1egg/s1code/issues/41939";
     const html = injectHtmlRenderBootstrap(
       `<!doctype html><html><body><a href="${issueUrl}">Issue #41939</a></body></html>`,
     );

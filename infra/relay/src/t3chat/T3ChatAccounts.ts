@@ -11,7 +11,7 @@ import * as Base64Url from "effect/encoding/Base64Url";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientRequest from "effect/http/HttpClientRequest";
 import * as HttpClientResponse from "effect/http/HttpClientResponse";
-import { RelayT3ChatLink } from "@t3tools/contracts/relay";
+import { RelayT3ChatLink } from "@s1tools/contracts/relay";
 
 import * as RelayConfiguration from "../Config.ts";
 
@@ -27,7 +27,7 @@ export class T3ChatNotConfigured extends Schema.TaggedError<T3ChatNotConfigured>
   {},
 ) {
   override get message(): string {
-    return "T3 Chat linking is not configured on this relay";
+    return "S1 Chat linking is not configured on this relay";
   }
 }
 
@@ -48,13 +48,13 @@ export class T3ChatRequestFailed extends Schema.TaggedError<T3ChatRequestFailed>
   },
 ) {
   override get message(): string {
-    return `T3 Chat '${this.operation}' request failed`;
+    return `S1 Chat '${this.operation}' request failed`;
   }
 }
 
 /**
- * Bridge to T3 Chat. T3 Chat owns the account link; the relay
- * signs link requests and asks T3 Chat for the linked account's plan.
+ * Bridge to S1 Chat. S1 Chat owns the account link; the relay
+ * signs link requests and asks S1 Chat for the linked account's plan.
  */
 export class T3ChatAccounts extends Context.Service<
   T3ChatAccounts,
@@ -70,9 +70,9 @@ export class T3ChatAccounts extends Context.Service<
       readonly userId: string;
     }) => Effect.Effect<void, T3ChatNotConfigured | T3ChatRequestFailed>;
   }
->()("t3code-relay/t3chat/T3ChatAccounts") {}
+>()("s1code-relay/t3chat/T3ChatAccounts") {}
 
-/** Token format shared with T3 Chat: `<base64url JSON payload>.<base64url HMAC-SHA256>`. */
+/** Token format shared with S1 Chat: `<base64url JSON payload>.<base64url HMAC-SHA256>`. */
 export const signLinkToken = (
   secret: string,
   payload: { readonly sub: string; readonly email: string; readonly exp: number },
@@ -146,19 +146,19 @@ export const make = Effect.gen(function* () {
         email,
         exp: Math.floor(now.epochMilliseconds / 1_000) + LINK_TOKEN_TTL_SECONDS,
       });
-      const url = new URL("/link/t3code", baseUrl);
+      const url = new URL("/link/s1code", baseUrl);
       url.searchParams.set("token", token);
       return url.toString();
     }),
     getLink: Effect.fn("relay.t3chat.get_link")(function* (input) {
-      const body = yield* post("get-link", "/api/t3code/link", input.userId);
+      const body = yield* post("get-link", "/api/s1code/link", input.userId);
       const decoded = yield* decodeLinkResponse(body).pipe(
         Effect.mapError((cause) => new T3ChatRequestFailed({ operation: "get-link", cause })),
       );
       return decoded.link;
     }),
     unlink: Effect.fn("relay.t3chat.unlink")(function* (input) {
-      yield* post("unlink", "/api/t3code/unlink", input.userId);
+      yield* post("unlink", "/api/s1code/unlink", input.userId);
     }),
   });
 });

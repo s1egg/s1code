@@ -3,7 +3,7 @@
 import type { Browser } from "@e2e-dev/web";
 import { expect, type Screen } from "e2e";
 
-import type { T3 } from "./t3.ts";
+import type { S1 } from "./s1.ts";
 
 const FILE_NAMES = Array.from(
   { length: 40 },
@@ -11,11 +11,11 @@ const FILE_NAMES = Array.from(
 );
 
 /** Seeds a project with enough files to overflow the menu and opens a thread in it. */
-export async function openThreadWithManyFiles(t3: T3) {
+export async function openThreadWithManyFiles(s1: S1) {
   const files = Object.fromEntries(FILE_NAMES.map((name) => [`src/${name}`, `export {};\n`]));
-  const project = await t3.project("demo", files);
-  const thread = await t3.thread({ project, title: "Short window", messages: ["hello"] });
-  await t3.open(thread);
+  const project = await s1.project("demo", files);
+  const thread = await s1.thread({ project, title: "Short window", messages: ["hello"] });
+  await s1.open(thread);
 }
 
 /** Types a fourteen-line draft, then opens the `@` file suggestions at its end. */

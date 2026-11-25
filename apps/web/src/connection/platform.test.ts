@@ -5,16 +5,16 @@ import {
   type DesktopBridge,
   type DesktopSshEnvironmentBootstrap,
   type DesktopSshEnvironmentTarget,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import { afterEach, vi } from "vite-plus/test";
-import { ClientCapabilities } from "@t3tools/client-runtime/platform";
+import { ClientCapabilities } from "@s1tools/client-runtime/platform";
 import {
   ConnectionBlockedError,
   ConnectionTransientError,
-} from "@t3tools/client-runtime/connection";
+} from "@s1tools/client-runtime/connection";
 
 import {
   canRetainCachedPlatformRegistrationAfterRefreshFailure,
@@ -436,7 +436,7 @@ describe("desktop-local bearer cache across token changes", () => {
 describe("primary topology cache", () => {
   const registration = {} as never;
   const cached = {
-    signature: "primary|http://127.0.0.1:3773/|ws://127.0.0.1:3773/",
+    signature: "primary|http://127.0.0.1:4773/|ws://127.0.0.1:4773/",
     registration,
   };
   const previous = new Map([[PRIMARY_LOCAL_ENVIRONMENT_ID, cached]]);

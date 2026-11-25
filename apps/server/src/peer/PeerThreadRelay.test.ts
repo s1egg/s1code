@@ -10,7 +10,7 @@ import {
   PEER_LINK_THREAD_STREAM_ROUTE,
   ThreadId,
   TurnItemId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { expect, it } from "@effect/vitest";
 import type * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -195,7 +195,7 @@ it.effect("serves a thread only to a link's own session", () =>
       // An outside agent's session reads through `/mcp`, never here.
       expect(yield* statusOf({ authorization: `Bearer ${agent.token}` })).toBe(403);
       // A browser page never holds a link's token, so no page's request is served.
-      expect(yield* statusOf({ authorization: linkBearer, origin: "https://app.t3.codes" })).toBe(
+      expect(yield* statusOf({ authorization: linkBearer, origin: "https://app.s1.codes" })).toBe(
         403,
       );
       yield* b.settings.updateSettings({ linkedEnvironmentsEnabled: false });

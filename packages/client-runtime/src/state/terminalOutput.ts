@@ -3,7 +3,7 @@ import {
   TERMINAL_SEQUENCE_GROUND,
   terminalSequenceEnd,
   terminalSequenceStateAfter,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 
 export interface TerminalOutputChunk {
   readonly startOffset: number;

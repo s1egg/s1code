@@ -1,7 +1,7 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { OrchestrationV2ThreadProjection, ScopedThreadRef } from "@t3tools/contracts";
-import { isRepositoryCheckpointScope } from "@t3tools/client-runtime/state/thread-repositories";
-import { resolveWorkspaceFilePath } from "@t3tools/shared/path";
+import type { OrchestrationV2ThreadProjection, ScopedThreadRef } from "@s1tools/contracts";
+import { isRepositoryCheckpointScope } from "@s1tools/client-runtime/state/thread-repositories";
+import { resolveWorkspaceFilePath } from "@s1tools/shared/path";
 import { Atom } from "effect/reactivity";
 import { createContext, useEffect, useRef, type ReactNode } from "react";
 
@@ -31,7 +31,7 @@ export function FileMetadataThreadProvider(props: {
     checkpoints: OrchestrationV2ThreadProjection["checkpoints"];
   } | null>(null);
 
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- invalidates the server file metadata cache for files whose checkpoints changed
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- invalidates the server file metadata cache for files whose checkpoints changed
   useEffect(() => {
     if (!threadRef || !cwd || !checkpoints) {
       previous.current = null;

@@ -8,10 +8,10 @@ import {
   isPrivateNetworkHost,
   isSharedAddressSpaceHost,
   isWildcardHost,
-} from "@t3tools/shared/hostClassification";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { QrCode } from "@t3tools/shared/qrCode";
-import { buildPairingAppLink } from "@t3tools/shared/remote";
+} from "@s1tools/shared/hostClassification";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { QrCode } from "@s1tools/shared/qrCode";
+import { buildPairingAppLink } from "@s1tools/shared/remote";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import { HttpServer } from "effect/http";
@@ -251,7 +251,7 @@ export const renderTerminalQrCode = (value: string, margin = 2): string => {
 
 export const formatHeadlessServeOutput = (accessInfo: HeadlessServeAccessInfo): string =>
   [
-    "T3 Code server is ready.",
+    "S1 Code server is ready.",
     `Connection string: ${accessInfo.connectionString}`,
     `Token: ${accessInfo.token}`,
     `Pairing URL: ${accessInfo.pairingUrl}`,

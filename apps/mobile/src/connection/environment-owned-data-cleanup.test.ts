@@ -1,5 +1,5 @@
-import { Persistence } from "@t3tools/client-runtime/platform";
-import { EnvironmentId } from "@t3tools/contracts";
+import { Persistence } from "@s1tools/client-runtime/platform";
+import { EnvironmentId } from "@s1tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";

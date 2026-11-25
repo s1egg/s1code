@@ -17,7 +17,7 @@ import {
   AuthSourceControlWriteScope,
   AuthTerminalOperateScope,
   AuthTerminalReadScope,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 
@@ -104,13 +104,13 @@ export const AUTH_SCOPE_OPTIONS: ReadonlyArray<{
   {
     scope: AuthRelayWriteScope,
     title: msg("Manage relay"),
-    description: msg("Update relay preferences or unlink T3 Connect."),
+    description: msg("Update relay preferences or unlink S1 Connect."),
   },
   {
     scope: AuthRelayConfigureScope,
     title: msg("Configure relay (admin)"),
     description: msg(
-      "Set up or replace T3 Connect, including its trusted pairing credential issuer.",
+      "Set up or replace S1 Connect, including its trusted pairing credential issuer.",
     ),
   },
 ];

@@ -1,5 +1,5 @@
-import type { ProjectReadFileResult } from "@t3tools/contracts";
-import { EnvironmentId } from "@t3tools/contracts";
+import type { ProjectReadFileResult } from "@s1tools/contracts";
+import { EnvironmentId } from "@s1tools/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 

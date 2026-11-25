@@ -2,7 +2,7 @@ import {
   normalizeProviderAccentColor,
   resolveProviderInstanceDisplayName,
   shouldShowInstanceBadge,
-} from "@t3tools/client-runtime/state/provider-instance-display";
+} from "@s1tools/client-runtime/state/provider-instance-display";
 import { msg } from "gt-react-native";
 import { m } from "../i18n/messages";
 
@@ -12,18 +12,18 @@ import type {
   ProjectId,
   RuntimeMode,
   ServerConfig as T3ServerConfig,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   isManagedDriverAllowed,
   isProviderDriverKind,
   resolveProjectProviderInstanceEnabled,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   buildExplicitProviderOptionSelectionsFromDescriptors,
   getProviderOptionDescriptors,
-} from "@t3tools/shared/model";
-import { resolveModelShortName } from "@t3tools/client-runtime/provider-clients";
-import { resolveProvidersForCwd } from "@t3tools/client-runtime/providerSkills";
+} from "@s1tools/shared/model";
+import { resolveModelShortName } from "@s1tools/client-runtime/provider-clients";
+import { resolveProvidersForCwd } from "@s1tools/client-runtime/providerSkills";
 
 /** The contracts `disallowedProviderMessage` English, as translatable sentences. */
 function disallowedProviderText(organization: string | undefined, label: string): string {

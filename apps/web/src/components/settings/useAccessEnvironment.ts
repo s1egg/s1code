@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@s1tools/contracts";
 
 import { useEnvironments, usePrimaryEnvironmentId } from "../../state/environments";
 import { resolveAccessEnvironmentId } from "./ConnectionsSettings.logic";

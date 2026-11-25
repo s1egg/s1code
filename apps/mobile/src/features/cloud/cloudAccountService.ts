@@ -3,13 +3,13 @@ import {
   createCloudAccountService,
   ManagedRelay,
   setManagedRelaySession,
-} from "@t3tools/client-runtime/relay";
+} from "@s1tools/client-runtime/relay";
 import {
   reportAtomCommandResult,
   runAtomCommand,
   settleAsyncResult,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@s1tools/client-runtime/state/runtime";
 import * as Effect from "effect/Effect";
 
 import { runtime } from "../../lib/runtime";

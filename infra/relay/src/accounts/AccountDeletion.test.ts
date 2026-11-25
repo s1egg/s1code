@@ -28,7 +28,7 @@ const config = {
 } as unknown as RelayConfiguration.RelayConfiguration["Service"];
 
 const SIGNED_AT_SECONDS = 1_800_000_000;
-const OWN_TUNNEL = "t3coderelay-managedendpoint-dev-0123456789abcdef";
+const OWN_TUNNEL = "s1coderelay-managedendpoint-dev-0123456789abcdef";
 
 const clerkRequest = Effect.fn(function* (
   event: unknown,

@@ -33,7 +33,7 @@ runs:
       env:
         CACHE_NAME: ${{ inputs.environment == 'production' && 'store' || 'preview' }}
       run: |
-        cache="$HOME/.cache/t3-android-$CACHE_NAME"
+        cache="$HOME/.cache/s1-android-$CACHE_NAME"
         {
           echo "GRADLE_USER_HOME=$cache/gradle"
           echo "CCACHE_DIR=$cache/ccache"
@@ -50,12 +50,14 @@ runs:
           echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"
         } >> "$GITHUB_ENV"
 
-    - name: Mount Android build cache
+    - name: Restore Android build cache
       if: inputs.platform == 'android' && inputs.cache == 'true'
-      uses: useblacksmith/stickydisk@3f6be1451e3cad893b778bc93495c80452a5da26 # v1.7.2
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        key: ${{ github.repository }}-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}-build
-        path: ~/.cache/t3-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}
+        path: ~/.cache/s1-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}
+        key: ${{ github.repository }}-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}-build-${{ hashFiles('apps/mobile/package.json', 'pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ github.repository }}-android-${{ inputs.environment == 'production' && 'store' || 'preview' }}-build-
 
     - name: Configure Gradle and ccache
       if: inputs.platform == 'android' && inputs.cache == 'true'
@@ -63,9 +65,11 @@ runs:
       run: |
         mkdir -p "$GRADLE_USER_HOME" "$CCACHE_DIR"
         rm -rf "$EAS_LOCAL_BUILD_WORKINGDIR"
-        # No daemon: nothing should hold the sticky disk open when it is committed.
+        # No daemon: nothing should hold the cache directory open when the job saves it.
         printf 'org.gradle.caching=true\norg.gradle.daemon=false\n' > "$GRADLE_USER_HOME/gradle.properties"
-        sudo sed -i 's|http://|https://|g' /etc/apt/blacksmith-ubuntu-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sudo sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources
+        fi
         sudo apt-get update -qq && sudo apt-get install -y -qq ccache
         ccache --zero-stats
 
@@ -76,9 +80,15 @@ runs:
       run: |
         xcode=/Applications/Xcode_27.1.app
         if [ ! -d "$xcode" ]; then
-          ls -d /Applications/Xcode*.app
-          echo "::error::Xcode 27.1 is not on this runner."
+          xcode="$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)"
+        fi
+        if [ -z "${xcode:-}" ] || [ ! -d "$xcode" ]; then
+          ls -d /Applications/Xcode*.app || true
+          echo "::error::No Xcode is installed on this runner."
           exit 1
+        fi
+        if [ "$(basename "$xcode")" != "Xcode_27.1.app" ]; then
+          echo "::warning::Xcode 27.1 is not on this runner; using $(basename "$xcode")."
         fi
         sudo xcode-select -s "$xcode/Contents/Developer"
         xcodebuild -version
@@ -109,7 +119,7 @@ runs:
     # scripts: some download native assets that the build's fingerprint check hashes.
     - name: Install mobile dependencies
       shell: bash
-      run: pnpm install --frozen-lockfile --prefer-offline --filter=@t3tools/mobile...
+      run: pnpm install --frozen-lockfile --prefer-offline --filter=@s1tools/mobile...
 
     - name: Setup Java
       if: inputs.platform == 'android'
@@ -152,12 +162,12 @@ runs:
         import { appendFileSync, readFileSync } from "node:fs";
         import { parseEnv } from "node:util";
         const env = parseEnv(readFileSync(".env.local", "utf8"));
-        const googleServicesFile = env.T3CODE_ANDROID_GOOGLE_SERVICES_FILE;
+        const googleServicesFile = env.S1CODE_ANDROID_GOOGLE_SERVICES_FILE;
         if (!googleServicesFile && process.env.PLATFORM === "android") {
-          throw new Error(`T3CODE_ANDROID_GOOGLE_SERVICES_FILE is missing from the ${process.env.ENVIRONMENT} environment`);
+          throw new Error(`S1CODE_ANDROID_GOOGLE_SERVICES_FILE is missing from the ${process.env.ENVIRONMENT} environment`);
         }
         if (googleServicesFile) {
-          appendFileSync(process.env.GITHUB_ENV, `T3CODE_ANDROID_GOOGLE_SERVICES_FILE=${googleServicesFile}\n`);
+          appendFileSync(process.env.GITHUB_ENV, `S1CODE_ANDROID_GOOGLE_SERVICES_FILE=${googleServicesFile}\n`);
         }
         NODE
 

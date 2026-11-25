@@ -1,6 +1,6 @@
-import { withDeviceHubQuery } from "@t3tools/client-runtime/state/deviceHubAccess";
-import type { DeviceHubAccess } from "@t3tools/client-runtime/state/deviceHubAccess";
-import type { DevicePlatform } from "@t3tools/contracts";
+import { withDeviceHubQuery } from "@s1tools/client-runtime/state/deviceHubAccess";
+import type { DeviceHubAccess } from "@s1tools/client-runtime/state/deviceHubAccess";
+import type { DevicePlatform } from "@s1tools/contracts";
 
 export interface DeviceAxElement {
   readonly id: string;

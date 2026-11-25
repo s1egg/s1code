@@ -8,7 +8,7 @@ import { MobileClientsUserProfilePage } from "./MobileClientsUserProfilePage";
 import { T3ChatUserProfilePage } from "./T3ChatUserProfilePage";
 import { T3ConnectUserProfilePage } from "./T3ConnectUserProfilePage";
 
-export const T3_CONNECT_ACCOUNT_PAGES = [
+export const S1_CONNECT_ACCOUNT_PAGES = [
   {
     label: msg("Mobile clients"),
     url: "mobile-clients",
@@ -16,20 +16,20 @@ export const T3_CONNECT_ACCOUNT_PAGES = [
     content: <MobileClientsUserProfilePage />,
   },
   {
-    label: "T3 Connect",
-    url: "t3-connect",
+    label: "S1 Connect",
+    url: "s1-connect",
     icon: <ServerIcon className="size-4" />,
     content: <T3ConnectUserProfilePage />,
   },
   {
-    label: "T3 Chat",
-    url: "t3-chat",
+    label: "S1 Chat",
+    url: "s1-chat",
     icon: <MessageSquareIcon className="size-4" />,
     content: <T3ChatUserProfilePage />,
   },
 ] as const;
 
-export type T3ConnectAccountPageUrl = (typeof T3_CONNECT_ACCOUNT_PAGES)[number]["url"];
+export type T3ConnectAccountPageUrl = (typeof S1_CONNECT_ACCOUNT_PAGES)[number]["url"];
 
 type PortalTargets = Readonly<Record<string, HTMLDivElement | undefined>>;
 
@@ -43,12 +43,12 @@ export function useT3ConnectAccountPage(): {
   const m = useMessages();
   const [targets, setTargets] = useState<PortalTargets>({});
 
-  const open = (page: T3ConnectAccountPageUrl = "t3-connect") => {
+  const open = (page: T3ConnectAccountPageUrl = "s1-connect") => {
     const setTarget = (key: string, element: HTMLDivElement | undefined) =>
       setTargets((current) => ({ ...current, [key]: element }));
     clerk.openUserProfile({
       __experimental_startPath: `/${page}`,
-      customPages: T3_CONNECT_ACCOUNT_PAGES.map((page) => ({
+      customPages: S1_CONNECT_ACCOUNT_PAGES.map((page) => ({
         label: m(page.label),
         url: page.url,
         mount: (element: HTMLDivElement) => setTarget(`content:${page.url}`, element),
@@ -59,7 +59,7 @@ export function useT3ConnectAccountPage(): {
     });
   };
 
-  const portals = T3_CONNECT_ACCOUNT_PAGES.flatMap((page) => {
+  const portals = S1_CONNECT_ACCOUNT_PAGES.flatMap((page) => {
     const content = targets[`content:${page.url}`];
     const icon = targets[`icon:${page.url}`];
     return [

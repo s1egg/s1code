@@ -1,8 +1,8 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { expect, it } from "@effect/vitest";
-import { DEFAULT_SERVER_SETTINGS, EnvironmentId, ProjectId } from "@t3tools/contracts";
-import { DEFAULT_SIGNAL_EXPORT } from "@t3tools/shared/observability";
-import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
+import { DEFAULT_SERVER_SETTINGS, EnvironmentId, ProjectId } from "@s1tools/contracts";
+import { DEFAULT_SIGNAL_EXPORT } from "@s1tools/shared/observability";
+import * as OtelEnvironment from "@s1tools/shared/otelEnvironment";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -97,7 +97,7 @@ it.effect("parks automatic pull until activation without delaying command readin
         mode: "desktop",
         cwd,
         host: "localhost",
-        port: 3773,
+        port: 4773,
         devUrl: undefined,
         noBrowser: true,
         startupPresentation: "browser",
@@ -166,7 +166,7 @@ it.effect("parks automatic pull until activation without delaying command readin
       Layer.mock(EnvironmentAuth.EnvironmentAuth)({}),
       Layer.mock(ExternalLauncher.ExternalLauncher)({}),
       Layer.mock(HttpServer.HttpServer)({
-        address: NetAddress.inetAddressFromIpStringUnsafe("127.0.0.1", 3773),
+        address: NetAddress.inetAddressFromIpStringUnsafe("127.0.0.1", 4773),
       }),
       Path.layer,
     );

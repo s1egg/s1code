@@ -1,8 +1,8 @@
-import { GitCommandError, OrchestrationDispatchCommandError } from "@t3tools/contracts";
+import { GitCommandError, OrchestrationDispatchCommandError } from "@s1tools/contracts";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- A synchronous digest inside the pure provider mapping.
 import * as NodeCrypto from "node:crypto";
-import * as FeatureFlags from "@t3tools/shared/FeatureFlags";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as FeatureFlags from "@s1tools/shared/FeatureFlags";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as NodeHttpServerRequest from "@effect/platform-node/NodeHttpServerRequest";
 import * as SecureRandom from "effect/crypto/SecureRandom";
@@ -110,7 +110,7 @@ import {
   type PullRequestRef,
   WS_METHODS,
   WsRpcGroup,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   HttpRouter,
   HttpServerRequest,
@@ -182,7 +182,7 @@ import {
   projectThreadProjectionForWire,
   threadStreamEventItem,
 } from "./orchestration-v2/WireProjection.ts";
-import { dedupeSnapshotBodies } from "@t3tools/shared/orchestrationV2DedupedBodies";
+import { dedupeSnapshotBodies } from "@s1tools/shared/orchestrationV2DedupedBodies";
 import * as ProjectStore from "./orchestration-v2/ProjectStore.ts";
 import * as ThreadSearch from "./orchestration-v2/ThreadSearch.ts";
 import * as OrchestrationEventStore from "./persistence/OrchestrationEventStore.ts";
@@ -191,8 +191,8 @@ import * as ProviderRegistry from "./provider/ProviderRegistry.ts";
 import * as SecretCheck from "./secrets/SecretCheck.ts";
 import * as AcpRegistrySessions from "./provider/AcpRegistrySessions.ts";
 import * as ProviderInstanceRegistry from "./provider/ProviderInstanceRegistry.ts";
-import * as AcpRegistrySupport from "@t3tools/provider-acp-registry/server/AcpRegistrySupport";
-import * as AcpRegistryRuntimeCoordinator from "@t3tools/provider-acp-registry/server/AcpRegistryRuntimeCoordinator";
+import * as AcpRegistrySupport from "@s1tools/provider-acp-registry/server/AcpRegistrySupport";
+import * as AcpRegistryRuntimeCoordinator from "@s1tools/provider-acp-registry/server/AcpRegistryRuntimeCoordinator";
 import * as ProviderMaintenanceRunner from "./provider/providerMaintenanceRunner.ts";
 import * as ProviderAuthService from "./provider/ProviderAuthService.ts";
 import * as ProviderInstallation from "./provider/providerInstallation.ts";
@@ -201,7 +201,7 @@ import * as NpmRelease from "./cloud/npmRelease.ts";
 import * as RelayTracing from "./cloud/relayTracing.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
-import * as SecretResolver from "@t3tools/secret-provider-core/server/SecretResolver";
+import * as SecretResolver from "@s1tools/secret-provider-core/server/SecretResolver";
 import * as ManagedProviders from "./policy/managedProviders.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import { invalidateSettingsSecrets } from "./sourceControl/sourceControlHostSecrets.ts";
@@ -290,18 +290,18 @@ import * as VcsProjectConfig from "./vcs/VcsProjectConfig.ts";
 import * as PairingGrantStore from "./auth/PairingGrantStore.ts";
 import * as SessionStore from "./auth/SessionStore.ts";
 import { failEnvironmentAuthInvalid, failEnvironmentInternal } from "./auth/http.ts";
-import * as SourceControlRateLimit from "@t3tools/source-control-core/server/SourceControlRateLimit";
-import { isNetworkPath } from "@t3tools/shared/path";
-import * as RelayClient from "@t3tools/shared/relayClient";
+import * as SourceControlRateLimit from "@s1tools/source-control-core/server/SourceControlRateLimit";
+import { isNetworkPath } from "@s1tools/shared/path";
+import * as RelayClient from "@s1tools/shared/relayClient";
 import {
   SOCKET_FRAME_PARTS_QUERY_PARAM,
   splitLargeSocketFrames,
-} from "@t3tools/shared/socketFrameParts";
-import { isTelemetryIdHash } from "@t3tools/shared/telemetryId";
+} from "@s1tools/shared/socketFrameParts";
+import { isTelemetryIdHash } from "@s1tools/shared/telemetryId";
 import {
   sameUsageLimitCommandCoverage,
   withUsageLimitsCommands,
-} from "@t3tools/shared/usageLimits";
+} from "@s1tools/shared/usageLimits";
 import * as AgentSessionScanner from "./project/AgentSessionScanner.ts";
 import * as AgentSessionImporter from "./project/AgentSessionImporter.ts";
 import * as UsageLimitSources from "./usage/UsageLimitSources.ts";
@@ -879,7 +879,7 @@ function readClientAnalyticsProps(request: HttpServerRequest.HttpServerRequest) 
 }
 
 /**
- * Owners a connecting client reports: its hashed T3 Connect account and its
+ * Owners a connecting client reports: its hashed S1 Connect account and its
  * hashed device id. Only hashes are accepted, so a raw id never reaches analytics.
  */
 function readClientOwners(
@@ -1756,7 +1756,7 @@ export const layerWsRpc = (
             if (importedThread !== null) {
               return yield* new AcpRegistryOperationError({
                 reason: "session_delete_failed",
-                message: "Delete the imported T3 thread before deleting its native ACP session.",
+                message: "Delete the imported S1 thread before deleting its native ACP session.",
               });
             }
             yield* manager.deleteSession({

@@ -2,8 +2,8 @@ import {
   type ModelCapabilities,
   ProviderDriverKind,
   type ProviderOptionDescriptor,
-} from "@t3tools/contracts";
-import { type CustomModelDefinition, createModelCapabilities } from "@t3tools/shared/model";
+} from "@s1tools/contracts";
+import { type CustomModelDefinition, createModelCapabilities } from "@s1tools/shared/model";
 import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "../../i18n/messages";

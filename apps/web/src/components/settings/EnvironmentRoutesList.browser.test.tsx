@@ -4,8 +4,8 @@ import {
   type ConnectionCatalogEntry,
   type ConnectionRoute,
   mergeLearnedRoutes,
-} from "@t3tools/client-runtime/connection";
-import { EnvironmentId } from "@t3tools/contracts";
+} from "@s1tools/client-runtime/connection";
+import { EnvironmentId } from "@s1tools/contracts";
 import * as Option from "effect/Option";
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
@@ -45,7 +45,7 @@ function direct(id: string, httpBaseUrl: string): ConnectionRoute {
   };
 }
 
-const LAN = direct("lan", "http://192.168.1.10:3773/");
+const LAN = direct("lan", "http://192.168.1.10:4773/");
 const TAILNET = direct("tailnet", "https://desk.tail1234.ts.net/");
 const PUBLIC = direct("public", "https://desk.example.com/");
 

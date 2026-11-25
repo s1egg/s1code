@@ -50,7 +50,7 @@ export interface ApnsCredentials {
 
 export interface T3ChatSettings {
   readonly baseUrl: string;
-  // Shared with T3 Chat: signs link tokens and authenticates relay calls.
+  // Shared with S1 Chat: signs link tokens and authenticates relay calls.
   readonly linkSecret: Redacted.Redacted<string>;
 }
 
@@ -75,7 +75,7 @@ export class RelayConfiguration extends Context.Service<
     readonly legacyTunnelGraceMinutes?: number;
     readonly t3Chat?: T3ChatSettings;
   }
->()("t3code-relay/Config/RelayConfiguration") {}
+>()("s1code-relay/Config/RelayConfiguration") {}
 
 export const layer = (configuration: RelayConfiguration["Service"]) =>
   Layer.succeed(RelayConfiguration, RelayConfiguration.of(configuration));

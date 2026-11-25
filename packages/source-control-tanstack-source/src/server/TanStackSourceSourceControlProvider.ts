@@ -4,17 +4,17 @@ import {
   type ChangeRequest,
   type SourceControlProviderAuth,
   type SourceControlProviderDiscoveryItem,
-} from "@t3tools/contracts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+} from "@s1tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import {
   isExecutableOnPath,
   isMissingExecutable,
   providerAuth,
   type SourceControlManagedCliDiscoverySpec,
-} from "@t3tools/source-control-core/server/discovery";
-import * as SourceControlHost from "@t3tools/source-control-core/server/SourceControlHost";
-import * as SourceControlProvider from "@t3tools/source-control-core/server/SourceControlProvider";
-import { readSourceControlHostSettings } from "@t3tools/source-control-core/shared/definition";
+} from "@s1tools/source-control-core/server/discovery";
+import * as SourceControlHost from "@s1tools/source-control-core/server/SourceControlHost";
+import * as SourceControlProvider from "@s1tools/source-control-core/server/SourceControlProvider";
+import { readSourceControlHostSettings } from "@s1tools/source-control-core/shared/definition";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -596,7 +596,7 @@ export const make = Effect.gen(function* () {
             args: ["fetch", "--no-tags", remoteName, `+refs/pull/${pull.number}/head:${tracking}`],
           });
           const exists = branches.includes(localBranch);
-          // T3 records which pull request it made `pr-<n>` for, and reuses only that branch, and
+          // S1 records which pull request it made `pr-<n>` for, and reuses only that branch, and
           // only while it holds nothing the pull request lacks: an unrelated branch of the name,
           // or local commits, are never switched to, moved or lost.
           const ownerKey = `branch.${localBranch}.t3TanstackSourcePull`;

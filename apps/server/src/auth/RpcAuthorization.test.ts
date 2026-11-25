@@ -25,7 +25,7 @@ import {
   RunId,
   WS_METHODS,
   WsRpcGroup,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -550,7 +550,7 @@ describe("settings mutation authorization", () => {
   );
 
   it.effect(
-    "does not let a settings grant manage providers or turn off T3 Connect device approval",
+    "does not let a settings grant manage providers or turn off S1 Connect device approval",
     () =>
       Effect.gen(function* () {
         let handled = false;

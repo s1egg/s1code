@@ -1,4 +1,4 @@
-import { resolveProviderProbeTimeoutMs } from "@t3tools/provider-core/server/snapshotProbe";
+import { resolveProviderProbeTimeoutMs } from "@s1tools/provider-core/server/snapshotProbe";
 // One OpenCode 2 process serves all directories; share it across instance threads.
 import type { OpenCodeClient } from "@opencode/client/effect";
 import * as Context from "effect/Context";
@@ -36,11 +36,11 @@ export class OpenCode2Server extends Context.Service<
     /** Each newly verified connection; borrowing a running server publishes nothing. */
     readonly connections: Stream.Stream<OpenCode2Connection>;
   }
->()("@t3tools/provider-opencode/server/v2/OpenCode2Server") {}
+>()("@s1tools/provider-opencode/server/v2/OpenCode2Server") {}
 
 /**
  * OpenCode 2 always requires one and prints a generated one to stdout
- * otherwise, so T3 supplies its own and keeps it in memory.
+ * otherwise, so S1 supplies its own and keeps it in memory.
  */
 const generatePassword = Effect.gen(function* () {
   const random = yield* SecureRandom.SecureRandom;

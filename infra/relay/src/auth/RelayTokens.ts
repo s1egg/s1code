@@ -7,9 +7,9 @@ import {
   RelayWebClientId,
   type RelayPublicClientId,
   type RelayEnvironmentLinkChallengeRequest,
-} from "@t3tools/contracts/relay";
-import { encodeOAuthScope, parseAllowedOAuthScope } from "@t3tools/shared/oauthScope";
-import { normalizeRelayIssuer, RelayJwtError } from "@t3tools/shared/relayJwt";
+} from "@s1tools/contracts/relay";
+import { encodeOAuthScope, parseAllowedOAuthScope } from "@s1tools/shared/oauthScope";
+import { normalizeRelayIssuer, RelayJwtError } from "@s1tools/shared/relayJwt";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -18,8 +18,8 @@ import * as Schema from "effect/Schema";
 import * as RelayConfiguration from "../Config.ts";
 import * as CloudMintSigner from "./CloudMintSigner.ts";
 
-const LINK_CHALLENGE_TYP = "t3-link-challenge+jwt";
-const ACCESS_TOKEN_TYP = "t3-relay-dpop-access+jwt";
+const LINK_CHALLENGE_TYP = "s1-link-challenge+jwt";
+const ACCESS_TOKEN_TYP = "s1-relay-dpop-access+jwt";
 const LINK_CHALLENGE_KIND = "environment_link_challenge";
 export const RELAY_DPOP_ACCESS_TOKEN_TTL = "30 minutes";
 
@@ -103,7 +103,7 @@ export class RelayTokens extends Context.Service<
       readonly token: string;
     }) => Effect.Effect<RelayDpopAccessTokenClaims | null>;
   }
->()("t3code-relay/auth/RelayTokens") {}
+>()("s1code-relay/auth/RelayTokens") {}
 
 const make = Effect.gen(function* () {
   const config = yield* RelayConfiguration.RelayConfiguration;

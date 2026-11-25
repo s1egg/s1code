@@ -1,9 +1,9 @@
-import type { OrchestrationV2ProviderFailureClass } from "@t3tools/contracts";
+import type { OrchestrationV2ProviderFailureClass } from "@s1tools/contracts";
 import {
   CHATGPT_USAGE_LIMIT_CODE,
   CHATGPT_WORKSPACE_ADMIN_REQUEST,
   CHATGPT_WORKSPACE_USAGE_LIMIT_CODE,
-} from "@t3tools/shared/usageLimits";
+} from "@s1tools/shared/usageLimits";
 import { msg, T, useGT } from "gt-react";
 import { memo } from "react";
 import { m } from "../../i18n/messages";

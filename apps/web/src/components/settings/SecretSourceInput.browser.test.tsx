@@ -1,4 +1,4 @@
-import { SecretProviderId, SecretProviderKind } from "@t3tools/contracts";
+import { SecretProviderId, SecretProviderKind } from "@s1tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 

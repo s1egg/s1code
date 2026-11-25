@@ -1,4 +1,4 @@
-import type { DeviceHostSummary, DevicePlatform } from "@t3tools/contracts";
+import type { DeviceHostSummary, DevicePlatform } from "@s1tools/contracts";
 import {
   Camera,
   ChevronLeft,

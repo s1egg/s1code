@@ -11,8 +11,8 @@ import {
   ProjectId,
   type ProjectTrackedFolder,
   ProviderInstanceId,
-} from "@t3tools/contracts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+} from "@s1tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -32,7 +32,7 @@ import {
   orchestrationCommandsTotal,
 } from "../observability/Metrics.ts";
 import * as EventSink from "../orchestration-v2/EventSink.ts";
-import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
+import * as IdAllocator from "@s1tools/provider-core/server/IdAllocator";
 import * as LegacyV1ThreadImporter from "../orchestration-v2/legacy/LegacyV1ThreadImporter.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
@@ -58,11 +58,11 @@ const layerMetadata = Layer.merge(
   Layer.succeed(RepositoryIdentityResolver.RepositoryIdentityResolver, {
     resolve: (workspaceRoot) =>
       Effect.succeed({
-        canonicalKey: `github.com/t3tools/${workspaceRoot.split("/").at(-1)}`,
+        canonicalKey: `github.com/s1tools/${workspaceRoot.split("/").at(-1)}`,
         locator: {
           source: "git-remote" as const,
           remoteName: "origin",
-          remoteUrl: `git@github.com:t3tools/${workspaceRoot.split("/").at(-1)}.git`,
+          remoteUrl: `git@github.com:s1tools/${workspaceRoot.split("/").at(-1)}.git`,
         },
         rootPath: workspaceRoot,
       }),
@@ -74,7 +74,7 @@ const layerMetadata = Layer.merge(
 );
 
 class EnrichmentCompletions extends Context.Service<EnrichmentCompletions, Queue.Queue<void>>()(
-  "t3/project/ProjectService.test/EnrichmentCompletions",
+  "s1/project/ProjectService.test/EnrichmentCompletions",
 ) {}
 
 const layerEnrichmentCompletions = Layer.effectContext(
@@ -273,7 +273,7 @@ it.layer(layerTest)("ProjectService", (it) => {
         projectId,
         (project) => project.repositoryIdentity !== null && project.faviconPath !== null,
       );
-      assert.equal(hydratedCreated?.repositoryIdentity?.canonicalKey, "github.com/t3tools/project");
+      assert.equal(hydratedCreated?.repositoryIdentity?.canonicalKey, "github.com/s1tools/project");
       assert.equal(hydratedCreated?.faviconPath, "/work/project/favicon.svg");
 
       const updated = yield* service.update({

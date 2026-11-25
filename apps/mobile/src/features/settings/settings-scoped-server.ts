@@ -7,11 +7,11 @@ import {
   type ProjectScopedServerSettingKey,
   type ServerSettings,
   type ServerSettingsPatch,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   clearProjectSettingsOverrides,
   resolveProjectSettings,
-} from "@t3tools/shared/projectSettings";
+} from "@s1tools/shared/projectSettings";
 
 import { msg } from "gt-react-native";
 

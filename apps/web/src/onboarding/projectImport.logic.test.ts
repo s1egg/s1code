@@ -1,4 +1,4 @@
-import { EnvironmentId, ProjectId, type AgentSessionProjectCandidate } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, type AgentSessionProjectCandidate } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -73,13 +73,13 @@ describe("partitionOnboardingProjects", () => {
 
 describe("groupOnboardingProjects", () => {
   it("groups clones by origin, keeps local repos separate, and folds non-git folders away", () => {
-    const main = candidate("/code/t3code", {
-      git: github("pingdotgg/t3code"),
+    const main = candidate("/code/s1code", {
+      git: github("s1egg/s1code"),
       threadCount: 79,
       lastActiveAt: "2026-08-21T12:00:00.000Z",
     });
-    const clone = candidate("/code/clones/t3code-2", {
-      git: github("pingdotgg/t3code"),
+    const clone = candidate("/code/clones/s1code-2", {
+      git: github("s1egg/s1code"),
       threadCount: 13,
       lastActiveAt: "2026-08-10T12:00:00.000Z",
     });
@@ -109,8 +109,8 @@ describe("groupOnboardingProjects", () => {
         lastActiveAt: "2026-08-22T00:00:00.000Z",
       },
       {
-        label: "pingdotgg/t3code",
-        paths: ["/code/t3code", "/code/clones/t3code-2"],
+        label: "s1egg/s1code",
+        paths: ["/code/s1code", "/code/clones/s1code-2"],
         threadCount: 92,
         lastActiveAt: "2026-08-21T12:00:00.000Z",
       },

@@ -1,6 +1,6 @@
-import { threadKey } from "@t3tools/client-runtime/state/entities";
+import { threadKey } from "@s1tools/client-runtime/state/entities";
 import { describe, expect, it, vi } from "vite-plus/test";
-import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@s1tools/contracts";
 import type { Thread } from "../types";
 import { makeThreadFixture } from "../test-fixtures";
 import {
@@ -229,7 +229,7 @@ describe("buildThreadActionItems", () => {
       icon: null,
       run: async () => undefined,
     });
-    const projects = [action("new-thread-in:t3code", "t3code"), action("new-thread-in:web", "web")];
+    const projects = [action("new-thread-in:s1code", "s1code"), action("new-thread-in:web", "web")];
     const newThreadIn = {
       kind: "submenu" as const,
       value: "action:new-thread-in",
@@ -253,7 +253,7 @@ describe("buildThreadActionItems", () => {
         projectSearchItems: [],
         threadSearchItems: [
           ...buildThreadActionItems({
-            threads: [makeThread({ title: "Thread about t3code" })],
+            threads: [makeThread({ title: "Thread about s1code" })],
             projectByKey: new Map(),
             icon: null,
             runThread: async () => undefined,
@@ -261,12 +261,12 @@ describe("buildThreadActionItems", () => {
         ],
       }).map((group) => [group.label, group.items.map((item) => item.title)]);
 
-    expect(search("new thread in t3code", false)[0]).toEqual([
+    expect(search("new thread in s1code", false)[0]).toEqual([
       "Suggestions",
-      ["New thread in t3code"],
+      ["New thread in s1code"],
     ]);
     expect(search("new thread", false).map(([label]) => label)).not.toContain("Suggestions");
-    expect(search("t3", true)).toEqual([["Projects", ["t3code"]]]);
+    expect(search("s1", true)).toEqual([["Projects", ["s1code"]]]);
     expect(search("add project", true)).toEqual([["Actions", ["Add project"]]]);
   });
 
@@ -425,8 +425,8 @@ describe("buildThreadActionItems", () => {
             {
               kind: "action",
               value: "action:new-thread",
-              searchTerms: ["New thread in t3code"],
-              title: "New thread in t3code",
+              searchTerms: ["New thread in s1code"],
+              title: "New thread in s1code",
               icon: null,
               run: async () => undefined,
             },
@@ -560,15 +560,15 @@ describe("buildThreadActionItems", () => {
               value: "action:new-thread",
               searchTerms: ["new thread", "chat"],
               // Styled: not a string, so only `searchTitle` holds its words.
-              title: ["New thread in ", "t3code"],
-              searchTitle: "New thread in t3code",
+              title: ["New thread in ", "s1code"],
+              searchTitle: "New thread in s1code",
               icon: null,
               run: async () => undefined,
             },
           ],
         },
       ],
-      query: "> new t3code",
+      query: "> new s1code",
       isInSubmenu: false,
       projectSearchItems: [],
       threadSearchItems: [],
@@ -647,7 +647,7 @@ describe("buildThreadActionItems", () => {
     });
     const items = buildThreadActionItems({
       threads: [idThread, titleThread],
-      projectByKey: new Map([[`${LOCAL_ENVIRONMENT_ID}:${PROJECT_ID}`, { title: "T3 Code" }]]),
+      projectByKey: new Map([[`${LOCAL_ENVIRONMENT_ID}:${PROJECT_ID}`, { title: "S1 Code" }]]),
       icon: null,
       runThread: async (_thread) => undefined,
     });
@@ -824,46 +824,44 @@ describe("filterPinnedBrowseEntries", () => {
   });
 });
 
-it.each([
-  "#10839",
-  "10839",
-  "pingdotgg/t3code#10839",
-  "https://github.com/pingdotgg/t3code/pull/10839",
-])("finds linked threads from PR query %s", (query) => {
-  const items = buildThreadActionItems({
-    threads: [
-      makeThread({
-        title: "Implementation",
-        pullRequests: [
-          {
-            host: "github.com",
-            repository: "pingdotgg/t3code",
-            number: 10839,
-            url: "https://github.com/pingdotgg/t3code/pull/10839",
-            source: "manual",
-            linkedAt: "2026-09-08T00:00:00Z",
-            snapshot: null,
-            stack: null,
-          },
-        ],
-      }),
-      makeThread({ id: ThreadId.make("unrelated"), title: "Other work" }),
-    ],
-    projectByKey: new Map(),
-    icon: null,
-    runThread: async () => undefined,
-  });
-  const groups = filterCommandPaletteGroups({
-    activeGroups: [],
-    query,
-    isInSubmenu: false,
-    projectSearchItems: [],
-    threadSearchItems: items,
-  });
-  expect(groups.flatMap((group) => group.items.map((item) => item.title))).toEqual([
-    "Implementation",
-  ]);
-});
+it.each(["#10839", "10839", "s1egg/s1code#10839", "https://github.com/s1egg/s1code/pull/10839"])(
+  "finds linked threads from PR query %s",
+  (query) => {
+    const items = buildThreadActionItems({
+      threads: [
+        makeThread({
+          title: "Implementation",
+          pullRequests: [
+            {
+              host: "github.com",
+              repository: "s1egg/s1code",
+              number: 10839,
+              url: "https://github.com/s1egg/s1code/pull/10839",
+              source: "manual",
+              linkedAt: "2026-09-08T00:00:00Z",
+              snapshot: null,
+              stack: null,
+            },
+          ],
+        }),
+        makeThread({ id: ThreadId.make("unrelated"), title: "Other work" }),
+      ],
+      projectByKey: new Map(),
+      icon: null,
+      runThread: async () => undefined,
+    });
+    const groups = filterCommandPaletteGroups({
+      activeGroups: [],
+      query,
+      isInSubmenu: false,
+      projectSearchItems: [],
+      threadSearchItems: items,
+    });
+    expect(groups.flatMap((group) => group.items.map((item) => item.title))).toEqual([
+      "Implementation",
+    ]);
+  },
+);
 
 describe("command palette search return", () => {
   const picker = { addonIcon: null, groups: [] };

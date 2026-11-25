@@ -14,11 +14,11 @@
       (() => {
         const LIGHT_BACKGROUND = "#ffffff";
         const DARK_BACKGROUND = "#000000";
-        const CUSTOM_THEMES_STORAGE_KEY = "t3code:themes:v1";
-        const ENVIRONMENT_THEMES_STORAGE_KEY = "t3code:environment-themes:v1";
-        const THEME_FOLLOW_SYSTEM_STORAGE_KEY = "t3code:theme-follow-system";
-        const THEME_APPEARANCE_MODE_STORAGE_KEY = "t3code:theme-appearance-mode";
-        const THEME_HALVES_STORAGE_KEY = "t3code:theme-halves:v1";
+        const CUSTOM_THEMES_STORAGE_KEY = "s1code:themes:v1";
+        const ENVIRONMENT_THEMES_STORAGE_KEY = "s1code:environment-themes:v1";
+        const THEME_FOLLOW_SYSTEM_STORAGE_KEY = "s1code:theme-follow-system";
+        const THEME_APPEARANCE_MODE_STORAGE_KEY = "s1code:theme-appearance-mode";
+        const THEME_HALVES_STORAGE_KEY = "s1code:theme-halves:v1";
         const SPLASH_COLORS = {
           light: {
             background: "#ffffff",
@@ -52,7 +52,7 @@
         // Keep this small boot-time copy in sync with the built-in palettes so
         // the selected theme is visible before the app has mounted.
         const BUILT_IN_THEME_PALETTES = {
-          "t3-chat": {
+          "s1-chat": {
             light: {
               background: "oklch(0.982446 0.010114 325.653)",
               foreground: "oklch(0.325698 0.116116 325.037)",
@@ -133,16 +133,16 @@
           "system",
           "light",
           "dark",
-          "t3-chat",
+          "s1-chat",
           "grove",
           "ocean",
           "ember",
           "iris",
-          "t3-chat-dark",
-          "t3-grove",
-          "t3-ocean",
-          "t3-ember",
-          "t3-iris",
+          "s1-chat-dark",
+          "s1-grove",
+          "s1-ocean",
+          "s1-ember",
+          "s1-iris",
         ];
         const setThemeColor = (color) => {
           for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
@@ -219,16 +219,16 @@
         };
 
         try {
-          const storedTheme = window.localStorage.getItem("t3code:theme");
+          const storedTheme = window.localStorage.getItem("s1code:theme");
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           const LEGACY_THEME_IDS = {
-            "t3-chat-dark": "t3-chat",
-            "t3-grove": "grove",
-            "t3-ocean": "ocean",
-            "t3-ember": "ember",
-            "t3-iris": "iris",
+            "s1-chat-dark": "s1-chat",
+            "s1-grove": "grove",
+            "s1-ocean": "ocean",
+            "s1-ember": "ember",
+            "s1-iris": "iris",
           };
-          const isLegacyT3ChatDark = storedTheme === "t3-chat-dark";
+          const isLegacyT3ChatDark = storedTheme === "s1-chat-dark";
           const themeId =
             storedTheme === null ? "" : (LEGACY_THEME_IDS[storedTheme] ?? storedTheme);
           const legacyMode = isLegacyT3ChatDark ? "dark" : null;
@@ -690,13 +690,13 @@
       if (desktopDisplayName) document.title = desktopDisplayName;
     </script>
     <!-- vite.config.ts stamps the web build's channel into this title. -->
-    <title>T3 Code</title>
+    <title>S1 Code</title>
   </head>
   <body>
     <div id="root">
       <div id="boot-shell">
-        <div id="boot-shell-card" aria-label="T3 Code splash screen">
-          <img id="boot-shell-logo" src="/apple-touch-icon.png" alt="T3 Code" />
+        <div id="boot-shell-card" aria-label="S1 Code splash screen">
+          <img id="boot-shell-logo" src="/apple-touch-icon.png" alt="S1 Code" />
           <p id="boot-shell-progress" role="status" aria-live="polite"></p>
         </div>
       </div>

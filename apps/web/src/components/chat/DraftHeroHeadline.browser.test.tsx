@@ -1,7 +1,7 @@
 import { createMemoryHistory } from "@tanstack/react-router";
-import { scopeProjectRef } from "@t3tools/client-runtime/environment";
-import { ProjectId } from "@t3tools/contracts";
-import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
+import { scopeProjectRef } from "@s1tools/client-runtime/environment";
+import { ProjectId } from "@s1tools/contracts";
+import { DEFAULT_CLIENT_SETTINGS } from "@s1tools/contracts/settings";
 import type * as Context from "effect/Context";
 import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";

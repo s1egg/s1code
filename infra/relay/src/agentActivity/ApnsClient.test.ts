@@ -1,8 +1,8 @@
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- Effect's Crypto has no generateKeyPairSync.
 import * as NodeCrypto from "node:crypto";
 
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import type { RelayAgentActivityAggregateState } from "@t3tools/contracts/relay";
+import { EnvironmentId, ThreadId } from "@s1tools/contracts";
+import type { RelayAgentActivityAggregateState } from "@s1tools/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
@@ -36,7 +36,7 @@ const layerTest = ApnsClient.layer.pipe(
 describe("ApnsClient", () => {
   const now = DateTime.makeUnsafe(0);
   const state: RelayAgentActivityAggregateState = {
-    title: "T3 Code",
+    title: "S1 Code",
     subtitle: "Agent work in progress",
     activeCount: 1,
     updatedAt: DateTime.formatIso(now),
@@ -264,7 +264,7 @@ describe("ApnsClient", () => {
       teamId: "team-jwt-cache",
       keyId: "key-jwt-cache",
       privateKey: Redacted.make(privateKey),
-      bundleId: "com.t3tools.test",
+      bundleId: "com.s1tools.test",
       environment: "sandbox",
     } satisfies ApnsCredentials;
     const authorizations: Array<string> = [];
@@ -320,7 +320,7 @@ describe("ApnsClient", () => {
       teamId: "team-spans",
       keyId: "key-spans",
       privateKey: Redacted.make(privateKey),
-      bundleId: "com.t3tools.test",
+      bundleId: "com.s1tools.test",
       environment: "sandbox",
     } satisfies ApnsCredentials;
     const spans: Array<Tracer.NativeSpan> = [];

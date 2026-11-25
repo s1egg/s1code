@@ -1,4 +1,4 @@
-import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
+import type { EnvironmentProject } from "@s1tools/client-runtime/state/shell";
 import {
   CommandId,
   DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -6,15 +6,15 @@ import {
   MessageId,
   ProviderInstanceId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 
 import type { QueuedThreadMessage } from "../../state/thread-outbox-model";
 
 export const SHOWCASE_PENDING_TASK_DEFINITIONS = [
   {
-    projectId: "t3code",
+    projectId: "s1code",
     id: "offline-launch-checklist",
-    // oxlint-disable-next-line t3code/no-untranslated-copy -- showcase fixture data
+    // oxlint-disable-next-line s1code/no-untranslated-copy -- showcase fixture data
     text: "Ship the offline launch checklist before touchdown ✈️",
     branch: "feat/offline-launchpad",
     minutesAgo: 8,
@@ -22,7 +22,7 @@ export const SHOWCASE_PENDING_TASK_DEFINITIONS = [
   {
     projectId: "react",
     id: "train-tunnel-suspense",
-    // oxlint-disable-next-line t3code/no-untranslated-copy -- showcase fixture data
+    // oxlint-disable-next-line s1code/no-untranslated-copy -- showcase fixture data
     text: "Polish the Suspense handoff for the train tunnel 🚇",
     branch: "perf/tunnel-handoff",
     minutesAgo: 27,

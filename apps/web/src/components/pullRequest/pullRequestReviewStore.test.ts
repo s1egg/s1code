@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { ProjectId } from "@t3tools/contracts";
+import { ProjectId } from "@s1tools/contracts";
 
 import {
   type PendingReviewComment,

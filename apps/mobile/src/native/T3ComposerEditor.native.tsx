@@ -1,7 +1,7 @@
-import { PASTED_TEXT_ATTACHMENT_THRESHOLD_BYTES } from "@t3tools/client-runtime/text-paste";
-import { PROVIDER_SEND_TURN_MAX_INPUT_CHARS } from "@t3tools/contracts";
-import { collectComposerInlineTokens } from "@t3tools/shared/composerInlineTokens";
-import { markdownMathRanges } from "@t3tools/shared/markdownMath";
+import { PASTED_TEXT_ATTACHMENT_THRESHOLD_BYTES } from "@s1tools/client-runtime/text-paste";
+import { PROVIDER_SEND_TURN_MAX_INPUT_CHARS } from "@s1tools/contracts";
+import { collectComposerInlineTokens } from "@s1tools/shared/composerInlineTokens";
+import { markdownMathRanges } from "@s1tools/shared/markdownMath";
 import { composerContextEditorTokens, composerSkillLabels } from "../lib/composerContext";
 import { DEFAULT_COMPOSER_ENTER_BEHAVIOR } from "../lib/composerEnterBehavior";
 import { useComposerModelTokens } from "./useComposerModelTokens";
@@ -266,7 +266,7 @@ export function ComposerEditor({
     mostRecentEventCount: controlledEventCount,
     isNativeEcho,
   });
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- prunes native editor event snapshots once a committed payload acknowledges them
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- prunes native editor event snapshots once a committed payload acknowledges them
   useEffect(() => {
     if (!acknowledgesLatestNativeEvent) return;
     nativeEventSnapshotsRef.current = pruneAcknowledgedComposerNativeEvents(
@@ -275,7 +275,7 @@ export function ComposerEditor({
     );
   }, [acknowledgesLatestNativeEvent, mostRecentEventCount, nativeEventSnapshotsRef]);
   const assumedValue = props.value;
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records the committed controlled payload as the native editor's assumed state
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- records the committed controlled payload as the native editor's assumed state
   useEffect(() => {
     // Newer native events make this payload stale; do not record it as applied.
     if (isNativeEcho || controlledEventCount !== mostRecentEventCountRef.current) return;

@@ -1,6 +1,6 @@
-import { canCreateProjectInEnvironment } from "@t3tools/client-runtime/operations/projects";
-import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
-import { type EnvironmentId, FilesystemBrowseError } from "@t3tools/contracts";
+import { canCreateProjectInEnvironment } from "@s1tools/client-runtime/operations/projects";
+import type { EnvironmentConnectionPhase } from "@s1tools/client-runtime/connection";
+import { type EnvironmentId, FilesystemBrowseError } from "@s1tools/contracts";
 import * as Schema from "effect/Schema";
 
 const isFilesystemBrowseError = Schema.is(FilesystemBrowseError);

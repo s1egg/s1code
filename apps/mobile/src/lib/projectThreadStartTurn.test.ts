@@ -1,4 +1,4 @@
-import { ProjectId, ProviderInstanceId } from "@t3tools/contracts";
+import { ProjectId, ProviderInstanceId } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { serializeComposerMessageForServer } from "./composerContext";
@@ -15,7 +15,7 @@ describe("project thread title", () => {
       type: "image" as const,
       name: "photo.png",
       mimeType: "image/png",
-      text: "![photo.png](t3-context://v1/image/photo)",
+      text: "![photo.png](s1-context://v1/image/photo)",
       title: "Attached image",
     },
     {
@@ -29,7 +29,7 @@ describe("project thread title", () => {
       type: "file" as const,
       name: "report.pdf",
       mimeType: "application/pdf",
-      text: "[report.pdf](t3-context://v1/file/report)",
+      text: "[report.pdf](s1-context://v1/file/report)",
       title: "report.pdf",
     },
   ])("titles a $type-only message without changing its data", ({ text, title, ...attachment }) => {
@@ -89,13 +89,13 @@ describe("project thread title", () => {
       worktreePath: null,
       startFromOrigin: false,
       worktreeRepositories: ["/workspace/api"],
-      worktreeBranchName: "t3/new",
+      worktreeBranchName: "s1/new",
     });
 
     expect(input.bootstrap.prepareWorktree).toEqual({
       projectCwd: "/workspace",
       baseBranch: "HEAD",
-      branch: "t3/new",
+      branch: "s1/new",
       repositories: [{ path: "/workspace/api" }],
     });
   });

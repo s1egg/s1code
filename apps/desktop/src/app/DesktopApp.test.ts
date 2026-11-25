@@ -9,7 +9,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as HttpClient from "effect/http/HttpClient";
 import { ChildProcessSpawner } from "effect/process";
-import * as NetService from "@t3tools/shared/Net";
+import * as NetService from "@s1tools/shared/Net";
 import * as Fiber from "effect/Fiber";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
@@ -111,7 +111,7 @@ const runStubbedDesktop = (stub: StubbedDesktop) =>
           isDevelopment: false,
           isPackaged: true,
           stateDir: "/isolated/userdata",
-          configuredBackendPort: Option.some(3773),
+          configuredBackendPort: Option.some(4773),
           defaultDesktopSettings: { serverExposureMode: "local-only" },
           ...stub.environment,
         } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]),
@@ -186,7 +186,7 @@ const runStubbedDesktop = (stub: StubbedDesktop) =>
         } as unknown as DesktopBackendPool.DesktopBackendPool["Service"]),
         Effect.provideService(DesktopServerExposure.DesktopServerExposure, {
           configureFromSettings: () => Effect.succeed({ mode: "local-only" }),
-          backendConfig: Effect.succeed({ httpBaseUrl: new URL("http://127.0.0.1:3773") }),
+          backendConfig: Effect.succeed({ httpBaseUrl: new URL("http://127.0.0.1:4773") }),
         } as unknown as DesktopServerExposure.DesktopServerExposure["Service"]),
         Effect.provideService(DesktopWslBackend.DesktopWslBackend, {
           reconcile: Effect.void,
@@ -331,24 +331,24 @@ it.effect.each([false, true])(
 );
 
 it.effect(
-  "points a stale t3 launcher at the updated AppImage and accepts t3 <dir> with Local environment off",
+  "points a stale s1 launcher at the updated AppImage and accepts s1 <dir> with Local environment off",
   () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-desktop-app-" });
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "s1-desktop-app-" });
       const launcher = DesktopCliShim.launcherPath({
         path,
         baseDir,
         platform: "linux",
       } as DesktopEnvironment.DesktopEnvironment["Service"]);
-      const removedAppImage = path.join(baseDir, "T3-Code-0.1.6-x86_64.AppImage");
-      const updatedAppImage = path.join(baseDir, "T3-Code-0.1.7-x86_64.AppImage");
+      const removedAppImage = path.join(baseDir, "S1-Code-0.1.6-x86_64.AppImage");
+      const updatedAppImage = path.join(baseDir, "S1-Code-0.1.7-x86_64.AppImage");
       yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
       yield* fs.writeFileString(
         launcher,
         DesktopCliShim.renderCliShim({
-          target: { kind: "appimage", appImage: removedAppImage, executableName: "t3code" },
+          target: { kind: "appimage", appImage: removedAppImage, executableName: "s1code" },
           shimPath: launcher,
           t3Home: baseDir,
         }),
@@ -379,11 +379,11 @@ it.effect(
       assert.include(
         content,
         `app='${updatedAppImage}'`,
-        "startup left the t3 launcher pointing at the removed AppImage",
+        "startup left the s1 launcher pointing at the removed AppImage",
       );
       assert.isTrue(
         yield* Deferred.isDone(activationStarted),
-        "startup left the t3 <dir> control socket closed",
+        "startup left the s1 <dir> control socket closed",
       );
     }).pipe(Effect.provide(Layer.mergeAll(DesktopShutdown.layer, NodeServices.layer))),
 );

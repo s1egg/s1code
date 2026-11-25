@@ -1,11 +1,11 @@
-import { changeRequestReferenceAutolinker } from "@t3tools/client-runtime/pull-request-references";
-import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
+import { changeRequestReferenceAutolinker } from "@s1tools/client-runtime/pull-request-references";
+import { sourceControlClients } from "@s1tools/client-runtime/source-control-clients";
 import type { Nodes } from "hast";
 
 import {
   splitPullRequestBody as splitBody,
   type PullRequestBodySegment,
-} from "@t3tools/client-runtime/pull-request-markdown";
+} from "@s1tools/client-runtime/pull-request-markdown";
 import {
   markdownReferenceDefinitions,
   wordsHast,

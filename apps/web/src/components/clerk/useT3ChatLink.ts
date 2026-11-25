@@ -1,8 +1,8 @@
-import { findErrorTraceId, thrownErrorMessage } from "@t3tools/client-runtime/errors";
+import { findErrorTraceId, thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@s1tools/client-runtime/state/runtime";
 import { msg } from "gt-react";
 import { useState } from "react";
 
@@ -33,7 +33,7 @@ function reportFailure(title: string, cause: unknown) {
   });
 }
 
-/** Starts and removes the T3 Chat link that raises the T3 Connect tunnel cap. */
+/** Starts and removes the S1 Chat link that raises the S1 Connect tunnel cap. */
 export function useT3ChatLink() {
   const linkState = useManagedRelayT3ChatLink();
   const createLinkRequest = useAtomCommand(createManagedRelayT3ChatLinkRequestCommand, {
@@ -69,7 +69,7 @@ export function useT3ChatLink() {
       setLinkUrl(null);
       linkState.refresh();
     } else if (!isAtomCommandInterrupted(result)) {
-      reportFailure(m(msg("Could not unlink T3 Chat")), squashAtomCommandFailure(result));
+      reportFailure(m(msg("Could not unlink S1 Chat")), squashAtomCommandFailure(result));
     }
     setPending(null);
   };

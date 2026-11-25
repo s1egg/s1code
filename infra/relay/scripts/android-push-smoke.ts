@@ -102,7 +102,7 @@ const main = Effect.gen(function* () {
         packageName: device.packageName,
         alert: title !== null,
         data: {
-          t3_kind: "agent_activity",
+          s1_kind: "agent_activity",
           ...androidRecipientData(device.userId, device.deviceId, null),
           updated_at: String(now),
           active: String(active),
@@ -120,7 +120,7 @@ const main = Effect.gen(function* () {
             ? {
                 alert_id: `smoke-${now}`,
                 alert_title: title,
-                alert_body: "T3 Code Android push test",
+                alert_body: "S1 Code Android push test",
                 alert_path: device.deepLink ?? "/",
               }
             : {}),

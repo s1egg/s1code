@@ -8,7 +8,7 @@ import {
   EnvironmentHttpApi,
   MCP_PEER_LINK_SOFTWARE_ID,
   mcpClientScopes,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -41,7 +41,7 @@ class AuthTestApi extends HttpApi.make("environment")
   .add(EnvironmentHttpApi.groups.auth)
   .add(EnvironmentHttpApi.groups.mcpOAuth) {}
 
-const layerConfig = ServerConfig.layerTest(process.cwd(), { prefix: "t3-mcp-oauth-test-" });
+const layerConfig = ServerConfig.layerTest(process.cwd(), { prefix: "s1-mcp-oauth-test-" });
 const layerEnvironmentAuth = EnvironmentAuth.layer.pipe(
   Layer.provide(ManagedPolicy.layerTest()),
   Layer.provide(Sqlite.layerMemory),
@@ -818,12 +818,12 @@ it.effect(
 
       const onTunnel = yield* handoff("box.example.ts.net");
       const hosted = new URL(onTunnel.location);
-      expect(`${hosted.origin}${hosted.pathname}`).toBe("https://app.t3.codes/approve-agent");
+      expect(`${hosted.origin}${hosted.pathname}`).toBe("https://app.s1.codes/approve-agent");
       expect(hosted.searchParams.get("environment")).toEqual(expect.any(String));
       hosted.searchParams.delete("environment");
       expect(hosted.searchParams.toString()).toBe(onTunnel.query);
 
-      const elsewhere = yield* handoff("other.t3coderelay.com");
+      const elsewhere = yield* handoff("other.s1coderelay.com");
       expect(elsewhere.location).toBe(`/connect-agent?${elsewhere.query}`);
       const peerLink = yield* handoff("box.example.ts.net", true);
       expect(peerLink.location).toBe(`/connect-agent?${peerLink.query}`);
@@ -900,7 +900,7 @@ it.live("one-click approves only access the browser session holds the scopes for
       );
       expect(new URL(readOnly.redirectTo!).searchParams.get("code")).toEqual(expect.any(String));
 
-      // The hosted app approves with the owner's T3 Connect session, which sends no cookie.
+      // The hosted app approves with the owner's S1 Connect session, which sends no cookie.
       const connect = `Bearer ${(yield* auth.issueSession({ scopes: [...AuthStandardClientScopes] })).token}`;
       const connectDetails = yield* details(connect);
       expect(connectDetails.oneClickAccess).toContain("full-access");

@@ -1,0 +1,4 @@
+interface:
+  display_name: "S1 App Testing"
+  short_description: "Test web and desktop in S1's Browser panel"
+  default_prompt: "Use $test-s1-app to verify the affected web or desktop flow through S1's Browser panel."

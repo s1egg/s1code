@@ -3,11 +3,11 @@ import {
   ProviderDriverKind,
   type ProviderInstallState,
   type ServerProviderCompatibilityAdvisory,
-} from "@t3tools/contracts";
-import { cliArchiveTarCommand, parseChecksums } from "@t3tools/shared/cliRelease";
-import { compareSemverVersions } from "@t3tools/shared/semver";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { resolveCommandPath, resolveSpawnCommand } from "@t3tools/shared/shell";
+} from "@s1tools/contracts";
+import { cliArchiveTarCommand, parseChecksums } from "@s1tools/shared/cliRelease";
+import { compareSemverVersions } from "@s1tools/shared/semver";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { resolveCommandPath, resolveSpawnCommand } from "@s1tools/shared/shell";
 import * as Clock from "effect/Clock";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -169,7 +169,7 @@ interface CodexInstallationService {
 export class CodexInstallation extends Context.Service<
   CodexInstallation,
   CodexInstallationService
->()("t3/provider/CodexInstallation") {
+>()("s1/provider/CodexInstallation") {
   static readonly layer = Layer.effect(
     CodexInstallation,
     Effect.gen(function* () {
@@ -388,7 +388,7 @@ export const makeCodexInstallation = Effect.fn("makeCodexInstallation")(function
       return executable;
     },
     Effect.mapError(
-      wrapFailure("resolve", "Codex is not installed in T3 Code. Install it to continue."),
+      wrapFailure("resolve", "Codex is not installed in S1 Code. Install it to continue."),
     ),
   );
   const acquire = Effect.fn("CodexInstallation.acquire")(function* () {

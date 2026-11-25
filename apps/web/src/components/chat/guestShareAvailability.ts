@@ -1,5 +1,5 @@
-import { managedCapabilityDenial } from "@t3tools/client-runtime/contract-labels";
-import type { EnvironmentId } from "@t3tools/contracts";
+import { managedCapabilityDenial } from "@s1tools/client-runtime/contract-labels";
+import type { EnvironmentId } from "@s1tools/contracts";
 import { Atom } from "effect/reactivity";
 
 import { environmentPresentations } from "~/state/presentation";
@@ -8,7 +8,7 @@ import { serverEnvironment } from "~/state/server";
 /**
  * Whether this environment offers "Share with guest": the user may create links there, and its
  * Guest links beta is on (Settings > Labs). The server refuses links while the beta is off.
- * Guests arrive through T3 Connect, so a policy that turns Connect off hides sharing too.
+ * Guests arrive through S1 Connect, so a policy that turns Connect off hides sharing too.
  */
 export const canShareWithGuestAtom = Atom.family((environmentId: EnvironmentId) =>
   Atom.make((get) => {

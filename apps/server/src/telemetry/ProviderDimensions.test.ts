@@ -1,4 +1,4 @@
-import { ProviderInstanceId, ThreadId, type ServerProvider } from "@t3tools/contracts";
+import { ProviderInstanceId, ThreadId, type ServerProvider } from "@s1tools/contracts";
 import { expect, it } from "@effect/vitest";
 
 import {
@@ -46,7 +46,7 @@ const thread = (
 it("reports custom models as custom:<driver> and never instance names", () => {
   expect(
     agentToolProperties({
-      tool: "t3_thread_send",
+      tool: "s1_thread_send",
       providers,
       caller: thread("claudeAgent", "my-private-finetune"),
       targets: [thread("opencode", "ollama/acme-internal"), thread("removed-instance", "gpt-5.5")],
@@ -79,7 +79,7 @@ it("drops input strings outside the schema's literals, since rejected calls are 
     mode: "async",
   });
   expect(
-    handoffSettings("t3_thread_launch", { workspaceStrategy: { type: "/home/me/secret" } }, {}),
+    handoffSettings("s1_thread_launch", { workspaceStrategy: { type: "/home/me/secret" } }, {}),
   ).toEqual({ targetChosen: false, workspace: "root" });
 });
 
@@ -107,8 +107,8 @@ it("reports only identifier-shaped failure codes and known delivery values", () 
       structuredContent: { code: "ENOENT: no such file '/Users/julius/secret'" },
     }),
   ).toEqual({ outcome: "error", errorCode: "unknown" });
-  expect(handoffSettings("t3_thread_send", {}, { delivery: "queued" })).toEqual({
+  expect(handoffSettings("s1_thread_send", {}, { delivery: "queued" })).toEqual({
     delivery: "queued",
   });
-  expect(handoffSettings("t3_thread_send", {}, { delivery: "/Users/julius" })).toEqual({});
+  expect(handoffSettings("s1_thread_send", {}, { delivery: "/Users/julius" })).toEqual({});
 });

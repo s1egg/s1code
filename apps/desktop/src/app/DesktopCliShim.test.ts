@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 const tempRoot = () => {
-  const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-cli-shim-"));
+  const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1-cli-shim-"));
   directories.push(root);
   return root;
 };
@@ -27,7 +27,7 @@ const writeExecutable = (path: string, content: string) => {
 };
 
 const writeShim = (root: string, target: CliShimTarget) => {
-  const shim = NodePath.join(root, "bin", "t3");
+  const shim = NodePath.join(root, "bin", "s1");
   writeExecutable(shim, renderCliShim({ target, shimPath: shim, t3Home: `${root}/home` }));
   return shim;
 };
@@ -39,13 +39,13 @@ const run = (shim: string, args: ReadonlyArray<string>, env: NodeJS.ProcessEnv =
   });
 
 const REPORTER =
-  '#!/bin/sh\necho "node=$ELECTRON_RUN_AS_NODE cli=$T3CODE_CLI_PATH home=$T3CODE_HOME appimage=$APPIMAGE"\nprintf "%s\\n" "$@"\nexit 3\n';
+  '#!/bin/sh\necho "node=$ELECTRON_RUN_AS_NODE cli=$S1CODE_CLI_PATH home=$S1CODE_HOME appimage=$APPIMAGE"\nprintf "%s\\n" "$@"\nexit 3\n';
 
 const fakeAppImage = (canMount = true, app = REPORTER) => {
   const root = tempRoot();
   const image = NodePath.join(root, "image");
-  writeExecutable(NodePath.join(image, "t3code"), app);
-  const appImage = NodePath.join(root, "T3 Code.AppImage");
+  writeExecutable(NodePath.join(image, "s1code"), app);
+  const appImage = NodePath.join(root, "S1 Code.AppImage");
   writeExecutable(
     appImage,
     [
@@ -62,7 +62,7 @@ const fakeAppImage = (canMount = true, app = REPORTER) => {
       "",
     ].join("\n"),
   );
-  const shim = writeShim(root, { kind: "appimage", appImage, executableName: "t3code" });
+  const shim = writeShim(root, { kind: "appimage", appImage, executableName: "s1code" });
   return { root, image, appImage, shim };
 };
 
@@ -168,7 +168,7 @@ describe("renderCliShim", () => {
     expect(closedStdin.status).toBe(3);
   });
 
-  it("keeps the install's T3 home under sudo, unless one is set", () => {
+  it("keeps the install's S1 home under sudo, unless one is set", () => {
     const root = tempRoot();
     writeExecutable(NodePath.join(root, "app"), REPORTER);
     const shim = writeShim(root, {
@@ -177,22 +177,22 @@ describe("renderCliShim", () => {
       entry: "/bin.mjs",
     });
     expect(run(shim, []).stdout).toContain(`home=${root}/home`);
-    expect(run(shim, [], { T3CODE_HOME: "/elsewhere" }).stdout).toContain("home=/elsewhere");
-    const relative = NodeChildProcess.spawnSync("./bin/t3", [], { cwd: root, encoding: "utf8" });
+    expect(run(shim, [], { S1CODE_HOME: "/elsewhere" }).stdout).toContain("home=/elsewhere");
+    const relative = NodeChildProcess.spawnSync("./bin/s1", [], { cwd: root, encoding: "utf8" });
     expect(relative.stdout).toContain(`cli=${shim}`);
   });
 
   it("runs an installed app's server directly", () => {
     const root = tempRoot();
-    const executable = NodePath.join(root, "opt", "T3 Code", "t3code");
+    const executable = NodePath.join(root, "opt", "S1 Code", "s1code");
     writeExecutable(executable, REPORTER);
     const shim = writeShim(root, {
       kind: "direct",
       executable,
-      entry: "/opt/T3's/app.asar/bin.mjs",
+      entry: "/opt/S1's/app.asar/bin.mjs",
     });
     expect(run(shim, ["browser", "setup"]).stdout.split("\n").slice(1)).toEqual([
-      "/opt/T3's/app.asar/bin.mjs",
+      "/opt/S1's/app.asar/bin.mjs",
       "browser",
       "setup",
       "",
@@ -200,22 +200,22 @@ describe("renderCliShim", () => {
   });
 
   it("writes a Windows launcher that keeps cmd from reinterpreting paths", () => {
-    const executable = "C:\\Apps\\R&whoami&X 100%\\!CHANNEL!\\T3 Code.exe";
+    const executable = "C:\\Apps\\R&whoami&X 100%\\!CHANNEL!\\S1 Code.exe";
     const script = renderCliShim({
       target: { kind: "windows", executable, entry: "C:\\Apps\\server.asar\\bin.mjs" },
-      shimPath: "C:\\Users\\José\\.t3\\bin\\t3.cmd",
-      t3Home: "C:\\Users\\José\\.t3",
+      shimPath: "C:\\Users\\José\\.s1\\bin\\s1.cmd",
+      t3Home: "C:\\Users\\José\\.s1",
     });
     const lines = script.split("\r\n");
     expect(lines).toContain("setlocal EnableExtensions DisableDelayedExpansion");
     expect(lines).toContain("chcp 65001 >nul");
     expect(lines).toContain(
-      'if exist "C:\\Apps\\R&whoami&X 100%%\\!CHANNEL!\\T3 Code.exe" goto run',
+      'if exist "C:\\Apps\\R&whoami&X 100%%\\!CHANNEL!\\S1 Code.exe" goto run',
     );
     const bare = lines.filter(
       (line) => line.includes("whoami") && !/"[^"]*whoami[^"]*"/.test(line),
     );
     expect(bare).toEqual([]);
-    expect(lines).toContain('set "T3CODE_CLI_PATH=C:\\Users\\José\\.t3\\bin\\t3.cmd"');
+    expect(lines).toContain('set "S1CODE_CLI_PATH=C:\\Users\\José\\.s1\\bin\\s1.cmd"');
   });
 });

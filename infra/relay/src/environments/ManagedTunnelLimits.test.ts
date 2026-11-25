@@ -10,7 +10,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { ne } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { DEFAULT_MANAGED_TUNNEL_LIMIT, type RelayT3ChatPlan } from "@t3tools/contracts/relay";
+import { DEFAULT_MANAGED_TUNNEL_LIMIT, type RelayT3ChatPlan } from "@s1tools/contracts/relay";
 
 import * as RelayDb from "../db.ts";
 import { relayManagedEndpointAllocations } from "../persistence/schema.ts";
@@ -20,7 +20,7 @@ import * as ManagedTunnelLimits from "./ManagedTunnelLimits.ts";
 const BACKFILL_MIGRATION = "20261028062605_backfill_withdrawn_tunnel_allocations";
 
 class FakeTransaction extends Context.Service<FakeTransaction, { holdsLock: boolean }>()(
-  "t3code-relay/environments/ManagedTunnelLimits.test/FakeTransaction",
+  "s1code-relay/environments/ManagedTunnelLimits.test/FakeTransaction",
 ) {}
 
 interface FakeDbInput {
@@ -370,7 +370,7 @@ describe("ManagedTunnelLimits", () => {
     }).pipe(Effect.provide(NodeServices.layer)),
   );
 
-  it.effect("does not ask T3 Chat while the account is under its cap", () =>
+  it.effect("does not ask S1 Chat while the account is under its cap", () =>
     Effect.gen(function* () {
       const lookups: Array<string> = [];
       yield* reserve({ activeTunnels: 2, plan: "free", lookups });
@@ -378,7 +378,7 @@ describe("ManagedTunnelLimits", () => {
     }),
   );
 
-  it.effect("raises the cap to the linked T3 Chat plan's limit", () =>
+  it.effect("raises the cap to the linked S1 Chat plan's limit", () =>
     Effect.gen(function* () {
       for (const [plan, limit] of [
         ["pro", 10],
@@ -415,7 +415,7 @@ describe("ManagedTunnelLimits", () => {
     }),
   );
 
-  it.effect("lets an environment holding a slot relink without asking T3 Chat", () =>
+  it.effect("lets an environment holding a slot relink without asking S1 Chat", () =>
     Effect.gen(function* () {
       const lookups: Array<string> = [];
       yield* reserve({ activeTunnels: 10, plan: "lookup-fails", ownSlot: true, lookups });

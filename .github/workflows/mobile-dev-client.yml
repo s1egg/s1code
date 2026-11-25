@@ -3,9 +3,9 @@ run-name: ${{ github.event_name == 'workflow_dispatch' && format('Dev client {0}
 
 # Builds the simulator and emulator development client for a commit's native
 # fingerprint and shares it through the native-client cache, the one
-# `vp run mobile:install` reads on every machine. Android builds with Gradle,
-# ccache, and pnpm state on a sticky disk; iOS builds on a macOS runner, so no
-# machine needs Xcode or an EAS build for it.
+# `vp run mobile:install` reads on every machine. Android keeps Gradle and
+# ccache in the Actions cache; iOS builds on a macOS runner, so no machine
+# needs an EAS build for it.
 #
 # - push to main: main's client is cached before anyone asks for it.
 # - workflow_dispatch: `mobile:install` starts this for the checkout's HEAD on a
@@ -60,8 +60,8 @@ permissions:
 jobs:
   android:
     name: Android ${{ matrix.abi }}
-    if: github.repository == 'pingdotgg/t3code' && (github.event_name != 'workflow_dispatch' || inputs.platform == 'android')
-    runs-on: blacksmith-32vcpu-ubuntu-2404
+    if: github.repository == 's1egg/s1code' && (github.event_name != 'workflow_dispatch' || inputs.platform == 'android')
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -78,9 +78,9 @@ jobs:
       ABI: ${{ matrix.abi }}
       EXPECTED_FINGERPRINT: ${{ inputs.fingerprint }}
       # A pull request checks that the build works: it builds even on a cache hit and shares nothing.
-      T3_NATIVE_CLIENT_CACHE: ${{ github.event_name == 'pull_request' && 'off' || '' }}
+      S1_NATIVE_CLIENT_CACHE: ${{ github.event_name == 'pull_request' && 'off' || '' }}
       # Gradle and Xcode output goes to the job log, not a file on the runner.
-      T3_NATIVE_CLIENT_VERBOSE: "1"
+      S1_NATIVE_CLIENT_VERBOSE: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -126,7 +126,7 @@ jobs:
 
       - name: Prepare build directories
         run: |
-          cache="$HOME/.cache/t3-android-dev-client"
+          cache="$HOME/.cache/s1-android-dev-client"
           {
             echo "GRADLE_USER_HOME=$cache/gradle"
             echo "CCACHE_DIR=$cache/ccache"
@@ -142,27 +142,31 @@ jobs:
 
       # Pull requests build cold: their code must not write Gradle or ccache state that
       # the runs holding the cache login restore.
-      - name: Mount build cache
+      - name: Restore build cache
         if: github.event_name != 'pull_request'
-        uses: useblacksmith/stickydisk@3f6be1451e3cad893b778bc93495c80452a5da26 # v1.7.2
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          key: ${{ github.repository }}-android-dev-client-${{ matrix.abi }}
-          path: ~/.cache/t3-android-dev-client
+          path: ~/.cache/s1-android-dev-client
+          key: ${{ github.repository }}-android-dev-client-${{ matrix.abi }}-${{ hashFiles('apps/mobile/package.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ github.repository }}-android-dev-client-${{ matrix.abi }}-
 
       - name: Configure Gradle and ccache
         run: |
           mkdir -p "$GRADLE_USER_HOME" "$CCACHE_DIR"
-          # No daemon: nothing should hold the sticky disk open when it is committed.
+          # No daemon: nothing should hold the cache directory open when the job saves it.
           printf 'org.gradle.caching=true\norg.gradle.daemon=false\n' > "$GRADLE_USER_HOME/gradle.properties"
-          sudo sed -i 's|http://|https://|g' /etc/apt/blacksmith-ubuntu-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
           sudo apt-get update -qq && sudo apt-get install -y -qq ccache
           ccache --zero-stats
 
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
-          install-args: --filter=@t3tools/mobile... --filter=@t3tools/scripts...
+          task-cache-read-token: ${{ secrets.S1_TASK_CACHE_READ_TOKEN }}
+          install-args: --filter=@s1tools/mobile... --filter=@s1tools/scripts...
 
       - name: Setup Java
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
@@ -176,10 +180,10 @@ jobs:
         name: Log in to the native client cache
         if: github.event_name != 'pull_request'
         env:
-          WRITE_TOKEN: ${{ secrets.T3_NATIVE_CLIENT_WRITE_TOKEN }}
+          WRITE_TOKEN: ${{ secrets.S1_NATIVE_CLIENT_WRITE_TOKEN }}
         run: |
           if [ -z "$WRITE_TOKEN" ]; then
-            echo "::warning::T3_NATIVE_CLIENT_WRITE_TOKEN is not set; nothing can be shared, so nothing is built."
+            echo "::warning::S1_NATIVE_CLIENT_WRITE_TOKEN is not set; nothing can be shared, so nothing is built."
             exit 0
           fi
           node --input-type=module <<'NODE'
@@ -187,7 +191,7 @@ jobs:
           import { homedir } from "node:os";
           import { join } from "node:path";
           const { endpoint } = JSON.parse(readFileSync(".task-cache.json", "utf8"));
-          const directory = join(homedir(), ".config/t3-task-cache");
+          const directory = join(homedir(), ".config/s1-task-cache");
           mkdirSync(directory, { recursive: true, mode: 0o700 });
           writeFileSync(
             join(directory, "credentials.json"),
@@ -195,14 +199,19 @@ jobs:
             { mode: 0o600 },
           );
           NODE
-          echo "T3_NATIVE_CLIENT_SHARE=required" >> "$GITHUB_ENV"
+          echo "S1_NATIVE_CLIENT_SHARE=required" >> "$GITHUB_ENV"
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Build and share
         if: github.event_name == 'pull_request' || steps.login.outputs.ready == 'true'
         shell: bash # pipefail: a failed build fails the step through tee
         run: |
-          node scripts/mobile-native-client.ts ensure android --prepare --abi "$ABI" ${EXPECTED_FINGERPRINT:+--expect-fingerprint "$EXPECTED_FINGERPRINT"} | tee "$RUNNER_TEMP/dev-client.log"
+          set -o pipefail
+          build() {
+            node scripts/mobile-native-client.ts ensure android --prepare --abi "$ABI" ${EXPECTED_FINGERPRINT:+--expect-fingerprint "$EXPECTED_FINGERPRINT"} | tee "$RUNNER_TEMP/dev-client.log"
+          }
+          # A cold Gradle cache sometimes fails the first plugin-portal lookup.
+          build || { echo "Android build failed; retrying once."; build; }
           result="$(tail -n 1 "$RUNNER_TEMP/dev-client.log")"
           echo "### android dev client: \`$(jq -r '.source' <<<"$result")\` for fingerprint \`$(jq -r '.fingerprint' <<<"$result")\`" >> "$GITHUB_STEP_SUMMARY"
 
@@ -218,8 +227,10 @@ jobs:
 
   ios:
     name: iOS simulator
-    if: github.repository == 'pingdotgg/t3code' && (github.event_name != 'workflow_dispatch' || inputs.platform == 'ios')
-    runs-on: blacksmith-12vcpu-macos-27
+    if: github.repository == 's1egg/s1code' && (github.event_name != 'workflow_dispatch' || inputs.platform == 'ios')
+    # macos-latest (arm64 macOS 26) is not being assigned. Intel macOS 15 starts,
+    # but its Xcode 16.4 cannot resolve clerk-ios, which needs Swift tools 6.2.
+    runs-on: macos-26-intel
     timeout-minutes: 60
     concurrency:
       group: mobile-dev-client-ios-${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.fingerprint || github.sha }}
@@ -227,9 +238,9 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=8192
       EXPECTED_FINGERPRINT: ${{ inputs.fingerprint }}
-      T3_NATIVE_CLIENT_CACHE: ${{ github.event_name == 'pull_request' && 'off' || '' }}
+      S1_NATIVE_CLIENT_CACHE: ${{ github.event_name == 'pull_request' && 'off' || '' }}
       # Gradle and Xcode output goes to the job log, not a file on the runner.
-      T3_NATIVE_CLIENT_VERBOSE: "1"
+      S1_NATIVE_CLIENT_VERBOSE: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -276,18 +287,18 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
-          install-args: --filter=@t3tools/mobile... --filter=@t3tools/scripts...
+          task-cache-read-token: ${{ secrets.S1_TASK_CACHE_READ_TOKEN }}
+          install-args: --filter=@s1tools/mobile... --filter=@s1tools/scripts...
 
       # Only this login can write to the cache; pull requests never get it.
       - id: login
         name: Log in to the native client cache
         if: github.event_name != 'pull_request'
         env:
-          WRITE_TOKEN: ${{ secrets.T3_NATIVE_CLIENT_WRITE_TOKEN }}
+          WRITE_TOKEN: ${{ secrets.S1_NATIVE_CLIENT_WRITE_TOKEN }}
         run: |
           if [ -z "$WRITE_TOKEN" ]; then
-            echo "::warning::T3_NATIVE_CLIENT_WRITE_TOKEN is not set; nothing can be shared, so nothing is built."
+            echo "::warning::S1_NATIVE_CLIENT_WRITE_TOKEN is not set; nothing can be shared, so nothing is built."
             exit 0
           fi
           node --input-type=module <<'NODE'
@@ -295,7 +306,7 @@ jobs:
           import { homedir } from "node:os";
           import { join } from "node:path";
           const { endpoint } = JSON.parse(readFileSync(".task-cache.json", "utf8"));
-          const directory = join(homedir(), ".config/t3-task-cache");
+          const directory = join(homedir(), ".config/s1-task-cache");
           mkdirSync(directory, { recursive: true, mode: 0o700 });
           writeFileSync(
             join(directory, "credentials.json"),
@@ -303,7 +314,7 @@ jobs:
             { mode: 0o600 },
           );
           NODE
-          echo "T3_NATIVE_CLIENT_SHARE=required" >> "$GITHUB_ENV"
+          echo "S1_NATIVE_CLIENT_SHARE=required" >> "$GITHUB_ENV"
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Build and share

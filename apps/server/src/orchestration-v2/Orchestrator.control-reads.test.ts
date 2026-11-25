@@ -22,7 +22,7 @@ import {
   RuntimeRequestId,
   ThreadId,
   TurnItemId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -50,7 +50,7 @@ import * as Orchestrator from "./Orchestrator.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
 import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ProviderReplayHarness from "./testkit/ProviderReplayHarness.ts";
-import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
+import type * as ProviderAdapter from "@s1tools/provider-core/server/ProviderAdapter";
 
 declare module "node:sqlite" {
   interface StatementSync {
@@ -1218,9 +1218,9 @@ it.effect("keeps delegated child pull-request links independent of the parent", 
     const projectId = ProjectId.make("project:parent-pr");
     const parentPullRequest = {
       projectId,
-      repository: "pingdotgg/t3code",
+      repository: "s1egg/s1code",
       number: 123,
-      url: "https://github.com/pingdotgg/t3code/pull/123",
+      url: "https://github.com/s1egg/s1code/pull/123",
     };
     yield* orchestrator.dispatch({
       type: "thread.create",
@@ -1297,7 +1297,7 @@ it.effect("keeps delegated child pull-request links independent of the parent", 
     const childPullRequest = {
       ...parentPullRequest,
       number: 456,
-      url: "https://github.com/pingdotgg/t3code/pull/456",
+      url: "https://github.com/s1egg/s1code/pull/456",
     };
     yield* orchestrator.dispatch({
       type: "thread.metadata.update",

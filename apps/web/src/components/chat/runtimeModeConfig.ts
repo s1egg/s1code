@@ -1,5 +1,5 @@
-import { managedRuntimeModeDenial } from "@t3tools/client-runtime/contract-labels";
-import type { ManagedPolicySummary, RuntimeMode } from "@t3tools/contracts";
+import { managedRuntimeModeDenial } from "@s1tools/client-runtime/contract-labels";
+import type { ManagedPolicySummary, RuntimeMode } from "@s1tools/contracts";
 import { msg } from "gt-react";
 import { m, type MessageResolver } from "~/i18n/messages";
 import {

@@ -8,7 +8,7 @@ describe("deriveAuthClientMetadata", () => {
       request: {
         headers: {
           "user-agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) t3code/0.0.15 Chrome/136.0.7103.93 Electron/36.3.2 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) s1code/0.0.15 Chrome/136.0.7103.93 Electron/36.3.2 Safari/537.36",
         },
         source: {
           remoteAddress: "::ffff:127.0.0.1",
@@ -88,14 +88,14 @@ describe("deriveAuthClientMetadata", () => {
         },
       } as never,
       presented: {
-        label: "T3 Code Mobile",
+        label: "S1 Code Mobile",
         deviceType: "mobile",
         os: "iOS",
       },
     });
 
     expect(metadata).toMatchObject({
-      label: "T3 Code Mobile",
+      label: "S1 Code Mobile",
       browser: "Electron",
       deviceType: "mobile",
       ipAddress: "192.168.213.72",
@@ -111,7 +111,7 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 5775,
       host: "127.0.0.1",
-      instanceKey: "/tmp/t3-agent-one",
+      instanceKey: "/tmp/s1-agent-one",
       environmentId: "environment-one",
       development: true,
     });
@@ -119,13 +119,13 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 5775,
       host: "127.0.0.1",
-      instanceKey: "/tmp/t3-agent-two",
+      instanceKey: "/tmp/s1-agent-two",
       environmentId: "environment-two",
       development: true,
     });
 
-    expect(first).toMatch(/^t3_session_5775_[a-f0-9]{12}$/);
-    expect(second).toMatch(/^t3_session_5775_[a-f0-9]{12}$/);
+    expect(first).toMatch(/^s1_session_5775_[a-f0-9]{12}$/);
+    expect(second).toMatch(/^s1_session_5775_[a-f0-9]{12}$/);
     expect(first).not.toBe(second);
   });
 
@@ -133,9 +133,9 @@ describe("session cookie isolation", () => {
   it("isolates remote web servers by server state", () => {
     const first = resolveSessionCookieName({
       mode: "web",
-      port: 3773,
+      port: 4773,
       host: "192.168.1.50",
-      instanceKey: "/srv/t3-one",
+      instanceKey: "/srv/s1-one",
       environmentId: "environment-one",
       development: false,
     });
@@ -143,13 +143,13 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 5775,
       host: "192.168.1.50",
-      instanceKey: "/srv/t3-two",
+      instanceKey: "/srv/s1-two",
       environmentId: "environment-two",
       development: false,
     });
 
-    expect(first).toMatch(/^t3_session_[a-f0-9]{12}$/);
-    expect(second).toMatch(/^t3_session_[a-f0-9]{12}$/);
+    expect(first).toMatch(/^s1_session_[a-f0-9]{12}$/);
+    expect(second).toMatch(/^s1_session_[a-f0-9]{12}$/);
     expect(first).not.toBe(second);
   });
 
@@ -158,7 +158,7 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 8080,
       host: "0.0.0.0",
-      instanceKey: "/srv/t3",
+      instanceKey: "/srv/s1",
       environmentId: "environment-one",
       development: false,
     });
@@ -166,7 +166,7 @@ describe("session cookie isolation", () => {
       mode: "web",
       port: 9090,
       host: "app.example.com",
-      instanceKey: "/srv/t3",
+      instanceKey: "/srv/s1",
       environmentId: "environment-one",
       development: false,
     });

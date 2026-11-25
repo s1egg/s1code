@@ -4,7 +4,7 @@ import {
   RunId,
   type OrchestrationV2ThreadProjection,
   type ServerProvider,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 import {
   resolveHandoffEndpoints,

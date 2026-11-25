@@ -1,6 +1,6 @@
-import type { PullRequestActivity, PullRequestDetail } from "@t3tools/contracts";
-import type { ReviewGuideGenerationInput } from "@t3tools/provider-core/server/textGeneration";
-import { splitsSurrogatePair } from "@t3tools/shared/assistantCitations";
+import type { PullRequestActivity, PullRequestDetail } from "@s1tools/contracts";
+import type { ReviewGuideGenerationInput } from "@s1tools/provider-core/server/textGeneration";
+import { splitsSurrogatePair } from "@s1tools/shared/assistantCitations";
 
 const SETTLED_REMARK_CHARS = 200;
 

@@ -27,7 +27,7 @@ const relaySettings = (
   apns: null,
   clerkSecretKey: Redacted.make("clerk-secret-key"),
   clerkPublishableKey: "pk_test_test",
-  clerkJwtAudience: "t3-code-relay",
+  clerkJwtAudience: "s1-code-relay",
   apnsDeliveryJobSigningSecret: Redacted.make("apns-delivery-secret"),
   cloudMintPrivateKey: Redacted.make("cloud-mint-private-key"),
   cloudMintPublicKey: "cloud-mint-public-key",
@@ -75,14 +75,14 @@ const provide = (
   );
 
 describe("T3ChatAccounts", () => {
-  it.effect("signs link tokens in the format T3 Chat verifies", () =>
+  it.effect("signs link tokens in the format S1 Chat verifies", () =>
     Effect.gen(function* () {
       const accounts = yield* T3ChatAccounts.T3ChatAccounts;
       const url = new URL(yield* accounts.createLinkUrl({ userId: "user_1" }));
-      expect(`${url.origin}${url.pathname}`).toBe("https://chat.example.test/link/t3code");
+      expect(`${url.origin}${url.pathname}`).toBe("https://chat.example.test/link/s1code");
 
       const [payload = "", signature = ""] = (url.searchParams.get("token") ?? "").split(".");
-      // Verify with Web Crypto, as T3 Chat does, rather than the signing library.
+      // Verify with Web Crypto, as S1 Chat does, rather than the signing library.
       const verified = yield* Effect.promise(async () => {
         const encoder = new TextEncoder();
         const key = await crypto.subtle.importKey(
@@ -109,15 +109,15 @@ describe("T3ChatAccounts", () => {
     }).pipe(provide(fakeT3Chat({}).client)),
   );
 
-  it.effect("asks T3 Chat for the link with the shared secret", () => {
-    const t3Chat = fakeT3Chat({ link: { email: "theo@t3.chat", plan: "premier", linkedAt: 1 } });
+  it.effect("asks S1 Chat for the link with the shared secret", () => {
+    const t3Chat = fakeT3Chat({ link: { email: "theo@s1.chat", plan: "premier", linkedAt: 1 } });
     return Effect.gen(function* () {
       const accounts = yield* T3ChatAccounts.T3ChatAccounts;
       const link = yield* accounts.getLink({ userId: "user_1" });
-      expect(link).toEqual({ email: "theo@t3.chat", plan: "premier" });
+      expect(link).toEqual({ email: "theo@s1.chat", plan: "premier" });
       expect(t3Chat.requests).toEqual([
         {
-          url: "https://chat.example.test/api/t3code/link",
+          url: "https://chat.example.test/api/s1code/link",
           authorization: `Bearer ${SECRET}`,
           body: { clerkUserId: "user_1" },
         },
@@ -125,7 +125,7 @@ describe("T3ChatAccounts", () => {
     }).pipe(provide(t3Chat.client));
   });
 
-  it.effect("fails instead of guessing when T3 Chat errors", () =>
+  it.effect("fails instead of guessing when S1 Chat errors", () =>
     Effect.gen(function* () {
       const accounts = yield* T3ChatAccounts.T3ChatAccounts;
       const error = yield* Effect.flip(accounts.getLink({ userId: "user_1" }));
@@ -133,7 +133,7 @@ describe("T3ChatAccounts", () => {
     }).pipe(provide(fakeT3Chat({ error: "nope" }, 401).client)),
   );
 
-  it.effect("times out when T3 Chat stalls while sending the body", () => {
+  it.effect("times out when S1 Chat stalls while sending the body", () => {
     const client = HttpClient.make((request) =>
       Effect.succeed(
         HttpClientResponse.fromWeb(

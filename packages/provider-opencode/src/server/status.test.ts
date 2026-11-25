@@ -18,11 +18,11 @@ import * as TestClock from "effect/testing/TestClock";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientResponse from "effect/http/HttpClientResponse";
 import { beforeEach } from "vite-plus/test";
-import { buildProviderOptionSelectionsFromDescriptors } from "@t3tools/shared/model";
-import { settingsSecretLiteral } from "@t3tools/contracts";
+import { buildProviderOptionSelectionsFromDescriptors } from "@s1tools/shared/model";
+import { settingsSecretLiteral } from "@s1tools/contracts";
 
 import { OpenCodeSettings } from "../settings.ts";
-import type { ProviderCompatibilityLookup } from "@t3tools/provider-core/server/compatibility";
+import type { ProviderCompatibilityLookup } from "@s1tools/provider-core/server/compatibility";
 import * as OpenCodeRuntime from "./OpenCodeRuntime.ts";
 import * as OpenCodeServerOwner from "./OpenCodeServerOwner.ts";
 import {
@@ -40,7 +40,7 @@ import {
   OPENCODE_2_RESPONSES,
   replayOpenCodeServer,
 } from "./probeResponses.fixture.ts";
-import { DEFAULT_VARIANT_CHOICE_ID } from "@t3tools/shared/model";
+import { DEFAULT_VARIANT_CHOICE_ID } from "@s1tools/shared/model";
 const decodeOpenCodeSettings = Schema.decodeSync(OpenCodeSettings);
 
 const DEFAULT_VERSION_STDOUT = "opencode 1.14.19\n";
@@ -1254,7 +1254,7 @@ const scanned: OpenCode2Workspace = {
 };
 
 it.effect(
-  "waits for the scan of an OpenCode 2 directory that lists built-ins before T3 saw its scan end",
+  "waits for the scan of an OpenCode 2 directory that lists built-ins before S1 saw its scan end",
   () =>
     Effect.gen(function* () {
       const reads: Array<OpenCode2Workspace> = [
@@ -1274,7 +1274,7 @@ it.effect(
     }),
 );
 
-it.effect("reads an OpenCode 2 directory whose scan T3 saw end once without waiting", () =>
+it.effect("reads an OpenCode 2 directory whose scan S1 saw end once without waiting", () =>
   Effect.gen(function* () {
     const calls: Array<string> = [];
     const workspace = yield* loadOpenCode2Workspace(

@@ -44,16 +44,16 @@
 }
 
 /* ─── Custom utilities ──────────────────────────────────────────────── */
-@utility font-t3-medium {
+@utility font-s1-medium {
   font-family: var(--font-medium);
 }
 
-@utility font-t3-bold {
+@utility font-s1-bold {
   font-family: var(--font-bold);
   font-weight: 700;
 }
 
-@utility font-t3-extrabold {
+@utility font-s1-extrabold {
   font-family: var(--font-bold);
   font-weight: 800;
 }

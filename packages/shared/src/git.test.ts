@@ -1,5 +1,5 @@
-import { SourceControlProviderKind } from "@t3tools/contracts";
-import type { VcsStatusRemoteResult, VcsStatusResult } from "@t3tools/contracts";
+import { SourceControlProviderKind } from "@s1tools/contracts";
+import type { VcsStatusRemoteResult, VcsStatusResult } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -18,20 +18,20 @@ import {
 
 describe("normalizeGitRemoteUrl", () => {
   it("canonicalizes equivalent GitHub remotes across protocol variants", () => {
-    expect(normalizeGitRemoteUrl("git@github.com:T3Tools/T3Code.git")).toBe(
-      "github.com/t3tools/t3code",
+    expect(normalizeGitRemoteUrl("git@github.com:S1Tools/S1Code.git")).toBe(
+      "github.com/s1tools/s1code",
     );
-    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/T3Code.git")).toBe(
-      "github.com/t3tools/t3code",
+    expect(normalizeGitRemoteUrl("https://github.com/S1Tools/S1Code.git")).toBe(
+      "github.com/s1tools/s1code",
     );
-    expect(normalizeGitRemoteUrl("ssh://git@github.com/T3Tools/T3Code")).toBe(
-      "github.com/t3tools/t3code",
+    expect(normalizeGitRemoteUrl("ssh://git@github.com/S1Tools/S1Code")).toBe(
+      "github.com/s1tools/s1code",
     );
-    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/T3Code.git?view=compact")).toBe(
-      "github.com/t3tools/t3code",
+    expect(normalizeGitRemoteUrl("https://github.com/S1Tools/S1Code.git?view=compact")).toBe(
+      "github.com/s1tools/s1code",
     );
-    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/T3Code.git#section")).toBe(
-      "github.com/t3tools/t3code",
+    expect(normalizeGitRemoteUrl("https://github.com/S1Tools/S1Code.git#section")).toBe(
+      "github.com/s1tools/s1code",
     );
     expect(normalizeGitRemoteUrl("https://code.example.test/team/%C3%84pp.git")).toBe(
       normalizeGitRemoteUrl("git@code.example.test:team/Äpp.git"),
@@ -52,11 +52,11 @@ describe("normalizeGitRemoteUrl", () => {
   });
 
   it("preserves nested group paths for providers like GitLab", () => {
-    expect(normalizeGitRemoteUrl("git@gitlab.com:T3Tools/platform/T3Code.git")).toBe(
-      "gitlab.com/t3tools/platform/t3code",
+    expect(normalizeGitRemoteUrl("git@gitlab.com:S1Tools/platform/S1Code.git")).toBe(
+      "gitlab.com/s1tools/platform/s1code",
     );
-    expect(normalizeGitRemoteUrl("https://gitlab.com/T3Tools/platform/T3Code.git")).toBe(
-      "gitlab.com/t3tools/platform/t3code",
+    expect(normalizeGitRemoteUrl("https://gitlab.com/S1Tools/platform/S1Code.git")).toBe(
+      "gitlab.com/s1tools/platform/s1code",
     );
   });
 
@@ -169,12 +169,12 @@ describe("parseOriginUrlFromGitConfig", () => {
       '[remote "upstream"]',
       "\turl = https://github.com/other/repo.git",
       '[remote "origin"]',
-      "\turl = git@github.com:pingdotgg/t3code.git",
+      "\turl = git@github.com:s1egg/s1code.git",
       "\tfetch = +refs/heads/*:refs/remotes/origin/*",
       '[branch "main"]',
       "\tremote = origin",
     ].join("\n");
-    expect(parseOriginUrlFromGitConfig(config)).toBe("git@github.com:pingdotgg/t3code.git");
+    expect(parseOriginUrlFromGitConfig(config)).toBe("git@github.com:s1egg/s1code.git");
   });
 
   it("strips inline comments and quotes from the url value", () => {
@@ -263,33 +263,33 @@ describe("isTemporaryWorktreeBranch", () => {
     );
   });
 
-  it("matches legacy t3code temporary worktree refs", () => {
-    expect(isTemporaryWorktreeBranch("t3code/deadbeef")).toBe(true);
-    expect(isTemporaryWorktreeBranch("t3code-deadbeef")).toBe(true);
-    expect(isTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12")).toBe(true);
+  it("matches legacy s1code temporary worktree refs", () => {
+    expect(isTemporaryWorktreeBranch("s1code/deadbeef")).toBe(true);
+    expect(isTemporaryWorktreeBranch("s1code-deadbeef")).toBe(true);
+    expect(isTemporaryWorktreeBranch("s1code/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12")).toBe(true);
     expect(
       isTemporaryWorktreeBranch(`${WORKTREE_BRANCH_PREFIX}/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12`),
     ).toBe(false);
   });
 
   it("rejects UUID-shaped refs that are not RFC 4122 v4", () => {
-    expect(isTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-1d48-b4f2-9cf0aa54ab12")).toBe(false);
-    expect(isTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-4d48-c4f2-9cf0aa54ab12")).toBe(false);
+    expect(isTemporaryWorktreeBranch("s1code/f4ae4e0e-f971-1d48-b4f2-9cf0aa54ab12")).toBe(false);
+    expect(isTemporaryWorktreeBranch("s1code/f4ae4e0e-f971-4d48-c4f2-9cf0aa54ab12")).toBe(false);
   });
 
-  it("matches the flat fallback used when a plain t3 branch exists", () => {
+  it("matches the flat fallback used when a plain s1 branch exists", () => {
     const flat = flattenTemporaryWorktreeBranchName(`${WORKTREE_BRANCH_PREFIX}/deadbeef`);
     expect(flat).toBe(`${WORKTREE_BRANCH_PREFIX}-deadbeef`);
     expect(isTemporaryWorktreeBranch(flat)).toBe(true);
     expect(isTemporaryWorktreeBranch(`${WORKTREE_BRANCH_PREFIX}-deadbeef-extra`)).toBe(false);
     expect(isTemporaryWorktreeBranch(`${WORKTREE_BRANCH_PREFIX}-feature`)).toBe(false);
-    expect(flattenTemporaryWorktreeBranchName("t3code/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12")).toBe(
+    expect(flattenTemporaryWorktreeBranchName("s1code/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12")).toBe(
       `${WORKTREE_BRANCH_PREFIX}-f4ae4e0e`,
     );
-    expect(flattenTemporaryWorktreeBranchName("t3code-deadbeef")).toBe(
+    expect(flattenTemporaryWorktreeBranchName("s1code-deadbeef")).toBe(
       `${WORKTREE_BRANCH_PREFIX}-deadbeef`,
     );
-    expect(flattenTemporaryWorktreeBranchName("t3code/deadbeef")).toBe(
+    expect(flattenTemporaryWorktreeBranchName("s1code/deadbeef")).toBe(
       `${WORKTREE_BRANCH_PREFIX}-deadbeef`,
     );
   });
@@ -431,7 +431,7 @@ describe("formatGeneratedBranchName", () => {
     expect(
       formatGeneratedBranchName("feat/Add Search", {
         mode: "semantic",
-        prefix: "t3code",
+        prefix: "s1code",
         instructions: "",
       }),
     ).toBe("feat/add-search");

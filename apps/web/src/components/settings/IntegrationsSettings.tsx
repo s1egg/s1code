@@ -1,4 +1,4 @@
-import { managedCapabilityDenial } from "@t3tools/client-runtime/contract-labels";
+import { managedCapabilityDenial } from "@s1tools/client-runtime/contract-labels";
 import { DeviceHostUpdates } from "../device/DeviceHostUpdates";
 import { DeviceToolVersions } from "../device/DeviceToolVersions";
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
@@ -35,10 +35,10 @@ import {
   type BrowserImportSource,
   type PreviewAppearancePreference,
   type PreviewViewportSetting,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { usePrimaryManagedPolicy } from "~/state/managedPolicy";
-import { isValidSearchUrlTemplate } from "@t3tools/shared/preview";
-import { PREVIEW_VIEWPORT_PRESETS } from "@t3tools/shared/previewViewport";
+import { isValidSearchUrlTemplate } from "@s1tools/shared/preview";
+import { PREVIEW_VIEWPORT_PRESETS } from "@s1tools/shared/previewViewport";
 import { MoreVertical, Plus as PlusIcon } from "lucide-react";
 import * as Schema from "effect/Schema";
 import { useRef, useState } from "react";
@@ -56,7 +56,7 @@ import { useAtomCommand } from "~/state/use-atom-command";
 import { formatEnvironmentQueryError } from "~/state/query";
 import { previewEnvironment } from "~/state/preview";
 import { useServerConfigs } from "~/state/entities";
-import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import { squashAtomCommandFailure } from "@s1tools/client-runtime/state/runtime";
 import {
   AgentDeviceSetupStatus,
   DeviceHubSetupStatus,
@@ -699,7 +699,7 @@ function BrowserRecordingFrameRateSetting({ disabled }: { readonly disabled: boo
 
 const LINK_TARGET_LABELS: Readonly<Record<BrowserLinkTarget, string>> = {
   system: msg("Your default browser"),
-  app: "T3 Code",
+  app: "S1 Code",
 };
 
 function BrowserLinkTargetSetting({ disabled }: { readonly disabled: boolean }) {
@@ -850,12 +850,12 @@ export function PullRequestLinksOpenInAppSetting() {
     <SettingsRow
       {...searchableSetting("pull-request-links-open-in-app")}
       description={gt(
-        "Clicking a pull request link opens it in T3 Code. Turn off to open pull request links like any other link, on your git host.",
+        "Clicking a pull request link opens it in S1 Code. Turn off to open pull request links like any other link, on your git host.",
       )}
       resetAction={
         openInApp ? null : (
           <SettingResetButton
-            ariaLabel={gt("Reset open pull requests in T3 Code to default")}
+            ariaLabel={gt("Reset open pull requests in S1 Code to default")}
             onClick={() => updateSettings({ pullRequestLinksOpenInApp: true })}
           />
         )
@@ -866,7 +866,7 @@ export function PullRequestLinksOpenInAppSetting() {
           onCheckedChange={(checked) =>
             updateSettings({ pullRequestLinksOpenInApp: Boolean(checked) })
           }
-          aria-label={gt("Open pull requests in T3 Code")}
+          aria-label={gt("Open pull requests in S1 Code")}
         />
       }
     />

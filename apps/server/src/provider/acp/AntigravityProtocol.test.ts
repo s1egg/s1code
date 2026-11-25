@@ -19,8 +19,8 @@ import {
 import {
   mergeToolCallState,
   parseSessionUpdateEvent,
-} from "@t3tools/provider-acp/server/runtimeModel";
-import { acpToolCallDiffPatch } from "@t3tools/provider-acp/server/adapter";
+} from "@s1tools/provider-acp/server/runtimeModel";
+import { acpToolCallDiffPatch } from "@s1tools/provider-acp/server/adapter";
 
 const isSessionNotification = Schema.is(AcpWireSchema.SessionNotification);
 
@@ -729,7 +729,7 @@ describe("Antigravity served reads", () => {
       },
     }).update;
 
-  it("credits a read T3 served before the agent announced it", () => {
+  it("credits a read S1 served before the agent announced it", () => {
     const reads = makeAntigravityReadRepair();
     reads.attempted("/repo/a.ts", true);
     const announced = reads.repair({
@@ -795,15 +795,15 @@ describe("Antigravity served reads", () => {
     });
   });
 
-  it("drops agy's toolSummary from T3 MCP call arguments only", () => {
+  it("drops agy's toolSummary from S1 MCP call arguments only", () => {
     const t3Call = normalizeAntigravityToolCall(
       parseToolUpdate(
         normalizeAntigravitySessionUpdate({
           sessionId: "session-1",
           update: {
             sessionUpdate: "tool_call",
-            toolCallId: "call_t3_send",
-            title: "Run mcp_t3-code_send_to_user",
+            toolCallId: "call_s1_send",
+            title: "Run mcp_s1-code_send_to_user",
             kind: "other",
             status: "in_progress",
             rawInput: { message: "Hello", toolSummary: "Send greeting" },

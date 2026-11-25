@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { RelayLinkProofRequest } from "@t3tools/contracts/relay";
+import type { RelayLinkProofRequest } from "@s1tools/contracts/relay";
 
 import { linkProofScopes, parseManagedEndpointLocalOrigin } from "./linkChecks.ts";
 
@@ -26,11 +26,11 @@ describe("parseManagedEndpointLocalOrigin", () => {
   });
 
   it.each([
-    "ftp://127.0.0.1:3773",
-    "http://user:password@127.0.0.1:3773",
-    "http://127.0.0.1:3773/api",
-    "http://127.0.0.1:3773?mode=test",
-    "http://127.0.0.1:3773#fragment",
+    "ftp://127.0.0.1:4773",
+    "http://user:password@127.0.0.1:4773",
+    "http://127.0.0.1:4773/api",
+    "http://127.0.0.1:4773?mode=test",
+    "http://127.0.0.1:4773#fragment",
   ])("rejects non-origin URL %s", (input) => {
     expect(() => parseManagedEndpointLocalOrigin(input)).toThrow("Invalid local origin");
   });

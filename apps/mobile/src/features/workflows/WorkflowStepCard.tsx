@@ -7,20 +7,20 @@ import {
   workflowWithdrawal,
   type WorkflowBeat,
   type WorkflowRunNode,
-} from "@t3tools/client-runtime/workflows";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
-import { resolveLinkedThreadOpen } from "@t3tools/client-runtime/linked-thread";
+} from "@s1tools/client-runtime/workflows";
+import { scopeThreadRef } from "@s1tools/client-runtime/environment";
+import { resolveLinkedThreadOpen } from "@s1tools/client-runtime/linked-thread";
 import {
   EnvironmentId,
   ThreadId,
   type ScopedThreadRef,
   type WorkflowStep,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
   type AtomCommandResult,
-} from "@t3tools/client-runtime/state/runtime";
+} from "@s1tools/client-runtime/state/runtime";
 import { T, Var, useGT } from "gt-react-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
@@ -68,7 +68,7 @@ export function Facts(props: {
       {props.facts.map((fact) => (
         <View key={fact.label} className="max-w-full flex-row gap-1 rounded-md bg-subtle px-2 py-1">
           <Text className="text-xs text-foreground-muted">{fact.label}</Text>
-          <Text className="shrink font-t3-medium text-xs text-foreground">{fact.value}</Text>
+          <Text className="shrink font-s1-medium text-xs text-foreground">{fact.value}</Text>
         </View>
       ))}
     </View>

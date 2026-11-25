@@ -10,8 +10,8 @@ import {
   type WorkflowBeat,
   type WorkflowFeedRow,
   type WorkflowRunNode,
-} from "@t3tools/client-runtime/workflows";
-import type { WorkflowQuestion } from "@t3tools/contracts";
+} from "@s1tools/client-runtime/workflows";
+import type { WorkflowQuestion } from "@s1tools/contracts";
 import { useGT, useMessages } from "gt-react-native";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -172,7 +172,7 @@ function TimelineRow(props: {
           numberOfLines={1}
           className={cn(
             "max-w-[60%] text-sm",
-            live ? "font-t3-medium text-foreground" : "text-foreground-secondary",
+            live ? "font-s1-medium text-foreground" : "text-foreground-secondary",
           )}
         >
           {props.name}

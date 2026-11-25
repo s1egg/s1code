@@ -1,4 +1,4 @@
-import { readHostedPairingRequest } from "@t3tools/shared/remote";
+import { readHostedPairingRequest } from "@s1tools/shared/remote";
 import * as Schema from "effect/Schema";
 import { msg } from "gt-react-native";
 
@@ -83,7 +83,7 @@ export function extractPairingUrlFromQrPayload(payload: string): string {
 
   try {
     const url = new URL(trimmed);
-    if (url.protocol === "t3code:") {
+    if (url.protocol === "s1code:") {
       const pairingUrl = url.searchParams.get(MOBILE_PAIRING_URL_PARAM)?.trim() ?? "";
       if (pairingUrl.length > 0) {
         return pairingUrl;

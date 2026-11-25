@@ -8,7 +8,7 @@ import {
   ScheduledTaskUpsertInput,
   ScheduledTaskWebhookDeliveryId,
   SecretRequestError,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Deferred from "effect/Deferred";
@@ -33,7 +33,7 @@ import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as Scheduler from "../scheduling/Scheduler.ts";
 import * as ScheduledTaskService from "./ScheduledTaskService.ts";
 import { renderWebhookPrompt } from "./webhookTemplate.ts";
-import { RelayClientTracer, withRelayClientTracing } from "@t3tools/shared/relayTracing";
+import { RelayClientTracer, withRelayClientTracing } from "@s1tools/shared/relayTracing";
 
 const decodeUpsertInput = Schema.decodeUnknownEffect(ScheduledTaskUpsertInput);
 
@@ -350,11 +350,11 @@ it("builds the relay hook URL from the managed tunnel's key, never the environme
   assert.equal(
     ScheduledTaskService.relayHookBaseUrl({
       relayUrl,
-      tunnelName: "t3coderelay-managedendpoint-dev-julius-0123456789abcdef",
+      tunnelName: "s1coderelay-managedendpoint-dev-julius-0123456789abcdef",
     }),
     "https://relay.example.com/v1/hooks/0123456789abcdef",
   );
-  for (const tunnelName of [undefined, "t3coderelay-managedendpoint", "x-0123456789ABCDEF"]) {
+  for (const tunnelName of [undefined, "s1coderelay-managedendpoint", "x-0123456789ABCDEF"]) {
     assert.isNull(ScheduledTaskService.relayHookBaseUrl({ relayUrl, tunnelName }));
   }
 });

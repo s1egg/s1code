@@ -4,9 +4,9 @@ import * as NodePath from "node:path";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { NodeHttpServer } from "@effect/platform-node";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import type { ExecutionEnvironmentDescriptor } from "@t3tools/contracts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import * as NetService from "@t3tools/shared/Net";
+import type { ExecutionEnvironmentDescriptor } from "@s1tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import * as NetService from "@s1tools/shared/Net";
 import { expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -41,7 +41,7 @@ it.effect("links a file of environments, reports each line, and fails when one d
   Effect.scoped(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-environment-cli-" });
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "s1-environment-cli-" });
       const { settingsPath } = yield* ServerConfig.deriveServerPaths(baseDir, undefined);
       yield* fs.makeDirectory(NodePath.dirname(settingsPath), { recursive: true });
       yield* fs.writeFileString(settingsPath, JSON.stringify({ linkedEnvironmentsEnabled: true }));
@@ -128,14 +128,14 @@ it.effect("links a file of environments, reports each line, and fails when one d
         secrets,
         [
           `${withSecrets(one.url)} ${firstCode}`,
-          `${withSecrets("http://192.168.1.20:3773")} some-code`,
+          `${withSecrets("http://192.168.1.20:4773")} some-code`,
           `ftp://alice:hunter2@files.example/?token=s3cret some-code`,
         ].join("\n"),
       );
       yield* link(secrets).pipe(Effect.flip);
       const redacted = (yield* reports).at(-1) ?? "";
       expect(redacted).toContain(`${new URL(one.url).origin}: already linked as VM 1`);
-      expect(redacted).toContain("http://192.168.1.20:3773: unreachable: ");
+      expect(redacted).toContain("http://192.168.1.20:4773: unreachable: ");
       expect(redacted).toContain("line 3: unreachable: ");
       expect(redacted).not.toMatch(/alice|hunter2|s3cret/);
     }),

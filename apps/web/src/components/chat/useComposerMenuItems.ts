@@ -2,11 +2,11 @@ import { useGT, useMessages } from "gt-react";
 import {
   legacyThreadPullRequestKey,
   threadPullRequestKeyOf,
-} from "@t3tools/client-runtime/thread-pull-requests";
+} from "@s1tools/client-runtime/thread-pull-requests";
 import {
   matchComposerEnvironmentItems,
   matchComposerThreadItems,
-} from "@t3tools/client-runtime/composerThreadItems";
+} from "@s1tools/client-runtime/composerThreadItems";
 import { useAtomValue } from "@effect/atom-react";
 import { useState } from "react";
 import type {
@@ -18,13 +18,13 @@ import type {
   ServerProvider,
   ThreadId,
   ThreadPullRequestLink,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   composerPullRequestsFromLinks,
   filterComposerPullRequestMatches,
   withLinkedComposerPullRequestsFirst,
-} from "@t3tools/shared/composerPullRequestMatches";
-import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
+} from "@s1tools/shared/composerPullRequestMatches";
+import { formatProviderSkillDisplayName } from "@s1tools/shared/inlineSkills";
 
 import type { ComposerTrigger } from "../../composer-logic";
 import type { DraftId } from "../../composerDraftStore";
@@ -32,7 +32,7 @@ import { basenameOfPath } from "../../pierre-icons";
 import {
   getProviderSkillsForSlashMenu,
   getProviderSlashCommandsForSlashMenu,
-} from "@t3tools/client-runtime/providerSkills";
+} from "@s1tools/client-runtime/providerSkills";
 import { searchProviderSkills } from "../../providerSkillSearch";
 import { useVisibleThreadShells } from "~/state/entities";
 import { useEnvironmentIdentities, useEnvironmentMachines } from "~/state/environments";
@@ -319,7 +319,7 @@ export function useComposerMenuItems({
           skill.description ??
           (skill.scope ? gt("{scope} skill", { scope: skill.scope }) : ""),
       }));
-      // T3's `/clear` replaces the provider's, which would clear a session T3 still treats as live.
+      // S1's `/clear` replaces the provider's, which would clear a session S1 still treats as live.
       const visibleProviderSlashCommandItems = providerSlashCommandItems.filter(
         (item) =>
           (item.command.name !== "compact" || compactSlashCommandAvailable) &&

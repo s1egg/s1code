@@ -6,7 +6,7 @@ import {
   finishNextImageCompression,
   holdImageCompression,
 } from "./image-compression-hold.ts";
-import { test, WEB } from "./t3.ts";
+import { test, WEB } from "./s1.ts";
 
 /** Copies a PNG over the 2000 px limit, so pasting it compresses; noise keeps it large. */
 const copyWidePng = (browser: Browser, noise: boolean) =>
@@ -30,11 +30,11 @@ const copyWidePng = (browser: Browser, noise: boolean) =>
 test(
   "An image pasted while an earlier pasted image prepares lands after it before a space in the prompt",
   WEB,
-  async ({ t3, app, browser, screen }) => {
+  async ({ s1, app, browser, screen }) => {
     await holdImageCompression(browser);
-    const project = await t3.project("demo");
-    const thread = await t3.thread({ project, title: "Screenshots", messages: ["first"] });
-    await t3.open(thread);
+    const project = await s1.project("demo");
+    const thread = await s1.thread({ project, title: "Screenshots", messages: ["first"] });
+    await s1.open(thread);
     await expect(screen.getByText("first fixture turn complete", { exact: false })).toBeVisible();
 
     const composer = screen.getByRole("textbox");

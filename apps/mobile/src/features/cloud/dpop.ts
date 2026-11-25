@@ -10,8 +10,8 @@ import { msg } from "gt-react-native";
 
 import { m } from "../../i18n/messages";
 import * as SecureStore from "expo-secure-store";
-import { DpopProof } from "@t3tools/client-runtime/relay";
-import { DpopPublicJwk } from "@t3tools/shared/dpopCommon";
+import { DpopProof } from "@s1tools/client-runtime/relay";
+import { DpopPublicJwk } from "@s1tools/shared/dpopCommon";
 import * as Layer from "effect/Layer";
 
 export class CloudDpopError extends Schema.TaggedError<CloudDpopError>()("CloudDpopError", {
@@ -75,7 +75,7 @@ export interface DpopProofKeyPair {
   readonly publicJwk: DpopPublicJwk;
 }
 
-const DPOP_PROOF_KEY_STORAGE_KEY = "t3code.cloud.dpop-proof-key";
+const DPOP_PROOF_KEY_STORAGE_KEY = "s1code.cloud.dpop-proof-key";
 
 interface NativeDpopKeys {
   /** A 32-byte private scalar followed by its 65-byte uncompressed public point. */

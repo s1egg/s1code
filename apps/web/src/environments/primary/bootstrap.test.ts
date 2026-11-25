@@ -29,8 +29,8 @@ describe("environmentBootstrap", () => {
     vi.stubEnv("VITE_HTTP_URL", "https://remote.example.com");
     vi.stubEnv("VITE_WS_URL", "wss://remote.example.com");
 
-    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/t3/environment")).toBe(
-      "https://remote.example.com/.well-known/t3/environment",
+    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/s1/environment")).toBe(
+      "https://remote.example.com/.well-known/s1/environment",
     );
   });
 
@@ -53,9 +53,9 @@ describe("environmentBootstrap", () => {
   });
 
   it("uses the vite proxy for desktop-managed loopback descriptor requests during local dev", () => {
-    vi.stubEnv("VITE_DEV_SERVER_URL", "http://127.0.0.1:5733");
+    vi.stubEnv("VITE_DEV_SERVER_URL", "http://127.0.0.1:4780");
     vi.stubGlobal("window", {
-      location: new URL("http://127.0.0.1:5733/"),
+      location: new URL("http://127.0.0.1:4780/"),
       history: {
         replaceState: vi.fn(),
       },
@@ -65,16 +65,16 @@ describe("environmentBootstrap", () => {
           {
             id: "primary",
             label: "Windows",
-            httpBaseUrl: "http://127.0.0.1:3773",
-            wsBaseUrl: "ws://127.0.0.1:3773",
+            httpBaseUrl: "http://127.0.0.1:4773",
+            wsBaseUrl: "ws://127.0.0.1:4773",
             bootstrapToken: "desktop-bootstrap-token",
           },
         ],
       },
     });
 
-    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/t3/environment")).toBe(
-      "http://127.0.0.1:5733/.well-known/t3/environment",
+    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/s1/environment")).toBe(
+      "http://127.0.0.1:4780/.well-known/s1/environment",
     );
   });
 });

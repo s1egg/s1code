@@ -18,7 +18,7 @@ import {
   type OrchestrationV2ThreadLaunchInput,
   type OrchestrationV2ThreadProjection,
   type ProjectMutation,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as SecureRandom from "effect/crypto/SecureRandom";
@@ -203,7 +203,7 @@ describe("V2 environment commands", () => {
             parentCheckpointId: null,
             ordinalWithinScope: 0,
             appRunOrdinal: null,
-            ref: CheckpointRef.make("refs/t3/thread-start"),
+            ref: CheckpointRef.make("refs/s1/thread-start"),
             status: "ready",
             files: [],
             capturedAt: v2Now,
@@ -218,7 +218,7 @@ describe("V2 environment commands", () => {
             parentCheckpointId: null,
             ordinalWithinScope: 0,
             appRunOrdinal: null,
-            ref: CheckpointRef.make("refs/t3/repository-start"),
+            ref: CheckpointRef.make("refs/s1/repository-start"),
             status: "ready",
             files: [],
             capturedAt: v2Now,
@@ -757,8 +757,8 @@ describe("V2 environment commands", () => {
     Effect.gen(function* () {
       const link = {
         host: "github.com",
-        repository: "pingdotgg/t3code",
-        url: "https://github.com/pingdotgg/t3code/pull/7",
+        repository: "s1egg/s1code",
+        url: "https://github.com/s1egg/s1code/pull/7",
         source: "agent" as const,
         linkedAt: "2026-10-05T00:00:00.000Z",
         snapshot: null,
@@ -799,7 +799,7 @@ describe("V2 environment commands", () => {
           commandId: expect.any(String),
           threadId: v2ThreadId,
           host: "github.com",
-          repository: "pingdotgg/t3code",
+          repository: "s1egg/s1code",
           number: 7,
           watching: false,
         },

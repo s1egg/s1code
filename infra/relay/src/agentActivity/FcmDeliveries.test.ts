@@ -1,5 +1,5 @@
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import type { RelayAgentActivityState } from "@t3tools/contracts/relay";
+import { EnvironmentId, ThreadId } from "@s1tools/contracts";
+import type { RelayAgentActivityState } from "@s1tools/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as NodeCryptoLayer from "@effect/platform-node/NodeCrypto";
 import * as Effect from "effect/Effect";
@@ -51,7 +51,7 @@ const target: LiveActivities.TargetRow = {
   platform: "android",
   ios_major_version: null,
   app_version: null,
-  bundle_id: "com.t3tools.t3code.dev",
+  bundle_id: "com.s1tools.s1code.dev",
   aps_environment: null,
   push_token: "fcm-token",
   push_to_start_token: null,
@@ -572,7 +572,7 @@ describe("Android delivery routing", () => {
     );
     const data = fitFcmData({
       ...androidActivityData(aggregate),
-      t3_kind: "agent_activity",
+      s1_kind: "agent_activity",
       device_id: "d".repeat(128),
       user_id: "u".repeat(128),
       updated_at: "1788780000000",

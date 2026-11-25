@@ -10,7 +10,7 @@ import * as Stream from "effect/Stream";
 import { HttpClient, HttpClientResponse } from "effect/http";
 import * as TestClock from "effect/testing/TestClock";
 import { ChildProcessSpawner } from "effect/process";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 
 import {
   ensureTailscaleServe,
@@ -102,7 +102,7 @@ function layerMockSpawner(
 }
 
 describe("tailscale", () => {
-  it.effect("does not treat a non-T3 response on the HTTPS probe path as reachable", () =>
+  it.effect("does not treat a non-S1 response on the HTTPS probe path as reachable", () =>
     Effect.gen(function* () {
       for (const [body, status] of [
         ["<!doctype html><title>Other application</title>", 200],
@@ -119,12 +119,12 @@ describe("tailscale", () => {
             ),
           ),
         );
-        assert.isFalse(reachable, `HTTP ${status} without a T3 descriptor`);
+        assert.isFalse(reachable, `HTTP ${status} without a S1 descriptor`);
       }
     }),
   );
 
-  it.effect("does not treat another T3 server behind the Serve URL as this server", () =>
+  it.effect("does not treat another S1 server behind the Serve URL as this server", () =>
     Effect.gen(function* () {
       const answer = (environmentId: string) =>
         HttpClient.make((request) =>
@@ -133,7 +133,7 @@ describe("tailscale", () => {
               request,
               Response.json({
                 environmentId,
-                label: "T3 server",
+                label: "S1 server",
                 platform: { os: "linux", arch: "x64" },
                 serverVersion: "0.1.9",
                 capabilities: { repositoryIdentity: true },
@@ -156,14 +156,14 @@ describe("tailscale", () => {
     const status = JSON.stringify({
       TCP: {
         "443": { HTTPS: true },
-        "7000": { TCPForward: "127.0.0.1:3773" },
-        "7001": { TCPForward: "127.0.0.2:3773" },
+        "7000": { TCPForward: "127.0.0.1:4773" },
+        "7001": { TCPForward: "127.0.0.2:4773" },
         "80": { TCPForward: "unix:/run/app.sock" },
       },
       Web: {
         "box.tailnet.ts.net:443": {
           Handlers: {
-            "/t3": { Proxy: "http://127.0.0.1:3773" },
+            "/s1": { Proxy: "http://127.0.0.1:4773" },
             "/dashboard": { Proxy: "http://127.0.0.1:9000" },
           },
         },
@@ -171,43 +171,43 @@ describe("tailscale", () => {
         "box.tailnet.ts.net:10000": {
           Handlers: {
             // Another service on another loopback address, and one on the other family.
-            "/a": { Proxy: "http://127.0.0.2:3773" },
-            "/b": { Proxy: "http://[::1]:3773" },
-            "/c": { Proxy: "http://192.168.1.5:3773" },
-            "/d": { Proxy: "http://0.0.0.0:3773" },
-            "/e": { Proxy: "http://[::ffff:127.0.0.1]:3773" },
-            "/f": { Proxy: "http://localhost:3773" },
+            "/a": { Proxy: "http://127.0.0.2:4773" },
+            "/b": { Proxy: "http://[::1]:4773" },
+            "/c": { Proxy: "http://192.168.1.5:4773" },
+            "/d": { Proxy: "http://0.0.0.0:4773" },
+            "/e": { Proxy: "http://[::ffff:127.0.0.1]:4773" },
+            "/f": { Proxy: "http://localhost:4773" },
             // Shorthand Tailscale expands when it proxies.
-            "/g": { Proxy: "3773" },
-            "/h": { Proxy: "localhost:3773" },
-            "/i": { Proxy: "http://[::]:3773" },
+            "/g": { Proxy: "4773" },
+            "/h": { Proxy: "localhost:4773" },
+            "/i": { Proxy: "http://[::]:4773" },
             // A name can resolve to any address, the bound one included.
-            "/j": { Proxy: "http://ip6-localhost:3773" },
+            "/j": { Proxy: "http://ip6-localhost:4773" },
             // Go resolves these as names; a WHATWG URL rejects the first and rewrites the second.
-            "/k": { Proxy: "http://box.1:3773" },
-            "/l": { Proxy: "http://127.1:3773" },
+            "/k": { Proxy: "http://box.1:4773" },
+            "/l": { Proxy: "http://127.1:4773" },
             "/m": { Proxy: "unix:/run/app.sock" },
             // Credentials before the host, and IPv6 written out in full, still dial here.
-            "/n": { Proxy: "http://user:pass@127.0.0.1:3773" },
-            "/o": { Proxy: "http://[0:0:0:0:0:ffff:7f00:1]:3773" },
-            "/p": { Proxy: "http://127.0.0.1:03773" },
+            "/n": { Proxy: "http://user:pass@127.0.0.1:4773" },
+            "/o": { Proxy: "http://[0:0:0:0:0:ffff:7f00:1]:4773" },
+            "/p": { Proxy: "http://127.0.0.1:04773" },
           },
         },
       },
       Services: {
-        "svc:t3": {
+        "svc:s1": {
           Web: {
-            "t3.tailnet.ts.net:443": { Handlers: { "/": { Proxy: "http://127.0.0.1:3773" } } },
+            "s1.tailnet.ts.net:443": { Handlers: { "/": { Proxy: "http://127.0.0.1:4773" } } },
           },
         },
       },
       Foreground: {
-        session1: { TCP: { "9000": { TCPForward: "localhost:3773" } } },
+        session1: { TCP: { "9000": { TCPForward: "localhost:4773" } } },
       },
     });
-    assert.deepEqual(parseTailscaleServeRoutesTo(status, { host: "127.0.0.1", port: 3773 }), [
+    assert.deepEqual(parseTailscaleServeRoutesTo(status, { host: "127.0.0.1", port: 4773 }), [
       { servePort: 7000 },
-      { servePort: 443, mount: "/t3", host: "box.tailnet.ts.net" },
+      { servePort: 443, mount: "/s1", host: "box.tailnet.ts.net" },
       // `localhost` and `[::]` can dial either loopback, so they might be another service's.
       ...(
         [
@@ -230,7 +230,7 @@ describe("tailscale", () => {
         host: "box.tailnet.ts.net",
         ...(ambiguous === undefined ? {} : { ambiguous }),
       })),
-      { servePort: 443, mount: "/", host: "t3.tailnet.ts.net", owner: "svc:t3" },
+      { servePort: 443, mount: "/", host: "s1.tailnet.ts.net", owner: "svc:s1" },
       { servePort: 9000, ambiguous: "localhost", owner: "foreground" },
     ]);
     assert.deepEqual(
@@ -242,18 +242,18 @@ describe("tailscale", () => {
       ),
       [{ servePort: 443, mount: "/", host: "box" }],
     );
-    assert.deepEqual(parseTailscaleServeRoutesTo("{}", { host: "127.0.0.1", port: 3773 }), []);
-    assert.deepEqual(parseTailscaleServeRoutesTo("null", { host: "127.0.0.1", port: 3773 }), []);
-    assert.isUndefined(parseTailscaleServeRoutesTo("not json", { host: "127.0.0.1", port: 3773 }));
+    assert.deepEqual(parseTailscaleServeRoutesTo("{}", { host: "127.0.0.1", port: 4773 }), []);
+    assert.deepEqual(parseTailscaleServeRoutesTo("null", { host: "127.0.0.1", port: 4773 }), []);
+    assert.isUndefined(parseTailscaleServeRoutesTo("not json", { host: "127.0.0.1", port: 4773 }));
   });
 
   it("finds what holds a Serve port's root", () => {
-    const target = { host: "127.0.0.1", port: 3773 };
+    const target = { host: "127.0.0.1", port: 4773 };
     const status = JSON.stringify({
       TCP: { "8443": { TCPForward: "127.0.0.1:22" } },
       Web: {
         "box.tailnet.ts.net:443": {
-          Handlers: { "/": { Proxy: "http://127.0.0.1:3773" }, "/x": { Proxy: "9000" } },
+          Handlers: { "/": { Proxy: "http://127.0.0.1:4773" }, "/x": { Proxy: "9000" } },
         },
         "old.tailnet.ts.net:443": { Handlers: { "/": { Proxy: "http://[::1]:4000" } } },
         "box.tailnet.ts.net:10000": { Handlers: { "/": { Proxy: "http://127.0.0.1:4001" } } },
@@ -261,8 +261,8 @@ describe("tailscale", () => {
         "box.tailnet.ts.net:10002": { Handlers: { "/": { Text: "hi" } } },
       },
       Services: {
-        "svc:t3": {
-          Web: { "t3.tailnet.ts.net:10000": { Handlers: { "/": { Proxy: "4003" } } } },
+        "svc:s1": {
+          Web: { "s1.tailnet.ts.net:10000": { Handlers: { "/": { Proxy: "4003" } } } },
         },
       },
     });
@@ -367,7 +367,7 @@ describe("tailscale", () => {
       assert.equal(statusError.subcommand, "status");
       assert.strictEqual(statusError.cause, defect);
 
-      const serveError = yield* ensureTailscaleServe({ localPort: 13773, servePort: 8443 }).pipe(
+      const serveError = yield* ensureTailscaleServe({ localPort: 14773, servePort: 8443 }).pipe(
         Effect.flip,
         Effect.provide(layer),
       );
@@ -436,7 +436,7 @@ describe("tailscale", () => {
         ),
       );
 
-      const fiber = yield* ensureTailscaleServe({ localPort: 3773 }).pipe(
+      const fiber = yield* ensureTailscaleServe({ localPort: 4773 }).pipe(
         Effect.provide(layer),
         Effect.exit,
         Effect.forkChild,
@@ -462,7 +462,7 @@ describe("tailscale", () => {
     });
 
     return Effect.gen(function* () {
-      const exit = yield* ensureTailscaleServe({ localPort: 3773 }).pipe(
+      const exit = yield* ensureTailscaleServe({ localPort: 4773 }).pipe(
         Effect.provide(layer),
         Effect.exit,
       );

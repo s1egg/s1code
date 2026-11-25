@@ -81,4 +81,4 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("t3-pcm-capture", PcmCaptureProcessor);
+registerProcessor("s1-pcm-capture", PcmCaptureProcessor);

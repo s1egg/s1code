@@ -1,4 +1,4 @@
-import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
+import { errorDisplayMessage } from "@s1tools/client-runtime/errors";
 import { T, useGT } from "gt-react-native";
 import { ListRow } from "../../components/ui/ListRow";
 import * as Dialog from "../../components/ui/Dialog";
@@ -12,7 +12,7 @@ import {
   useNavigation,
   type StaticScreenProps,
 } from "@react-navigation/native";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@s1tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
@@ -238,7 +238,7 @@ function PairingForm({
           />
 
           <View collapsable={false} className="gap-2">
-            <Text className="px-4 text-sm font-t3-medium text-foreground-muted">
+            <Text className="px-4 text-sm font-s1-medium text-foreground-muted">
               <T>Or enter it</T>
             </Text>
             <View
@@ -251,7 +251,7 @@ function PairingForm({
               <PairingInputRow
                 label={gt("Address")}
                 keyboardType="url"
-                placeholder="192.168.1.100:3773"
+                placeholder="192.168.1.100:4773"
                 value={hostInput}
                 onChangeText={handleHostChange}
               />
@@ -277,7 +277,7 @@ function PairingForm({
               {pairingConnectionError ??
                 (linked
                   ? gt(
-                      "Create a pairing code on {environment}, in its Settings → Sharing & access or with `t3 auth pairing create`, and enter it here.",
+                      "Create a pairing code on {environment}, in its Settings → Sharing & access or with `s1 auth pairing create`, and enter it here.",
                       { environment: linked.label },
                     )
                   : gt(
@@ -371,7 +371,7 @@ function PairingScanCard(props: {
                 weight="light"
               />
               <Text
-                className={cn("font-t3-medium text-sm", light ? "text-black/70" : "text-white/80")}
+                className={cn("font-s1-medium text-sm", light ? "text-black/70" : "text-white/80")}
               >
                 <T>Tap to scan</T>
               </Text>
@@ -380,7 +380,7 @@ function PairingScanCard(props: {
         </View>
         <Text className={cn("text-center text-sm", light ? "text-black/70" : "text-white/80")}>
           {gt("Scan the code from {command} or desktop Connections settings", {
-            command: "t3 pair",
+            command: "s1 pair",
           })}
         </Text>
       </View>
@@ -401,7 +401,7 @@ function T3ConnectSection() {
 
   return (
     <View collapsable={false} className="gap-2">
-      <Text className="px-4 text-sm font-t3-medium text-foreground-muted">
+      <Text className="px-4 text-sm font-s1-medium text-foreground-muted">
         <T>Or use the managed relay</T>
       </Text>
       {isSignedIn ? (
@@ -413,7 +413,7 @@ function T3ConnectSection() {
         />
       ) : (
         <ListRow
-          label={gt("Sign in to {product}", { product: "T3 Connect" })}
+          label={gt("Sign in to {product}", { product: "S1 Connect" })}
           description={gt("Reach your machines from anywhere, no network setup.")}
           disabled={!isLoaded}
           onPress={() => navigation.navigate("SettingsAuth")}

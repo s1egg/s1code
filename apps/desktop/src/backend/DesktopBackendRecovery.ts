@@ -17,7 +17,7 @@ import {
 import { linuxProcessIdentity } from "./LinuxProcessIdentity.ts";
 
 const exec = NodeUtil.promisify(NodeChildProcess.execFile);
-const directoryName = "t3code-backend-recovery";
+const directoryName = "s1code-backend-recovery";
 const maxRecordBytes = 512;
 const isDarwin = NodeProcess.platform === "darwin";
 // Darwin sys/fcntl.h. Node accepts these open flags but does not export them. Linux has no
@@ -195,7 +195,7 @@ export function make(input: {
   readonly onRecovery: (pid: number) => void;
   readonly onError: (operation: string, error: unknown) => void;
 }) {
-  // Use Application Support even when the T3 home or the app lives on removable storage.
+  // Use Application Support even when the S1 home or the app lives on removable storage.
   const directory = NodePath.join(input.appDataDirectory, directoryName);
   const scope = async () => {
     const appImage = isDarwin ? undefined : NodeProcess.env.APPIMAGE?.trim();

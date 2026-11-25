@@ -3,8 +3,8 @@ import * as NodeSqlite from "node:sqlite";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
-import { AuthSessionId } from "@t3tools/contracts";
-import * as NetService from "@t3tools/shared/Net";
+import { AuthSessionId } from "@s1tools/contracts";
+import * as NetService from "@s1tools/shared/Net";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -18,7 +18,7 @@ import { vi } from "vite-plus/test";
 
 import { makeCli } from "../binCli.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
-import { FEEDBACK_OFF_MESSAGE, T3_CLI_COMMANDS } from "../feedback/FeedbackReport.ts";
+import { FEEDBACK_OFF_MESSAGE, S1_CLI_COMMANDS } from "../feedback/FeedbackReport.ts";
 import * as McpBridge from "../mcp/AcpMcpStdioBridge.ts";
 import {
   makePersistedServerRuntimeState,
@@ -51,15 +51,15 @@ const listedPaths = (command: Command.Command.Any, path: string): ReadonlyArray<
   ),
 ];
 
-it("feedback subjects name every listed t3 command", () => {
-  expect([...T3_CLI_COMMANDS].sort()).toEqual(
-    [...listedPaths(makeCli({ cloudEnabled: true }), "t3")].sort(),
+it("feedback subjects name every listed s1 command", () => {
+  expect([...S1_CLI_COMMANDS].sort()).toEqual(
+    [...listedPaths(makeCli({ cloudEnabled: true }), "s1")].sort(),
   );
 });
 
 const hidden = (tool: string) =>
   new McpBridge.AcpMcpBridgeError({
-    message: "T3 Code MCP tools/call failed.",
+    message: "S1 Code MCP tools/call failed.",
     rpcError: { code: -32602, message: `Tool '${tool}' not found` },
   });
 
@@ -85,11 +85,11 @@ it.effect("points to Labs only when the server hides the feedback tool", () =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-feedback-cli-" });
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "s1-feedback-cli-" });
     const runtimeStatePath = path.join(baseDir, "userdata", "server-runtime.json");
     const runtimeState = yield* makePersistedServerRuntimeState({
       config: { host: "127.0.0.1", devUrl: undefined },
-      port: 3_773,
+      port: 4_773,
     });
     const submit = ["--kind", "bug", "--subject", "general", "--expected", "a", "--actual", "b"];
     const cases: ReadonlyArray<{
@@ -113,9 +113,9 @@ it.effect("points to Labs only when the server hides the feedback tool", () =>
           Effect.fail(
             new McpBridge.AcpMcpBridgeError({ message: "fetch failed: connection refused" }),
           ),
-        stderr: `Could not reach the T3 Code server at ${runtimeState.origin}.`,
+        stderr: `Could not reach the S1 Code server at ${runtimeState.origin}.`,
       },
-      { args: submit, running: false, stderr: "No running T3 Code server uses" },
+      { args: submit, running: false, stderr: "No running S1 Code server uses" },
     ];
     for (const { args, running, call, stderr } of cases) {
       yield* running === false
@@ -147,7 +147,7 @@ it.effect("points to Labs only when the server hides the feedback tool", () =>
       );
 
     // A file the server rejects reads as the defaults, so Off, as the server would read it.
-    const rejected = yield* fs.makeTempDirectoryScoped({ prefix: "t3-feedback-cli-" });
+    const rejected = yield* fs.makeTempDirectoryScoped({ prefix: "s1-feedback-cli-" });
     yield* fs.makeDirectory(path.join(rejected, "userdata"), { recursive: true });
     yield* fs.writeFileString(
       path.join(rejected, "userdata", "settings.json"),
@@ -156,14 +156,14 @@ it.effect("points to Labs only when the server hides the feedback tool", () =>
     yield* expectOneLine(["list"], rejected, FEEDBACK_OFF_MESSAGE);
 
     // On, a damaged database is one line too.
-    const damaged = yield* fs.makeTempDirectoryScoped({ prefix: "t3-feedback-cli-" });
+    const damaged = yield* fs.makeTempDirectoryScoped({ prefix: "s1-feedback-cli-" });
     yield* fs.makeDirectory(path.join(damaged, "userdata"), { recursive: true });
     yield* turnOn(damaged);
     yield* fs.writeFileString(path.join(damaged, "userdata", "statev2.sqlite"), "not a database");
     yield* expectOneLine(["list"], damaged, "Could not read this machine's feedback reports: ");
 
     // A database from before agent feedback, with no table for it, lists nothing.
-    const older = yield* fs.makeTempDirectoryScoped({ prefix: "t3-feedback-cli-" });
+    const older = yield* fs.makeTempDirectoryScoped({ prefix: "s1-feedback-cli-" });
     yield* fs.makeDirectory(path.join(older, "userdata"), { recursive: true });
     yield* turnOn(older);
     const olderDatabase = new NodeSqlite.DatabaseSync(
@@ -187,7 +187,7 @@ it.effect("points to Labs only when the server hides the feedback tool", () =>
       .prepare(
         `INSERT INTO agent_feedback (id, thread_id, run_id, created_at, kind, subject, expected,
           actual, workaround, user_requested, trace, source, sent)
-        VALUES ('r1', 't1', 'run1', '2026-11-17T00:00:00.000Z', 'bug', 't3_thread_read', 'a', 'b',
+        VALUES ('r1', 't1', 'run1', '2026-11-17T00:00:00.000Z', 'bug', 's1_thread_read', 'a', 'b',
           '', 1, ?, 'mcp', 1)`,
       )
       .run(JSON.stringify(trace));
@@ -198,7 +198,7 @@ it.effect("points to Labs only when the server hides the feedback tool", () =>
         threadId: "t1",
         createdAt: "2026-11-17T00:00:00.000Z",
         kind: "bug",
-        subject: "t3_thread_read",
+        subject: "s1_thread_read",
         expected: "a",
         actual: "b",
         workaround: "",
@@ -215,7 +215,7 @@ it.effect("points to Labs only when the server hides the feedback tool", () =>
         NodeServices.layer,
         NodeCrypto.layer,
         NetService.layer,
-        ConfigProvider.layer(ConfigProvider.fromEnv({ env: { T3CODE_PORT: "3773" } })),
+        ConfigProvider.layer(ConfigProvider.fromEnv({ env: { S1CODE_PORT: "4773" } })),
       ),
     ),
   ),

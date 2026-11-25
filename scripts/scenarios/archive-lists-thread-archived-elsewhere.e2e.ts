@@ -5,9 +5,9 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 
-import { T3_HOME } from "../e2e.config.ts";
+import { S1_HOME } from "../e2e.config.ts";
 import { ScenarioError } from "./shell.ts";
-import { makeState, runPromise, test, WEB } from "./t3.ts";
+import { makeState, runPromise, test, WEB } from "./s1.ts";
 
 const SettingsJson = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
 const decodeSettings = Schema.decodeEffect(SettingsJson);
@@ -16,7 +16,7 @@ const encodeSettings = Schema.encodeEffect(SettingsJson);
 // A token from `auth session issue` acts at most in approval-required mode, so the thread must too.
 const approvalRequiredThreads = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
-  const settingsPath = (yield* Path.Path).join(T3_HOME, "userdata/settings.json");
+  const settingsPath = (yield* Path.Path).join(S1_HOME, "userdata/settings.json");
   const original = yield* fs.readFileString(settingsPath);
   const settings = yield* decodeSettings(original);
   return {
@@ -31,12 +31,12 @@ const approvalRequiredThreads = Effect.gen(function* () {
   };
 });
 
-/** Archives a thread as an outside agent does: `t3_thread_organize` on the server's MCP endpoint. */
+/** Archives a thread as an outside agent does: `s1_thread_organize` on the server's MCP endpoint. */
 const archiveOverMcp = Effect.fn("scenario.archiveOverMcp")(function* (
   baseUrl: string,
   threadId: string,
 ) {
-  const { cli } = makeState(T3_HOME);
+  const { cli } = makeState(S1_HOME);
   const { stdout } = yield* cli([
     "auth",
     "session",
@@ -82,7 +82,7 @@ const archiveOverMcp = Effect.fn("scenario.archiveOverMcp")(function* (
   const result = yield* send({
     id: 2,
     method: "tools/call",
-    params: { name: "t3_thread_organize", arguments: { threadId, action: "archive" } },
+    params: { name: "s1_thread_organize", arguments: { threadId, action: "archive" } },
   });
   if (result.includes('"isError":true')) {
     return yield* new ScenarioError({ message: `Archive failed: ${result}` });
@@ -92,13 +92,13 @@ const archiveOverMcp = Effect.fn("scenario.archiveOverMcp")(function* (
 test(
   "Settings Archived lists a thread archived elsewhere while it is open",
   WEB,
-  async ({ t3, app, screen }) => {
+  async ({ s1, app, screen }) => {
     const settings = await runPromise(approvalRequiredThreads);
     try {
       await runPromise(settings.apply);
-      const project = await t3.project("demo");
-      const thread = await t3.thread({ project, title: "Archived elsewhere", messages: ["first"] });
-      await t3.open("/settings/archived");
+      const project = await s1.project("demo");
+      const thread = await s1.thread({ project, title: "Archived elsewhere", messages: ["first"] });
+      await s1.open("/settings/archived");
       await expect(screen.getByText("No archived threads")).toBeVisible();
 
       await runPromise(archiveOverMcp(app.baseUrl ?? "", thread.threadId));

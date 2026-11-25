@@ -47,13 +47,13 @@ import {
   ThreadId,
   SERVER_BROWSER_AUTOMATION_CLIENT_ID,
   type PreviewAppearancePreference,
-} from "@t3tools/contracts";
-import { AgentScope, agentScopeLauncherScript } from "@t3tools/shared/AgentScope";
-import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { appLinkUrl } from "@t3tools/shared/appLinks";
-import { normalizePreviewUrl } from "@t3tools/shared/preview";
-import { resolvePreviewViewport } from "@t3tools/shared/previewViewport";
+} from "@s1tools/contracts";
+import { AgentScope, agentScopeLauncherScript } from "@s1tools/shared/AgentScope";
+import { writeFileStringAtomically } from "@s1tools/shared/atomicWrite";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { appLinkUrl } from "@s1tools/shared/appLinks";
+import { normalizePreviewUrl } from "@s1tools/shared/preview";
+import { resolvePreviewViewport } from "@s1tools/shared/previewViewport";
 import * as NodeCrypto from "node:crypto";
 import * as NodeFSP from "node:fs/promises";
 import * as NodePath from "node:path";
@@ -405,7 +405,7 @@ export class ServerBrowser extends Context.Service<
 
     readonly profileReporter: Effect.Effect<ProfileReporter, never, Scope.Scope>;
   }
->()("t3/preview/ServerBrowser") {}
+>()("s1/preview/ServerBrowser") {}
 
 interface ViewerState {
   readonly id: string;
@@ -603,7 +603,7 @@ const editingCommand = (key: string, modifiers: number) => {
 };
 
 const TITLE_LIMIT = 512;
-const TITLE_WORLD = "t3-preview-title";
+const TITLE_WORLD = "s1-preview-title";
 // Observe root replacement without subscribing to body subtree mutations.
 const titleChange = (reported: string) => `new Promise((resolve) => {
   const changed = () => document.title.slice(0, ${TITLE_LIMIT}) !== ${JSON.stringify(reported)};
@@ -638,7 +638,7 @@ const titleChange = (reported: string) => `new Promise((resolve) => {
 })`;
 
 const CLIPBOARD_TEXT_LIMIT = 1024 * 1024;
-const CLIPBOARD_WORLD = "t3-preview-clipboard";
+const CLIPBOARD_WORLD = "s1-preview-clipboard";
 // Chromium shares its clipboard across contexts; capture real copy/cut keys in a page-inaccessible world instead.
 const CLIPBOARD_SCRIPT = `(() => {
   let keying = false;
@@ -957,7 +957,7 @@ const make = Effect.gen(function* () {
       const { frameTree } = await tab.cdp.send("Page.getFrameTree");
       const { executionContextId } = await tab.cdp.send("Page.createIsolatedWorld", {
         frameId: frameTree.frame.id,
-        worldName: "t3-preview-viewport",
+        worldName: "s1-preview-viewport",
       });
       const { result } = await tab.cdp.send("Runtime.evaluate", {
         expression: "({ width: innerWidth, height: innerHeight })",
@@ -1921,7 +1921,7 @@ const make = Effect.gen(function* () {
   const assertTabCapacity = (agentSessionId: string) => {
     if (atTabLimit(agentSessionId))
       throw new BrowserControlInterrupted({
-        message: `Too many server browser tabs are open (${AGENT_TAB_LIMIT} per agent session, ${SERVER_TAB_LIMIT} per server). Close one with t3_preview_close or reuse one from preview_status tabs.`,
+        message: `Too many server browser tabs are open (${AGENT_TAB_LIMIT} per agent session, ${SERVER_TAB_LIMIT} per server). Close one with s1_preview_close or reuse one from preview_status tabs.`,
         reason: "tabLimit",
       });
   };
@@ -2998,7 +2998,7 @@ const make = Effect.gen(function* () {
           throw new ServerBrowserPage.ServerBrowserOperationError({
             tag: "PreviewAutomationExecutionError",
             message:
-              "The desktop did not draw the page at the new size. Show or restore the T3 Code window and try again.",
+              "The desktop did not draw the page at the new size. Show or restore the S1 Code window and try again.",
           });
         }
         // Only a read after the draw, with no page resize or load during it, measures this resize.
@@ -3715,7 +3715,7 @@ const make = Effect.gen(function* () {
     (yield* PreviewBrowserHost.sandboxBlocked)
   ) {
     yield* Effect.logWarning(
-      `This host blocks the sandbox T3's browser runs in, so browser tabs and HTML previews will not start. Run \`${setupCommand}\` once to allow it.`,
+      `This host blocks the sandbox S1's browser runs in, so browser tabs and HTML previews will not start. Run \`${setupCommand}\` once to allow it.`,
     );
   }
 

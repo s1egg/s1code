@@ -7,11 +7,11 @@ import {
   AuthTokenExchangeGrantType,
   EnvironmentHttpApi,
   EnvironmentId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   RelayEnvironmentLinkProofPayload,
   type RelayLinkProofRequest,
-} from "@t3tools/contracts/relay";
+} from "@s1tools/contracts/relay";
 import * as Effect from "effect/Effect";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
@@ -23,7 +23,7 @@ import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as NetAddress from "effect/net/NetAddress";
-import { decodeRelayJwt, RELAY_LINK_PROOF_TYP, verifyRelayJwt } from "@t3tools/shared/relayJwt";
+import { decodeRelayJwt, RELAY_LINK_PROOF_TYP, verifyRelayJwt } from "@s1tools/shared/relayJwt";
 
 import * as EnvironmentKeys from "./environmentKeys.ts";
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
@@ -43,7 +43,7 @@ import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as ServerSettings from "../serverSettings.ts";
 
 const DESKTOP_BOOTSTRAP_TOKEN = "test-desktop-bootstrap-token";
-const NON_LOOPBACK_ORIGIN = "http://172.24.162.233:3773";
+const NON_LOOPBACK_ORIGIN = "http://172.24.162.233:4773";
 const proofRequest: RelayLinkProofRequest = {
   challenge: "test-challenge",
   relayIssuer: "https://relay.example.test",
@@ -52,7 +52,7 @@ const proofRequest: RelayLinkProofRequest = {
     httpBaseUrl: "https://environment.example.test",
     wsBaseUrl: "wss://environment.example.test",
   },
-  origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
+  origin: { localHttpHost: "127.0.0.1", localHttpPort: 4773 },
 };
 const decodeLinkProofPayload = Schema.decodeUnknownEffect(RelayEnvironmentLinkProofPayload);
 
@@ -69,11 +69,11 @@ const layerConfig = Layer.effect(
       ...config,
       mode: "desktop" as const,
       host: "0.0.0.0",
-      port: 3773,
+      port: 4773,
       desktopBootstrapToken: DESKTOP_BOOTSTRAP_TOKEN,
     };
   }),
-).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-link-proof-test-" })));
+).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "s1-link-proof-test-" })));
 
 // Real credential issuance, verification, origin checks and signing; no relay or tunnel is started.
 const layerLinkProofRoutes = HttpApiBuilder.layer(LinkProofTestApi).pipe(
@@ -106,7 +106,7 @@ const layerLinkProofRoutes = HttpApiBuilder.layer(LinkProofTestApi).pipe(
     Layer.mock(CliTokenManager.CloudCliTokenManager)({}),
     Layer.mock(AgentAwarenessRelay.AgentAwarenessRelay)({}),
     Layer.mock(HttpServer.HttpServer)({
-      address: NetAddress.inetAddressFromIpStringUnsafe("0.0.0.0", 3773),
+      address: NetAddress.inetAddressFromIpStringUnsafe("0.0.0.0", 4773),
     }),
     Layer.succeed(
       HttpClient.HttpClient,
@@ -207,11 +207,11 @@ describe("link proof over a non-loopback transport", () => {
           publicKey: unverified.environmentPublicKey,
           token: proof,
           typ: RELAY_LINK_PROOF_TYP,
-          issuer: "t3-env:wsl-environment",
+          issuer: "s1-env:wsl-environment",
           audience: proofRequest.relayIssuer,
         });
         expect(verified).toMatchObject({
-          origin: { localHttpHost: "127.0.0.1", localHttpPort: 3773 },
+          origin: { localHttpHost: "127.0.0.1", localHttpPort: 4773 },
           endpoint: proofRequest.endpoint,
           challenge: proofRequest.challenge,
         });
@@ -310,7 +310,7 @@ describe("link proof over a non-loopback transport", () => {
     Effect.gen(function* () {
       const { post } = yield* linkProofClient;
       const payload = { proof: "x".repeat(ServerHttp.API_MAX_BODY_BYTES) };
-      for (const path of ["/api/t3-connect/health", "/api/t3-connect/mint-credential"]) {
+      for (const path of ["/api/s1-connect/health", "/api/s1-connect/mint-credential"]) {
         expect((yield* post(path, payload)).status, path).toBe(413);
       }
     }),

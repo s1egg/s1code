@@ -1,4 +1,4 @@
-import { EnvironmentId, type ThreadPullRequestLink } from "@t3tools/contracts";
+import { EnvironmentId, type ThreadPullRequestLink } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

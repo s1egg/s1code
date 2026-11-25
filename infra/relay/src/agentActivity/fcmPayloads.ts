@@ -1,6 +1,6 @@
-import type { RelayAgentActivityAggregateState } from "@t3tools/contracts/relay";
-import { compareSemverVersions, parseSemver } from "@t3tools/shared/semver";
-import { hashTelemetryId } from "@t3tools/shared/telemetryId";
+import type { RelayAgentActivityAggregateState } from "@s1tools/contracts/relay";
+import { compareSemverVersions, parseSemver } from "@s1tools/shared/semver";
+import { hashTelemetryId } from "@s1tools/shared/telemetryId";
 import {
   activityPhasePriority,
   TERMINAL_AGENT_ACTIVITY_DISPLAY_TTL_MS,

@@ -17,12 +17,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  cloudflare:
+    name: Cloudflare credentials
+    runs-on: ubuntu-24.04
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - id: check
+        name: Check for a Cloudflare token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "CLOUDFLARE_API_TOKEN is not set; skipping the relay preview."
+          fi
+
   deploy_preview:
     name: Deploy relay preview
+    needs: cloudflare
     if: >-
+      needs.cloudflare.outputs.present == 'true' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       contains(github.event.pull_request.labels.*.name, 'relay:preview')
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment:
       name: relay-preview
@@ -68,12 +88,12 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=t3code-relay...
+              - --filter=s1code-relay...
 
       - name: Deploy preview stage
-        run: vp run --filter t3code-relay deploy --stage "$STAGE" --yes --no-input
+        run: vp run --filter s1code-relay deploy --stage "$STAGE" --yes --no-input
         env:
-          T3CODE_RELAY_CLIENT_CONFIG_ENV: ${{ runner.temp }}/relay-client-config.env
+          S1CODE_RELAY_CLIENT_CONFIG_ENV: ${{ runner.temp }}/relay-client-config.env
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PLANETSCALE_API_TOKEN_ID: ${{ secrets.PLANETSCALE_API_TOKEN_ID }}
           PLANETSCALE_API_TOKEN: ${{ secrets.PLANETSCALE_API_TOKEN }}
@@ -81,5 +101,5 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           # Unset leaves the Clerk account-deletion webhook route off.
           CLERK_WEBHOOK_SIGNING_SECRET: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
-          # Unset by default, so previews keep the T3 Chat link off.
+          # Unset by default, so previews keep the S1 Chat link off.
           T3CHAT_LINK_SECRET: ${{ secrets.T3CHAT_LINK_SECRET }}

@@ -1,4 +1,4 @@
-import { DesktopShellEnvironmentSnapshot, ShellEnvironmentPatch } from "@t3tools/contracts";
+import { DesktopShellEnvironmentSnapshot, ShellEnvironmentPatch } from "@s1tools/contracts";
 import {
   applyShellEnvironment,
   buildEnvironmentCaptureCommand,
@@ -7,7 +7,7 @@ import {
   readUserLoginShell,
   setWindowsPath,
   windowsEnvironmentValueCommand,
-} from "@t3tools/shared/shell";
+} from "@s1tools/shared/shell";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -97,7 +97,7 @@ export class DesktopShellEnvironment extends Context.Service<
     readonly discoveryFinished: Effect.Effect<boolean>;
     readonly updates: Stream.Stream<DesktopShellEnvironmentSnapshot>;
   }
->()("@t3tools/desktop/shell/DesktopShellEnvironment") {}
+>()("@s1tools/desktop/shell/DesktopShellEnvironment") {}
 
 const LOGIN_SHELL_ENV_NAMES = [
   "PATH",
@@ -122,10 +122,10 @@ const LOGIN_SHELL_ENV_NAMES = [
   "SSL_CERT_FILE",
   "SSL_CERT_DIR",
   "NODE_EXTRA_CA_CERTS",
-  "T3CODE_TELEMETRY_ENABLED",
+  "S1CODE_TELEMETRY_ENABLED",
   "DO_NOT_TRACK",
-  "T3CODE_FEATURE_FLAGS",
-  "T3CODE_RELEASE_BASE_URL",
+  "S1CODE_FEATURE_FLAGS",
+  "S1CODE_RELEASE_BASE_URL",
   "__MISE_DIFF",
   "JAVA_HOME",
   "PNPM_HOME",
@@ -134,7 +134,7 @@ const WINDOWS_PROFILE_ENV_NAMES = [
   "PATH",
   "FNM_DIR",
   "FNM_MULTISHELL_PATH",
-  "T3CODE_TELEMETRY_ENABLED",
+  "S1CODE_TELEMETRY_ENABLED",
   "DO_NOT_TRACK",
 ] as const;
 const LOCALE_ENV_NAMES = ["LANG", "LC_ALL", "LC_CTYPE"] as const;
@@ -223,8 +223,8 @@ const knownWindowsCliDirs = (env: NodeJS.ProcessEnv): ReadonlyArray<string> => [
   ),
 ];
 
-const startMarker = (name: string) => `__T3CODE_ENV_${name}_START__`;
-const endMarker = (name: string) => `__T3CODE_ENV_${name}_END__`;
+const startMarker = (name: string) => `__S1CODE_ENV_${name}_START__`;
+const endMarker = (name: string) => `__S1CODE_ENV_${name}_END__`;
 
 const executableName = (command: string): string => command.split(/[\\/]/u).at(-1) ?? command;
 
@@ -461,7 +461,7 @@ const installWindowsEnvironment = Effect.fn("desktop.shellEnvironment.installWin
     if (!config.env.FNM_MULTISHELL_PATH && profile.FNM_MULTISHELL_PATH) {
       config.env.FNM_MULTISHELL_PATH = profile.FNM_MULTISHELL_PATH;
     }
-    for (const name of ["T3CODE_TELEMETRY_ENABLED", "DO_NOT_TRACK"] as const) {
+    for (const name of ["S1CODE_TELEMETRY_ENABLED", "DO_NOT_TRACK"] as const) {
       if (!config.env[name] && profile[name]) {
         config.env[name] = profile[name];
       }
@@ -565,10 +565,10 @@ const installPosixEnvironment = Effect.fn("desktop.shellEnvironment.installPosix
       "NODE_EXTRA_CA_CERTS",
       "JAVA_HOME",
       "PNPM_HOME",
-      "T3CODE_TELEMETRY_ENABLED",
+      "S1CODE_TELEMETRY_ENABLED",
       "DO_NOT_TRACK",
-      "T3CODE_FEATURE_FLAGS",
-      "T3CODE_RELEASE_BASE_URL",
+      "S1CODE_FEATURE_FLAGS",
+      "S1CODE_RELEASE_BASE_URL",
     ] as const) {
       if (!config.env[name] && shellEnvironment[name]) {
         config.env[name] = shellEnvironment[name];
@@ -673,10 +673,10 @@ const CACHED_ENV_NAMES = [
   "SSL_CERT_FILE",
   "SSL_CERT_DIR",
   "NODE_EXTRA_CA_CERTS",
-  "T3CODE_TELEMETRY_ENABLED",
+  "S1CODE_TELEMETRY_ENABLED",
   "DO_NOT_TRACK",
   // The server reads its flags once at start, before discovery can finish.
-  "T3CODE_FEATURE_FLAGS",
+  "S1CODE_FEATURE_FLAGS",
 ] as const;
 
 /** @public */

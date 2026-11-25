@@ -1,13 +1,13 @@
-import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
-import { sideThreadKindOf } from "@t3tools/client-runtime/side-thread";
-import { formatSubagentDisplayTitle } from "@t3tools/client-runtime/state/subagent-display";
+import { scopedThreadKey, scopeThreadRef } from "@s1tools/client-runtime/environment";
+import { sideThreadKindOf } from "@s1tools/client-runtime/side-thread";
+import { formatSubagentDisplayTitle } from "@s1tools/client-runtime/state/subagent-display";
 import {
   isAtomCommandInterrupted,
   settlePromise,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
-import { AuthOrchestrationOperateScope, type ScopedThreadRef } from "@t3tools/contracts";
-import { threadContextRecord } from "@t3tools/shared/composerContextReferences";
+} from "@s1tools/client-runtime/state/runtime";
+import { AuthOrchestrationOperateScope, type ScopedThreadRef } from "@s1tools/contracts";
+import { threadContextRecord } from "@s1tools/shared/composerContextReferences";
 import { T, useGT } from "gt-react";
 import { Trash2Icon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -57,7 +57,7 @@ export default function SideThreadPane(props: {
   const { threadId } = surface;
   const gt = useGT();
   const threadRef = scopeThreadRef(parentRef.environmentId, threadId);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- registers the parent panel as host in the panel store, and closes this side chat's find with its pane
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- registers the parent panel as host in the panel store, and closes this side chat's find with its pane
   useEffect(() => {
     const ref = scopeThreadRef(parentRef.environmentId, threadId);
     const unhost = hostRightPanel(ref, parentRef);

@@ -1,5 +1,5 @@
-import { EnvironmentId, ProviderInstanceId, RunId, ThreadId } from "@t3tools/contracts";
-import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
+import { EnvironmentId, ProviderInstanceId, RunId, ThreadId } from "@s1tools/contracts";
+import type { AtomCommandResult } from "@s1tools/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
 

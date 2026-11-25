@@ -1,6 +1,6 @@
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@s1tools/contracts";
 import { it as effectIt } from "@effect/vitest";
 import type * as NodeOS from "node:os";
 import * as Effect from "effect/Effect";
@@ -111,12 +111,12 @@ describe("resolveBoundEndpoints", () => {
       resolveBoundEndpoints({
         platform: "linux",
         host: "0.0.0.0",
-        port: 3773,
+        port: 4773,
         interfaces: INTERFACES,
       }),
     ).toEqual([
-      { kind: "lan", httpBaseUrl: "http://192.168.1.10:3773/" },
-      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:3773/" },
+      { kind: "lan", httpBaseUrl: "http://192.168.1.10:4773/" },
+      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:4773/" },
     ]);
   });
 
@@ -135,14 +135,14 @@ describe("resolveBoundEndpoints", () => {
       resolveBoundEndpoints({
         platform: "linux",
         host: "0.0.0.0",
-        port: 3773,
+        port: 4773,
         interfaces,
         isolatedBridges: new Set(["fhciowner"]),
       }),
     ).toEqual([
-      { kind: "lan", httpBaseUrl: "http://192.168.1.10:3773/" },
-      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:3773/" },
-      { kind: "lan", httpBaseUrl: "http://192.168.1.20:3773/" },
+      { kind: "lan", httpBaseUrl: "http://192.168.1.10:4773/" },
+      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:4773/" },
+      { kind: "lan", httpBaseUrl: "http://192.168.1.20:4773/" },
     ]);
   });
 
@@ -155,10 +155,10 @@ describe("resolveBoundEndpoints", () => {
       "vz-machine": virtualInterface("192.168.101.1"),
     };
     expect(
-      resolveBoundEndpoints({ platform: "linux", host: "0.0.0.0", port: 3773, interfaces }),
+      resolveBoundEndpoints({ platform: "linux", host: "0.0.0.0", port: 4773, interfaces }),
     ).toEqual([
-      { kind: "lan", httpBaseUrl: "http://192.168.1.10:3773/" },
-      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:3773/" },
+      { kind: "lan", httpBaseUrl: "http://192.168.1.10:4773/" },
+      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:4773/" },
     ]);
   });
 
@@ -168,11 +168,11 @@ describe("resolveBoundEndpoints", () => {
       "ve-office": virtualInterface("192.168.1.30"),
     };
     expect(
-      resolveBoundEndpoints({ platform: "win32", host: "0.0.0.0", port: 3773, interfaces }),
+      resolveBoundEndpoints({ platform: "win32", host: "0.0.0.0", port: 4773, interfaces }),
     ).toEqual([
-      { kind: "lan", httpBaseUrl: "http://192.168.1.10:3773/" },
-      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:3773/" },
-      { kind: "lan", httpBaseUrl: "http://192.168.1.30:3773/" },
+      { kind: "lan", httpBaseUrl: "http://192.168.1.10:4773/" },
+      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:4773/" },
+      { kind: "lan", httpBaseUrl: "http://192.168.1.30:4773/" },
     ]);
   });
 
@@ -187,13 +187,13 @@ describe("resolveBoundEndpoints", () => {
       guest3: virtualInterface("192.168.1.32", "00:0c:29:4f:8e:35"),
       guest4: virtualInterface("192.168.1.33", "00:50:56:80:8c:01"),
     };
-    const input = { host: "0.0.0.0", port: 3773, interfaces };
+    const input = { host: "0.0.0.0", port: 4773, interfaces };
     const retained = [
-      { kind: "lan", httpBaseUrl: "http://192.168.1.10:3773/" },
-      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:3773/" },
+      { kind: "lan", httpBaseUrl: "http://192.168.1.10:4773/" },
+      { kind: "tailnet", httpBaseUrl: "http://100.101.102.103:4773/" },
       ...[30, 31, 32, 33].map((last) => ({
         kind: "lan",
-        httpBaseUrl: `http://192.168.1.${last}:3773/`,
+        httpBaseUrl: `http://192.168.1.${last}:4773/`,
       })),
     ];
     expect(resolveBoundEndpoints({ ...input, platform: "win32" })).toEqual(retained);
@@ -202,7 +202,7 @@ describe("resolveBoundEndpoints", () => {
     }
     for (const host of ["192.168.56.1", "192.168.150.1", "192.168.151.1"]) {
       expect(resolveBoundEndpoints({ ...input, platform: "win32", host })).toEqual([
-        { kind: "lan", httpBaseUrl: `http://${host}:3773/` },
+        { kind: "lan", httpBaseUrl: `http://${host}:4773/` },
       ]);
     }
   });
@@ -215,19 +215,19 @@ describe("resolveBoundEndpoints", () => {
       utun7: vpnInterface("100.85.0.1"),
     };
     expect(
-      resolveBoundEndpoints({ platform: "linux", host: "0.0.0.0", port: 3773, interfaces }),
+      resolveBoundEndpoints({ platform: "linux", host: "0.0.0.0", port: 4773, interfaces }),
     ).toEqual([
-      { kind: "lan", httpBaseUrl: "http://192.168.1.10:3773/" },
-      { kind: "tailnet", httpBaseUrl: "http://100.70.1.2:3773/" },
-      { kind: "lan", httpBaseUrl: "http://100.96.0.1:3773/" },
-      { kind: "lan", httpBaseUrl: "http://100.85.0.1:3773/" },
+      { kind: "lan", httpBaseUrl: "http://192.168.1.10:4773/" },
+      { kind: "tailnet", httpBaseUrl: "http://100.70.1.2:4773/" },
+      { kind: "lan", httpBaseUrl: "http://100.96.0.1:4773/" },
+      { kind: "lan", httpBaseUrl: "http://100.85.0.1:4773/" },
     ]);
   });
 
   it("never reports a host name, which can resolve to another machine per client", () => {
     for (const host of ["server.local", "devbox", "devbox.home.arpa"]) {
       expect(
-        resolveBoundEndpoints({ platform: "linux", host, port: 3773, interfaces: INTERFACES }),
+        resolveBoundEndpoints({ platform: "linux", host, port: 4773, interfaces: INTERFACES }),
       ).toEqual([]);
     }
   });
@@ -237,7 +237,7 @@ describe("resolveBoundEndpoints", () => {
       resolveBoundEndpoints({
         platform: "linux",
         host: "203.0.113.20",
-        port: 3773,
+        port: 4773,
         interfaces: INTERFACES,
       }),
     ).toEqual([]);
@@ -248,11 +248,11 @@ describe("resolveBoundEndpoints", () => {
       resolveBoundEndpoints({
         platform: "linux",
         host: "0.0.0.0",
-        port: 3773,
+        port: 4773,
         interfaces: INTERFACES,
         onCloudVm: true,
       }),
-    ).toEqual([{ kind: "tailnet", httpBaseUrl: "http://100.101.102.103:3773/" }]);
+    ).toEqual([{ kind: "tailnet", httpBaseUrl: "http://100.101.102.103:4773/" }]);
   });
 
   it("reports an explicit bind to Tailscale's IPv6 address as the tailnet route", () => {
@@ -260,10 +260,10 @@ describe("resolveBoundEndpoints", () => {
       resolveBoundEndpoints({
         platform: "linux",
         host: "fd7a:115c:a1e0::1",
-        port: 3773,
+        port: 4773,
         interfaces: INTERFACES,
       }),
-    ).toEqual([{ kind: "tailnet", httpBaseUrl: "http://[fd7a:115c:a1e0::1]:3773/" }]);
+    ).toEqual([{ kind: "tailnet", httpBaseUrl: "http://[fd7a:115c:a1e0::1]:4773/" }]);
   });
 
   it("never reports an IPv4-mapped host, which can name the client's own loopback", () => {
@@ -271,7 +271,7 @@ describe("resolveBoundEndpoints", () => {
       resolveBoundEndpoints({
         platform: "linux",
         host: "::ffff:127.0.0.1",
-        port: 3773,
+        port: 4773,
         interfaces: INTERFACES,
       }),
     ).toEqual([]);
@@ -282,7 +282,7 @@ describe("readIsolatedLinuxBridges", () => {
   effectIt.effect("finds bridges whose ports never reach a NIC, under any name", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-sysfs-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "s1-sysfs-" });
       const dirs = [
         "eth0/device",
         "eth1/device",
@@ -331,7 +331,7 @@ const layerTailscaleUp = Layer.succeed(
   ),
 );
 
-const T3_DESCRIPTOR_BODY = JSON.stringify({
+const S1_DESCRIPTOR_BODY = JSON.stringify({
   environmentId: "serve-test",
   label: "Serve test",
   platform: { os: "darwin", arch: "arm64" },
@@ -342,7 +342,7 @@ const T3_DESCRIPTOR_BODY = JSON.stringify({
 const serveProbeResponse = (request: HttpClientRequest.HttpClientRequest, status: number) =>
   HttpClientResponse.fromWeb(
     request,
-    new Response(status === 200 ? T3_DESCRIPTOR_BODY : null, { status }),
+    new Response(status === 200 ? S1_DESCRIPTOR_BODY : null, { status }),
   );
 
 const layerServeProbe = (status: number) =>
@@ -357,12 +357,12 @@ const layerServeConfig = (host = "127.0.0.1") =>
     Effect.map(ServerConfig.ServerConfig, (config) => ({
       ...config,
       host,
-      port: 3773,
+      port: 4773,
       tailscaleServeEnabled: true,
       tailscaleServePort: 443,
     })),
   ).pipe(
-    Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-direct-" })),
+    Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "s1-direct-" })),
     Layer.provide(NodeServices.layer),
     Layer.merge(
       Layer.succeed(ServerEnvironment.ServerEnvironment, {
@@ -434,7 +434,7 @@ describe("DirectEndpoints Tailscale Serve", () => {
         );
         const resolving = yield* Effect.forkScoped(service.resolve());
         yield* Deferred.await(probeStarted);
-        const bound = { kind: "lan", httpBaseUrl: "http://192.168.1.10:3773/" };
+        const bound = { kind: "lan", httpBaseUrl: "http://192.168.1.10:4773/" };
         expect(yield* service.resolveAvailable()).toEqual([bound]);
         yield* Deferred.succeed(finishProbe, undefined);
         const validated = yield* Fiber.join(resolving);

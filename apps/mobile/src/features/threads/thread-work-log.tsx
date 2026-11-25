@@ -15,7 +15,7 @@ import { ThreadCommandOutput, useCommandOutputStreaming } from "./thread-command
 import {
   getQuestionAnswerPreview,
   hasQuestionAnswer,
-} from "@t3tools/client-runtime/work-log/user-input";
+} from "@s1tools/client-runtime/work-log/user-input";
 import * as Haptics from "expo-haptics";
 import { T, useGT, useMessages } from "gt-react-native";
 import { Image } from "expo-image";
@@ -51,24 +51,24 @@ import {
   type RunId,
   type ThreadId,
   type ToolActivityIcon,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { Atom } from "effect/reactivity";
 import * as DateTime from "effect/DateTime";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopeThreadRef } from "@s1tools/client-runtime/environment";
 import { environmentThreadDetails, threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { toolActivityFaviconUrl } from "@t3tools/shared/favicon";
-import { isJavaScriptReplTool } from "@t3tools/shared/toolActivity";
+import { toolActivityFaviconUrl } from "@s1tools/shared/favicon";
+import { isJavaScriptReplTool } from "@s1tools/shared/toolActivity";
 import { useMarkdownCodeHighlight } from "./markdownCodeHighlightState";
 import { highlightCommand, type HighlightedLines, withTokenStarts } from "../../lib/highlights";
 import {
   commandHighlightLanguage,
   withVisibleControlCharacters,
-} from "@t3tools/client-runtime/work-log/command-label";
+} from "@s1tools/client-runtime/work-log/command-label";
 
 import { AppText as Text } from "../../components/ui/AppText";
-import { T3Wordmark } from "../../components/T3Wordmark";
+import { S1Wordmark } from "../../components/S1Wordmark";
 import { BrowserAppIcon } from "./BrowserAppIcon";
 import { useAppActive, useReduceMotionEnabled } from "../../lib/appState";
 import { cn } from "../../lib/cn";
@@ -84,7 +84,7 @@ import {
   toolCallLines,
   turnItemOutputImages,
   turnItemOutputText,
-} from "@t3tools/client-runtime/work-log/item-detail";
+} from "@s1tools/client-runtime/work-log/item-detail";
 import { useTurnItemDetail } from "../../state/queries";
 import {
   resolveThreadWorkGroupInitialScroll,
@@ -95,8 +95,8 @@ import {
   toolGroupAction,
   type ToolGroupSummaryKind,
   workEntryViewedImagePath,
-} from "@t3tools/client-runtime/work-log/presentation";
-import { notificationChildThreadId } from "@t3tools/client-runtime/state/thread-execution";
+} from "@s1tools/client-runtime/work-log/presentation";
+import { notificationChildThreadId } from "@s1tools/client-runtime/state/thread-execution";
 import type { MarkdownImageRenderer } from "../../native/SelectableMarkdownText";
 import type { FilePreviewSource } from "../../components/ui/FilePreviewModal";
 import { FilePreviewGallery } from "../../components/ui/FilePreviewGallery";
@@ -127,7 +127,7 @@ type WorkContentIcon =
   | "browser"
   | "computer"
   | "device"
-  | "t3-code"
+  | "s1-code"
   | "pull-request";
 
 function WorkLogIcon(props: {
@@ -137,9 +137,9 @@ function WorkLogIcon(props: {
   readonly highlighted?: boolean;
 }) {
   const colorClassName = props.highlighted ? "accent-foreground" : props.colorClassName;
-  if (props.icon === "t3-code") {
+  if (props.icon === "s1-code") {
     return (
-      <T3Wordmark height={10} {...(colorClassName ? { colorClassName } : { color: props.color })} />
+      <S1Wordmark height={10} {...(colorClassName ? { colorClassName } : { color: props.color })} />
     );
   }
   if (props.icon === "computer") {
@@ -178,7 +178,7 @@ export function ThreadDisclosureChevron(props: {
   const expandedAngle = props.collapsedDirection === "right" ? 90 : 180;
   const rotation = useSharedValue(props.expanded ? expandedAngle : 0);
 
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- drives the chevron's Reanimated rotation value when the expanded state changes
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- drives the chevron's Reanimated rotation value when the expanded state changes
   useLayoutEffect(() => {
     rotation.set(
       withTiming(props.expanded ? expandedAngle : 0, {
@@ -292,7 +292,7 @@ export function ShimmeringWorkContent(props: {
   // Uses a native Animated value instead of Reanimated, whose per-frame commits
   // starve React's while commit pausing is disabled (package.json). See
   // docs/internals/16_performance-regressions.md.
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- steps the native shimmer value on timers while visible and active, and stops them on cleanup
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- steps the native shimmer value on timers while visible and active, and stops them on cleanup
   useEffect(() => {
     progress.setValue(0);
     if (contentWidth <= 0 || reducedMotion || !appIsActive || !screenIsFocused) return;
@@ -638,7 +638,7 @@ function ThreadWorkGroupList(props: {
   const initialScrollIndex = resolveThreadWorkGroupInitialScroll(props.activities, initialPosition);
   const listRef = useRef<LegendListRef>(null);
   const previousTextSize = useRef(props.rowSizing.textSizeKey);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- clears the list's cached row sizes when the text size changes
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- clears the list's cached row sizes when the text size changes
   useLayoutEffect(() => {
     if (previousTextSize.current === props.rowSizing.textSizeKey) return;
     previousTextSize.current = props.rowSizing.textSizeKey;
@@ -681,7 +681,7 @@ function ThreadWorkGroupList(props: {
     loadedRef.current = true;
     handleMetricsChange();
   };
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to LegendList's totalSize state to report content height in the same commit
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- subscribes to LegendList's totalSize state to report content height in the same commit
   useLayoutEffect(() => {
     const state = listRef.current?.getState();
     if (!state) return;
@@ -707,7 +707,7 @@ function ThreadWorkGroupList(props: {
 
   return (
     <View style={{ height, overflow: "hidden" }}>
-      {/* oxlint-disable-next-line t3code/require-registered-list-scroll -- Nested in a fixed-height card inside the thread feed, which owns the header's scroll view. */}
+      {/* oxlint-disable-next-line s1code/require-registered-list-scroll -- Nested in a fixed-height card inside the thread feed, which owns the header's scroll view. */}
       <AnimatedLegendList
         ref={listRef}
         data={props.activities}
@@ -962,14 +962,14 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
             <Text
               className={
                 warning
-                  ? "min-w-0 flex-1 font-t3-medium text-sm text-warning-foreground"
-                  : "min-w-0 flex-1 font-t3-medium text-sm text-adaptive-rose-600-400"
+                  ? "min-w-0 flex-1 font-s1-medium text-sm text-warning-foreground"
+                  : "min-w-0 flex-1 font-s1-medium text-sm text-adaptive-rose-600-400"
               }
             >
               {label}
             </Text>
             {props.copied ? (
-              <Text className="pr-1 font-t3-medium text-3xs text-adaptive-emerald-600-400">
+              <Text className="pr-1 font-s1-medium text-3xs text-adaptive-emerald-600-400">
                 <T>Copied</T>
               </Text>
             ) : null}
@@ -1215,13 +1215,13 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
 
         <View className="shrink-0 flex-row items-center gap-px">
           {props.copied ? (
-            <Text className="pr-1 font-t3-medium text-3xs text-adaptive-emerald-600-400">
+            <Text className="pr-1 font-s1-medium text-3xs text-adaptive-emerald-600-400">
               <T>Copied</T>
             </Text>
           ) : mcpSignInTarget !== null ? (
             <Text
               className={cn(
-                "pr-1 font-t3-medium text-sm",
+                "pr-1 font-s1-medium text-sm",
                 mcpSignedIn ? "text-adaptive-emerald-600-400" : "text-primary",
               )}
             >
@@ -1426,9 +1426,9 @@ export function ThreadWorkGroupToggle(props: {
   readonly iconSubtleColor: import("react-native").ColorValue;
   readonly summary: string;
   readonly summaryKind: ToolGroupSummaryKind;
-  readonly summaryToolIcon?: "browser" | "device" | "t3-code" | "pull-request" | "brain";
+  readonly summaryToolIcon?: "browser" | "device" | "s1-code" | "pull-request" | "brain";
   readonly themeAppearance: "light" | "dark";
-  readonly toolSurface?: import("@t3tools/contracts").ToolActivitySurface;
+  readonly toolSurface?: import("@s1tools/contracts").ToolActivitySurface;
   readonly toolIcon?: ToolActivityIcon;
   readonly hasFailure: boolean;
   readonly shimmer: boolean;

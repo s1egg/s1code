@@ -6,7 +6,7 @@ index 48cc2687aec4b8ba06db2295bec60e95dfaf624f..714172248fd680ae708de7524fd89e1a
  * @param {TranslationOptions} options - The options to interpolate.
  * @returns {string} - The interpolated message.
  */
-+// T3 patch: text without ICU syntax formats to itself, so skip parsing it on every render.
++// S1 patch: text without ICU syntax formats to itself, so skip parsing it on every render.
 +const ICU_SYNTAX = /[{}<]|''/;
  function interpolateIcuMessage(encodedMsg, options) {
  	if (!encodedMsg) return encodedMsg;
@@ -18,7 +18,7 @@ index 48cc2687aec4b8ba06db2295bec60e95dfaf624f..714172248fd680ae708de7524fd89e1a
  /**
  * Hash a message string
  */
-+// T3 patch: msg() hashes its template on every render; the hash ignores variable values.
++// S1 patch: msg() hashes its template on every render; the hash ignores variable values.
 +const messageHashCache = new Map();
  function hashMessage(message, options) {
  	const metadataOptions = options;
@@ -47,7 +47,7 @@ index 6626b2916861acaf5c2094f88e730feaebacd188..3c7cbcbf375bf1c729af2932e9aa50f2
  * @param {TranslationOptions} options - The options to interpolate.
  * @returns {string} - The interpolated message.
  */
-+// T3 patch: text without ICU syntax formats to itself, so skip parsing it on every render.
++// S1 patch: text without ICU syntax formats to itself, so skip parsing it on every render.
 +const ICU_SYNTAX = /[{}<]|''/;
  function interpolateIcuMessage(encodedMsg, options) {
  	if (!encodedMsg) return encodedMsg;
@@ -59,7 +59,7 @@ index 6626b2916861acaf5c2094f88e730feaebacd188..3c7cbcbf375bf1c729af2932e9aa50f2
  /**
  * Hash a message string
  */
-+// T3 patch: msg() hashes its template on every render; the hash ignores variable values.
++// S1 patch: msg() hashes its template on every render; the hash ignores variable values.
 +const messageHashCache = new Map();
  function hashMessage(message, options) {
  	const metadataOptions = options;

@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@s1tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { resolveFileContextMenuAbsolutePath, useFileContextMenu } from "./fileContextMenu";

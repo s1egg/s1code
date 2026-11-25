@@ -1,4 +1,4 @@
-import { RelayApi } from "@t3tools/contracts/relay";
+import { RelayApi } from "@s1tools/contracts/relay";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
@@ -91,7 +91,7 @@ export class AccountDeletion extends Context.Service<
       AccountDeletionQueueFailed
     >;
   }
->()("t3code-relay/accounts/AccountDeletion") {}
+>()("s1code-relay/accounts/AccountDeletion") {}
 
 const make = Effect.gen(function* () {
   const db = yield* RelayDb.RelayDb;
@@ -241,7 +241,7 @@ const make = Effect.gen(function* () {
       );
 
     if (t3Chat.available) {
-      // T3 Chat owns the link; only ask it to drop one that exists.
+      // S1 Chat owns the link; only ask it to drop one that exists.
       yield* t3Chat.getLink({ userId }).pipe(
         Effect.flatMap((link) => (link === null ? Effect.void : t3Chat.unlink({ userId }))),
         Effect.mapError(fail("unlink-t3chat")),

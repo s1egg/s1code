@@ -3,7 +3,7 @@ import type {
   OrchestrationV2DomainEvent,
   OrchestrationV2ThreadProjection,
   ProviderReplayTranscript,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 
 import type { OrchestratorV2ScenarioResult } from "../../OrchestratorScenario.ts";
 import {

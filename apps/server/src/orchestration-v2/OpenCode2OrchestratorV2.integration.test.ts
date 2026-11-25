@@ -12,7 +12,7 @@ import {
   type ProviderReplayEntry,
   type RuntimeMode,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -20,13 +20,13 @@ import {
   OPENCODE2_HTTP_PROTOCOL,
   OpenCode2OrchestratorReplayHarness,
 } from "./Adapters/OpenCode2AdapterV2.testkit.ts";
-import { OPENCODE_PROVIDER } from "@t3tools/provider-opencode/testing";
+import { OPENCODE_PROVIDER } from "@s1tools/provider-opencode/testing";
 import { provideDeterministicTestRuntime } from "./testkit/DeterministicRuntime.ts";
 import type { OrchestratorV2ScenarioStep } from "./testkit/OrchestratorScenario.ts";
 import { runOrchestratorV2ProviderReplayScenario } from "./testkit/ProviderReplayHarness.ts";
-import { checkpointWorkspace } from "@t3tools/provider-testing/replayWorkspace";
-import { readProviderReplayTranscript } from "@t3tools/provider-testing/replayTranscript";
-import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
+import { checkpointWorkspace } from "@s1tools/provider-testing/replayWorkspace";
+import { readProviderReplayTranscript } from "@s1tools/provider-testing/replayTranscript";
+import * as IdAllocator from "@s1tools/provider-core/server/IdAllocator";
 
 const SESSION = "ses_f148ca2deffeJcwCnRQtb0YFNX";
 
@@ -60,10 +60,10 @@ const event = (type: string, data: Record<string, unknown>): ProviderReplayEntry
 });
 const labelled = (entry: ProviderReplayEntry, label: string): ProviderReplayEntry =>
   entry.type === "runtime_exit" ? entry : { ...entry, label };
-/** MCP rules are last-match-wins; allow this thread after denying all T3 servers. */
+/** MCP rules are last-match-wins; allow this thread after denying all S1 servers. */
 const mcpRules = (name: string) => [
-  { action: "t3-code-*", resource: "*", effect: "deny" },
-  { action: `t3-code-thread_${name}_*`, resource: "*", effect: "allow" },
+  { action: "s1-code-*", resource: "*", effect: "deny" },
+  { action: `s1-code-thread_${name}_*`, resource: "*", effect: "allow" },
 ];
 const FULL_ACCESS = [{ action: "*", resource: "*", effect: "allow" }];
 
@@ -139,7 +139,7 @@ const sessionInfo = (directory: string, permissions: ReadonlyArray<unknown>, tit
 });
 
 const instructionsWritten: ReadonlyArray<ProviderReplayEntry> = [
-  out("session.instructions.entry.put", { sessionID: SESSION, key: "t3-code", value: "<any>" }),
+  out("session.instructions.entry.put", { sessionID: SESSION, key: "s1-code", value: "<any>" }),
   reply("session.instructions.entry.put", null),
 ];
 

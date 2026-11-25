@@ -1,4 +1,4 @@
-import { type EnvironmentId, type ScopedThreadRef } from "@t3tools/contracts";
+import { type EnvironmentId, type ScopedThreadRef } from "@s1tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useGT } from "gt-react";
 

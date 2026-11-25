@@ -21,9 +21,29 @@ permissions:
   pull-requests: read
 
 jobs:
+  cloudflare:
+    name: Cloudflare credentials
+    runs-on: ubuntu-24.04
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - id: check
+        name: Check for a Cloudflare token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "CLOUDFLARE_API_TOKEN is not set; skipping relay preview teardown."
+          fi
+
   cleanup_pr:
     name: Tear down relay preview
+    needs: cloudflare
     if: >-
+      needs.cloudflare.outputs.present == 'true' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'pull_request_target' &&
       (
@@ -39,7 +59,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment:
       name: relay-preview-cleanup
@@ -72,11 +92,11 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=t3code-relay...
+              - --filter=s1code-relay...
 
       # Destroy also runs the preview tunnel sweep, which is part of the stack.
       - name: Destroy preview stage
-        run: vp run --filter t3code-relay destroy --stage "$STAGE" --yes --no-input
+        run: vp run --filter s1code-relay destroy --stage "$STAGE" --yes --no-input
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PLANETSCALE_API_TOKEN_ID: ${{ secrets.PLANETSCALE_API_TOKEN_ID }}
@@ -100,7 +120,7 @@ jobs:
   list_closed_previews:
     name: List closed relay previews
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request_target'
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       numbers: ${{ steps.list.outputs.numbers }}
@@ -122,9 +142,9 @@ jobs:
 
   sweep_pr:
     name: Retry teardown for PR ${{ matrix.number }}
-    needs: list_closed_previews
-    if: github.ref == 'refs/heads/main' && needs.list_closed_previews.outputs.numbers != '[]'
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    needs: [cloudflare, list_closed_previews]
+    if: needs.cloudflare.outputs.present == 'true' && github.ref == 'refs/heads/main' && needs.list_closed_previews.outputs.numbers != '[]'
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -184,11 +204,11 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=t3code-relay...
+              - --filter=s1code-relay...
 
       - name: Destroy preview stage
         if: steps.eligible.outputs.eligible == 'yes'
-        run: vp run --filter t3code-relay destroy --stage "$STAGE" --yes --no-input
+        run: vp run --filter s1code-relay destroy --stage "$STAGE" --yes --no-input
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PLANETSCALE_API_TOKEN_ID: ${{ secrets.PLANETSCALE_API_TOKEN_ID }}

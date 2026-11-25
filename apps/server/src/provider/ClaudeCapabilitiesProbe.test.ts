@@ -1,10 +1,10 @@
 // @effect-diagnostics nodeBuiltinImport:off - cleanup uses Node's retrying rm, which the FileSystem service does not expose.
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { ClaudeSettings, type ServerProvider } from "@t3tools/contracts";
+import { ClaudeSettings, type ServerProvider } from "@s1tools/contracts";
 import { vi } from "vite-plus/test";
 import * as ClaudeSdk from "@anthropic-ai/claude-agent-sdk";
 import { assert, it } from "@effect/vitest";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@s1tools/shared/HostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Schema from "effect/Schema";
@@ -46,13 +46,13 @@ it.live.skipIf(HostProcess.Platform.defaultValue() !== "linux")(
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const workspace = yield* fileSystem.realPath(yield* fileSystem.makeTempDirectoryScoped());
-      yield* fileSystem.writeFileString(`${workspace}/claude`, '#!/bin/bash\nt3_launch "$@"\n');
+      yield* fileSystem.writeFileString(`${workspace}/claude`, '#!/bin/bash\ns1_launch "$@"\n');
       yield* fileSystem.chmod(`${workspace}/claude`, 0o755);
       const child = spawnClaudeProbeThroughEnv({
         command: "claude",
         args: ["--probe"],
         cwd: workspace,
-        env: { PATH: `.:${hostPath}`, "BASH_FUNC_t3_launch%%": '() { echo "$PWD $@"; }' },
+        env: { PATH: `.:${hostPath}`, "BASH_FUNC_s1_launch%%": '() { echo "$PWD $@"; }' },
         // @effect-diagnostics-next-line abortControllerInEffect:off - The launcher exits on its own.
         signal: new AbortController().signal,
       });
@@ -67,8 +67,8 @@ it.effect("reports a deleted worktree's scan as finished, not pending", () =>
     const snapshot = yield* probeClaudeWorkspaceSnapshot(
       yield* decodeClaudeSettings({}),
       { skills: [], slashCommands: [] } as unknown as ServerProvider,
-      "/nonexistent/t3-deleted-worktree",
-      { HOME: "/nonexistent/t3-home" },
+      "/nonexistent/s1-deleted-worktree",
+      { HOME: "/nonexistent/s1-home" },
     );
     assert.strictEqual(snapshot.slashCommandsPending, false);
   }).pipe(Effect.provide(NodeServices.layer)),

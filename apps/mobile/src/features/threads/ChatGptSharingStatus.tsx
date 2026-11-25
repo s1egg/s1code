@@ -1,6 +1,6 @@
 import * as Dialog from "../../components/ui/Dialog";
-import type { ServerProvider } from "@t3tools/contracts";
-import { CHATGPT_USAGE_URL, usesChatGptSharing } from "@t3tools/shared/usageLimits";
+import type { ServerProvider } from "@s1tools/contracts";
+import { CHATGPT_USAGE_URL, usesChatGptSharing } from "@s1tools/shared/usageLimits";
 import { T, useGT } from "gt-react-native";
 import { Pressable, View } from "react-native";
 import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
@@ -43,7 +43,7 @@ export function ChatGptSharingStatus({ provider }: { provider: ServerProvider | 
         className="min-h-11 justify-center"
         onPress={() => void tryOpenExternalUrl(CHATGPT_USAGE_URL)}
       >
-        <Text className="text-xs font-t3-medium text-primary">
+        <Text className="text-xs font-s1-medium text-primary">
           <T>Manage usage</T>
         </Text>
       </Pressable>

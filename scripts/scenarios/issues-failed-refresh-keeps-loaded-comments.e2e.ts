@@ -1,14 +1,14 @@
 /// <reference lib="dom" />
-import type { IssueComment, IssueDetail, IssueRef } from "@t3tools/contracts";
+import type { IssueComment, IssueDetail, IssueRef } from "@s1tools/contracts";
 import { expect } from "e2e";
 
-import { test, WEB } from "./t3.ts";
+import { test, WEB } from "./s1.ts";
 
 test(
   "A failed issue refresh keeps the older comments already loaded",
   WEB,
-  async ({ t3, app, browser, screen }) => {
-    await t3.project("demo");
+  async ({ s1, app, browser, screen }) => {
+    await s1.project("demo");
     await browser.addInitScript(() => {
       let rateLimited = false;
       Object.assign(window, {
@@ -124,7 +124,7 @@ test(
       };
     });
 
-    await t3.open("/issues?selectedProjectId=demo&tracker=github&scope=example/demo&key=42");
+    await s1.open("/issues?selectedProjectId=demo&tracker=github&scope=example/demo&key=42");
     const loadOlder = screen.getByRole("button", "Load older comments", { exact: true });
     const loadedComment = screen.getByText("Older comment already read", { exact: true });
     await loadOlder.waitFor({ timeout: 60_000 });

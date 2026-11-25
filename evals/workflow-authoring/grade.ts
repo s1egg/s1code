@@ -2,7 +2,7 @@
 // in the real engine on a throwaway database, and driven with a stand-in for agents.
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import * as NodeSqliteClient from "@s1tools/shared/nodeSqliteClient";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -75,7 +75,7 @@ const world = Effect.fn("gradeWorkflow.world")(function* (
 ) {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-workflow-eval-" });
+  const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "s1-workflow-eval-" });
   const database = NodeSqliteClient.layer({ filename: path.join(directory, "state.sqlite") });
   yield* Effect.provide(
     WorkflowsMigration.pipe(

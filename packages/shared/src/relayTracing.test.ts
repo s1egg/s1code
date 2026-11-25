@@ -101,11 +101,11 @@ it.effect.each([true, false])("filters relay exports at flush (%s)", (enabledAtF
   return Effect.logWarning("private error detail").pipe(
     Effect.withSpan("relay.request", {
       attributes: {
-        "url.full": "http://studio-mac.local:3773/api/threads?cursor=secret",
+        "url.full": "http://studio-mac.local:4773/api/threads?cursor=secret",
         "url.path": "/api/threads",
         "url.query": "cursor=secret",
         "server.address": "studio-mac.local",
-        "server.port": 3773,
+        "server.port": 4773,
       },
     }),
     withRelayClientTracing,
@@ -114,7 +114,7 @@ it.effect.each([true, false])("filters relay exports at flush (%s)", (enabledAtF
     Layer.provide(
       layer(
         { tracesUrl: "https://traces.example.com", tracesDataset: "relay", tracesToken: "token" },
-        { serviceName: "t3code-test", runtime: "node", serviceInstanceId: "id", client: "test" },
+        { serviceName: "s1code-test", runtime: "node", serviceInstanceId: "id", client: "test" },
         { isEnabled: () => enabled },
       ),
     ),

@@ -1,5 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off - A test kills the helper mid-handoff and watches its child through a FIFO.
-import { isWindowsCommandNotFound } from "@t3tools/provider-core/server/snapshotProbe";
+import { isWindowsCommandNotFound } from "@s1tools/provider-core/server/snapshotProbe";
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodeModule from "node:module";
@@ -18,8 +18,8 @@ import * as PlatformError from "effect/PlatformError";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { SpawnExecutableResolution } from "@t3tools/shared/shell";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import { SpawnExecutableResolution } from "@s1tools/shared/shell";
 
 import * as ProcessLauncher from "./process/ProcessLauncher.ts";
 import * as ProcessRunner from "./processRunner.ts";
@@ -383,7 +383,7 @@ describe("ProcessRunner.layer", () => {
       Effect.gen(function* () {
         const runner = yield* ProcessRunner.ProcessRunner;
         const error = yield* runner
-          .run({ command: "t3code-missing-command", args: [] })
+          .run({ command: "s1code-missing-command", args: [] })
           .pipe(Effect.flip);
 
         expect(error._tag).toBe("ProcessSpawnError");
@@ -448,12 +448,12 @@ describe("ProcessRunner.layer", () => {
       Effect.gen(function* () {
         const runner = yield* ProcessRunner.ProcessRunner;
         const error = yield* runner
-          .run({ command: "true", args: [], env: { T3_TOKEN: "secret\0value" } })
+          .run({ command: "true", args: [], env: { S1_TOKEN: "secret\0value" } })
           .pipe(Effect.flip);
 
         expect(error._tag).toBe("ProcessSpawnError");
         expect((error.cause as PlatformError.PlatformError).reason._tag).toBe("BadArgument");
-        expect(String(error.cause)).toContain("T3_TOKEN");
+        expect(String(error.cause)).toContain("S1_TOKEN");
         expect(String(error.cause)).not.toContain("secret");
       }).pipe(Effect.provide(layerLaunched.pipe(Layer.provide(NodeServices.layer)))),
   );

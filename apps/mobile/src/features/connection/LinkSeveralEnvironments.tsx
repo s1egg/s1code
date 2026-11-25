@@ -7,14 +7,14 @@ import {
   linkBatchSummary,
   linkListState,
   runLinkBatch,
-} from "@t3tools/client-runtime/link-batch";
-import { offersLinkedEnvironments } from "@t3tools/client-runtime/link-request";
-import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+} from "@s1tools/client-runtime/link-batch";
+import { offersLinkedEnvironments } from "@s1tools/client-runtime/link-request";
+import { squashAtomCommandFailure } from "@s1tools/client-runtime/state/runtime";
 import {
   AuthAccessWriteScope,
   type AuthMcpClientAccess,
   type EnvironmentId,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as Result from "effect/Result";
 import { T, useGT, useMessages } from "gt-react-native";
 import { useMemo, useRef, useState } from "react";

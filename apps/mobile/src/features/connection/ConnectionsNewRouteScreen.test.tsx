@@ -141,12 +141,12 @@ it("splits a pasted pairing link and preserves the code during address edits", (
     };
 
     enter(code, "manual-code");
-    enter(address, "  http://100.82.53.91:3773/pair#token=test-pairing-code\n");
-    expect(address.value).toBe("http://100.82.53.91:3773");
+    enter(address, "  http://100.82.53.91:4773/pair#token=test-pairing-code\n");
+    expect(address.value).toBe("http://100.82.53.91:4773");
     expect(code.value).toBe("test-pairing-code");
 
     enter(code, "replacement-code");
-    for (const value of ["", "100.82.53.92:3773", "http://100.82.53.92:3773/"]) {
+    for (const value of ["", "100.82.53.92:4773", "http://100.82.53.92:4773/"]) {
       enter(address, value);
       expect(address.value).toBe(value);
       expect(code.value).toBe("replacement-code");

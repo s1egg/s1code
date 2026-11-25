@@ -4,7 +4,7 @@ import {
   authScopeResponse,
   AuthAdministrativeClientScopes,
   connectDeviceVerificationCode,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import { expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -23,7 +23,7 @@ import * as ServerSecretStore from "./ServerSecretStore.ts";
 import * as SessionStore from "./SessionStore.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 
-const TEST_SERVER_PORT = 13_773;
+const TEST_SERVER_PORT = 14_773;
 
 const layerServerConfig = (overrides?: Partial<ServerConfig.ServerConfig["Service"]>) =>
   Layer.effect(
@@ -36,7 +36,7 @@ const layerServerConfig = (overrides?: Partial<ServerConfig.ServerConfig["Servic
         port: TEST_SERVER_PORT,
       } satisfies ServerConfig.ServerConfig["Service"];
     }),
-  ).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-auth-server-test-" })));
+  ).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "s1-auth-server-test-" })));
 
 const layerEnvironmentAuth = (overrides?: Partial<ServerConfig.ServerConfig["Service"]>) =>
   EnvironmentAuth.layer.pipe(
@@ -106,7 +106,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         >[0];
 
         const authenticated = yield* serverAuth.authenticateHttpRequest(request);
-        expect(devExchange.cookieName).toMatch(/^t3_dev_session_/);
+        expect(devExchange.cookieName).toMatch(/^s1_dev_session_/);
         expect(devExchange.expireNormalCookie).toBe(true);
         expect(devExchange.response).toMatchObject(
           authScopeResponse(AuthAdministrativeClientScopes),
@@ -289,7 +289,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         const sessions = yield* SessionStore.SessionStore;
         const bearer = yield* serverAuth.issueSession();
         const verified = yield* serverAuth.authenticateHttpRequest({
-          cookies: { [sessions.legacyCookieName ?? "t3_session"]: "stale" },
+          cookies: { [sessions.legacyCookieName ?? "s1_session"]: "stale" },
           headers: { authorization: `Bearer ${bearer.token}` },
         } as never);
 
@@ -312,7 +312,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
     );
 
     it.effect(
-      "holds an untrusted T3 Connect device until it is approved, and revocation cuts it off",
+      "holds an untrusted S1 Connect device until it is approved, and revocation cuts it off",
       () =>
         Effect.gen(function* () {
           const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
@@ -386,8 +386,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
           });
           const [oldestDeviceSession, newestDeviceSession] = yield* deviceSessions();
           expect(newestDeviceSession).toBeDefined();
-          // Authorized clients lists T3 Connect sessions under this name.
-          expect(newestDeviceSession?.client.label).toBe("T3 Connect");
+          // Authorized clients lists S1 Connect sessions under this name.
+          expect(newestDeviceSession?.client.label).toBe("S1 Connect");
           // Revoking any one of the device's sessions ends all of them and its trust.
           expect(
             yield* serverAuth.revokeClientSession(admin.sessionId, oldestDeviceSession!.sessionId),
@@ -496,7 +496,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         expect(yield* refused(renewed.access_token, other.thumbprint)).toBe(
           "ServerAuthInvalidCredentialError",
         );
-        // Bearer and T3 Connect sessions keep their fixed lifetimes, so unlinking still cuts off.
+        // Bearer and S1 Connect sessions keep their fixed lifetimes, so unlinking still cuts off.
         const bearer = yield* pair();
         expect(yield* refused(bearer.access_token, key.thumbprint)).toBe(
           "ServerAuthInvalidCredentialError",
@@ -536,7 +536,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         const day = 24 * 60 * 60 * 1000;
         const issue = (peerLink: boolean) =>
           serverAuth.issueMcpClientSession({
-            label: peerLink ? "T3 Code · A" : "ChatGPT",
+            label: peerLink ? "S1 Code · A" : "ChatGPT",
             access: "auto",
             peerLink,
             client: requestMetadata,
@@ -757,7 +757,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         const paired = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
           pairing.credential,
           undefined,
-          { ...requestMetadata, label: "T3 Code Desktop" },
+          { ...requestMetadata, label: "S1 Code Desktop" },
         );
         const first = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
           "desktop-bootstrap-token",
@@ -809,7 +809,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
         const sessions = yield* SessionStore.SessionStore;
 
-        const pairingUrl = yield* serverAuth.issueStartupPairingUrl("http://127.0.0.1:3773");
+        const pairingUrl = yield* serverAuth.issueStartupPairingUrl("http://127.0.0.1:4773");
         const token = new URLSearchParams(new URL(pairingUrl).hash.slice(1)).get("token");
         const listedPairingLinks = yield* serverAuth.listPairingLinks();
         expect(token).toBeTruthy();
@@ -974,18 +974,18 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
             {
               url: "/ws",
               cookies: { [sessions.cookieName]: exchanged.sessionToken },
-              headers: { host: "192.168.1.50:3773", ...headers },
+              headers: { host: "192.168.1.50:4773", ...headers },
             } as never,
             "rpc",
           );
 
-        yield* upgrade({ origin: "http://192.168.1.50:3773" });
+        yield* upgrade({ origin: "http://192.168.1.50:4773" });
         yield* upgrade({
           origin: "https://box.tail1234.ts.net",
           "x-forwarded-host": "box.tail1234.ts.net",
         });
-        yield* upgrade({ origin: "t3code://app" });
-        yield* upgrade({ origin: "http://localhost:5733" });
+        yield* upgrade({ origin: "s1code://app" });
+        yield* upgrade({ origin: "http://localhost:4780" });
         yield* upgrade({});
 
         const otherPort = yield* Effect.flip(upgrade({ origin: "http://192.168.1.50:8080" }));
@@ -997,7 +997,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
           layerEnvironmentAuth({
             mode: "web",
             host: "192.168.1.50",
-            devUrl: new URL("http://localhost:5733"),
+            devUrl: new URL("http://localhost:4780"),
           }),
         ),
       ),
@@ -1015,15 +1015,15 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         const post = (headers: Record<string, string>) =>
           serverAuth.authenticateHttpRequest({
             cookies: { [sessions.cookieName]: exchanged.sessionToken },
-            headers: { host: "localhost:13773", ...headers },
+            headers: { host: "localhost:14773", ...headers },
           } as never);
 
-        yield* post({ origin: "http://192.168.1.50:5733", "sec-fetch-site": "same-origin" });
-        const session = yield* post({ origin: "http://localhost:13773" });
+        yield* post({ origin: "http://192.168.1.50:4780", "sec-fetch-site": "same-origin" });
+        const session = yield* post({ origin: "http://localhost:14773" });
         // A client learns which session is its own, to tell its answers from another client's.
         const own = yield* serverAuth.getSessionState({
           cookies: { [sessions.cookieName]: exchanged.sessionToken },
-          headers: { host: "localhost:13773", origin: "http://localhost:13773" },
+          headers: { host: "localhost:14773", origin: "http://localhost:14773" },
         } as never);
         expect(own.sessionId).toBe(session.sessionId);
 
@@ -1033,7 +1033,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         expect(otherPort._tag).toBe("ServerAuthInvalidCredentialError");
         const state = yield* serverAuth.getSessionState({
           cookies: { [sessions.cookieName]: exchanged.sessionToken },
-          headers: { host: "localhost:13773", origin: "http://localhost:3000" },
+          headers: { host: "localhost:14773", origin: "http://localhost:3000" },
         } as never);
         expect(state.authenticated).toBe(false);
       }).pipe(Effect.provide(layerEnvironmentAuth({ mode: "web" }))),
@@ -1049,7 +1049,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
             url: "/ws",
             cookies: {},
             headers: {
-              host: "192.168.1.50:3773",
+              host: "192.168.1.50:4773",
               origin: "http://192.168.1.50:8080",
               authorization: `${scheme} ${bearer.token}`,
             },
@@ -1075,7 +1075,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
           { proofKeyThumbprint: key.thumbprint },
         );
         const session = yield* sessions.verify(exchanged.access_token);
-        const host = "192.168.1.50:3773";
+        const host = "192.168.1.50:4773";
         const socketUrl = `http://${host}/ws`;
         const iat = Math.floor((yield* DateTime.now).epochMilliseconds / 1_000);
         const upgrade = (ticket: string, use: "rpc" | "media", proof?: string) =>
@@ -1152,11 +1152,11 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
             url: "/api/auth/session",
             cookies: {},
             headers: {
-              host: "192.168.1.50:3773",
+              host: "192.168.1.50:4773",
               authorization: `${scheme} ${token}`,
               dpop: key.sign({
                 method: "GET",
-                url: "http://192.168.1.50:3773/api/auth/session",
+                url: "http://192.168.1.50:4773/api/auth/session",
                 token,
                 iat,
               }),
@@ -1189,12 +1189,12 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
           method: "GET",
           url: `/ws?wsTicket=${Redacted.value(rpc.ticket)}&dpop=${key.sign({
             method: "GET",
-            url: "http://192.168.1.50:3773/ws",
+            url: "http://192.168.1.50:4773/ws",
             token: Redacted.value(rpc.ticket),
             iat: Math.floor((yield* DateTime.now).epochMilliseconds / 1_000),
           })}`,
           cookies: {},
-          headers: { host: "192.168.1.50:3773" },
+          headers: { host: "192.168.1.50:4773" },
         } as never;
 
         yield* serverAuth.authenticateWebSocketUpgrade(request, "rpc");

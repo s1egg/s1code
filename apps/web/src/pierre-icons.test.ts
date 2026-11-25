@@ -4,7 +4,7 @@ import {
   hasSpecificPierreIconForFileName,
   resolvePierreIconForEntry,
   syntheticFileNameForLanguageId,
-  T3_PIERRE_ICONS,
+  S1_PIERRE_ICONS,
 } from "./pierre-icons";
 
 describe("Pierre file icons", () => {
@@ -49,7 +49,7 @@ describe("Pierre file icons", () => {
     ["epub", "epub"],
   ])("uses the document family icon for %s", (extension, family) => {
     for (const path of [`report.${extension}`, `folder/REPORT.${extension.toUpperCase()}`]) {
-      assert.equal(resolvePierreIconForEntry(path, "file")?.name, `t3-file-icon-${family}`);
+      assert.equal(resolvePierreIconForEntry(path, "file")?.name, `s1-file-icon-${family}`);
       assert.isTrue(hasSpecificPierreIconForFileName(path));
     }
   });
@@ -57,20 +57,20 @@ describe("Pierre file icons", () => {
   it("ships every custom icon referenced by the extended resolver", () => {
     const customIconNames = new Set(
       [
-        ...Object.values(T3_PIERRE_ICONS.byFileName),
-        ...Object.values(T3_PIERRE_ICONS.byFileExtension),
-      ].filter((name) => name.startsWith("t3-")),
+        ...Object.values(S1_PIERRE_ICONS.byFileName),
+        ...Object.values(S1_PIERRE_ICONS.byFileExtension),
+      ].filter((name) => name.startsWith("s1-")),
     );
     for (const iconName of customIconNames) {
-      assert.include(T3_PIERRE_ICONS.spriteSheet, `id="${iconName}"`);
+      assert.include(S1_PIERRE_ICONS.spriteSheet, `id="${iconName}"`);
     }
   });
 
   it.each([
-    ["src/app.test.ts", "t3-file-icon-typescript-test"],
-    ["src/App.spec.tsx", "t3-file-icon-typescript-test"],
-    ["src/app.test.js", "t3-file-icon-javascript-test"],
-    ["vitest.config.ts", "t3-file-icon-vitest"],
+    ["src/app.test.ts", "s1-file-icon-typescript-test"],
+    ["src/App.spec.tsx", "s1-file-icon-typescript-test"],
+    ["src/app.test.js", "s1-file-icon-javascript-test"],
+    ["vitest.config.ts", "s1-file-icon-vitest"],
     [".oxfmtrc.json", "file-tree-builtin-oxc"],
   ])("uses the Pierre VS Code icon for %s", (path, iconName) => {
     assert.equal(resolvePierreIconForEntry(path, "file")?.name, iconName);
@@ -83,7 +83,7 @@ describe("Pierre file icons", () => {
     ["xslt", "xml"],
   ])("gives %s files and fences the %s icon", (dialect, base) => {
     const baseIcon = resolvePierreIconForEntry(`file.${base}`, "file")?.name;
-    assert.equal(baseIcon, `t3-file-icon-${base}`);
+    assert.equal(baseIcon, `s1-file-icon-${base}`);
     for (const path of [`src/init.${dialect}`, `src/INIT.${dialect.toUpperCase()}`]) {
       assert.equal(resolvePierreIconForEntry(path, "file")?.name, baseIcon);
       assert.isTrue(hasSpecificPierreIconForFileName(path));

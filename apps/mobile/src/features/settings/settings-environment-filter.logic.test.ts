@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { toggleSettingsEnvironment } from "./settings-environment-filter.logic";

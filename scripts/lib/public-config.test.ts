@@ -19,42 +19,42 @@ describe("loadRepoEnv", () => {
     const repoRoot = makeTemporaryDirectory();
     NodeFS.writeFileSync(
       NodePath.join(repoRoot, ".env"),
-      "T3CODE_CLERK_PUBLISHABLE_KEY=pk_root\nT3CODE_CLERK_JWT_TEMPLATE=template_root\nT3CODE_CLERK_CLI_OAUTH_CLIENT_ID=oauth_root\nT3CODE_RELAY_URL=https://root.example.test\n",
+      "S1CODE_CLERK_PUBLISHABLE_KEY=pk_root\nS1CODE_CLERK_JWT_TEMPLATE=template_root\nS1CODE_CLERK_CLI_OAUTH_CLIENT_ID=oauth_root\nS1CODE_RELAY_URL=https://root.example.test\n",
     );
     NodeFS.writeFileSync(
       NodePath.join(repoRoot, ".env.local"),
-      "T3CODE_CLERK_PUBLISHABLE_KEY=pk_local\nT3CODE_CLERK_JWT_TEMPLATE=template_local\nT3CODE_CLERK_CLI_OAUTH_CLIENT_ID=oauth_local\nT3CODE_RELAY_URL=https://local.example.test\n",
+      "S1CODE_CLERK_PUBLISHABLE_KEY=pk_local\nS1CODE_CLERK_JWT_TEMPLATE=template_local\nS1CODE_CLERK_CLI_OAUTH_CLIENT_ID=oauth_local\nS1CODE_RELAY_URL=https://local.example.test\n",
     );
 
-    expect(loadRepoEnv({ baseEnv: {}, repoRoot }).T3CODE_RELAY_URL).toBe(
+    expect(loadRepoEnv({ baseEnv: {}, repoRoot }).S1CODE_RELAY_URL).toBe(
       "https://local.example.test",
     );
     expect(
       loadRepoEnv({
         baseEnv: {
-          T3CODE_CLERK_PUBLISHABLE_KEY: "pk_ci",
-          T3CODE_CLERK_JWT_TEMPLATE: "template_ci",
-          T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
-          T3CODE_RELAY_URL: "https://ci.example.test",
+          S1CODE_CLERK_PUBLISHABLE_KEY: "pk_ci",
+          S1CODE_CLERK_JWT_TEMPLATE: "template_ci",
+          S1CODE_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
+          S1CODE_RELAY_URL: "https://ci.example.test",
         },
         repoRoot,
       }),
     ).toMatchObject({
-      T3CODE_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
+      S1CODE_CLERK_PUBLISHABLE_KEY: "pk_ci",
+      S1CODE_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
       VITE_CLERK_PUBLISHABLE_KEY: "pk_ci",
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      T3CODE_CLERK_JWT_TEMPLATE: "template_ci",
+      S1CODE_CLERK_JWT_TEMPLATE: "template_ci",
       VITE_CLERK_JWT_TEMPLATE: "template_ci",
       EXPO_PUBLIC_CLERK_JWT_TEMPLATE: "template_ci",
-      T3CODE_RELAY_URL: "https://ci.example.test",
-      VITE_T3CODE_RELAY_URL: "https://ci.example.test",
+      S1CODE_RELAY_URL: "https://ci.example.test",
+      VITE_S1CODE_RELAY_URL: "https://ci.example.test",
     });
   });
 });
 
 function makeTemporaryDirectory() {
-  const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3code-public-config-"));
+  const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "s1code-public-config-"));
   temporaryDirectories.push(directory);
   return directory;
 }

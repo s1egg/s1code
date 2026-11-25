@@ -30,11 +30,11 @@ import {
   RelayProtectedError,
   type RelayProtectedError as RelayProtectedErrorType,
   RelayUnregisterDeviceEndpoint,
-} from "@t3tools/contracts/relay";
-import { encodeOAuthScope, oauthScopeSetEquals } from "@t3tools/shared/oauthScope";
-import { decodeRelayJwt } from "@t3tools/shared/relayJwt";
-import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
-import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
+} from "@s1tools/contracts/relay";
+import { encodeOAuthScope, oauthScopeSetEquals } from "@s1tools/shared/oauthScope";
+import { decodeRelayJwt } from "@s1tools/shared/relayJwt";
+import { withRelayClientTracing } from "@s1tools/shared/relayTracing";
+import { normalizeSecureRelayUrl } from "@s1tools/shared/relayUrl";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
@@ -105,9 +105,9 @@ export const ManagedRelayRequestAction = Schema.Literals([
   "unregister relay mobile device",
   "register relay live activity",
   "read relay agent activity snapshot",
-  "read linked T3 Chat account",
-  "start T3 Chat linking",
-  "unlink T3 Chat account",
+  "read linked S1 Chat account",
+  "start S1 Chat linking",
+  "unlink S1 Chat account",
 ]);
 export type ManagedRelayRequestAction = typeof ManagedRelayRequestAction.Type;
 
@@ -124,9 +124,9 @@ export const ManagedRelayRequestActivity = Schema.Literals([
   "Relay mobile device unregistration",
   "Relay Live Activity registration",
   "Relay agent activity snapshot",
-  "Relay T3 Chat link lookup",
-  "Relay T3 Chat link request",
-  "Relay T3 Chat unlinking",
+  "Relay S1 Chat link lookup",
+  "Relay S1 Chat link request",
+  "Relay S1 Chat unlinking",
 ]);
 export type ManagedRelayRequestActivity = typeof ManagedRelayRequestActivity.Type;
 
@@ -143,9 +143,9 @@ const REQUEST_TIMED_OUT_TEXT: Record<ManagedRelayRequestActivity, string> = {
   "Relay mobile device unregistration": msg("Relay mobile device unregistration timed out."),
   "Relay Live Activity registration": msg("Relay Live Activity registration timed out."),
   "Relay agent activity snapshot": msg("Relay agent activity snapshot timed out."),
-  "Relay T3 Chat link lookup": msg("Relay T3 Chat link lookup timed out."),
-  "Relay T3 Chat link request": msg("Relay T3 Chat link request timed out."),
-  "Relay T3 Chat unlinking": msg("Relay T3 Chat unlinking timed out."),
+  "Relay S1 Chat link lookup": msg("Relay S1 Chat link lookup timed out."),
+  "Relay S1 Chat link request": msg("Relay S1 Chat link request timed out."),
+  "Relay S1 Chat unlinking": msg("Relay S1 Chat unlinking timed out."),
 };
 
 export class ManagedRelayRequestTimeoutError extends Schema.TaggedError<ManagedRelayRequestTimeoutError>()(
@@ -232,17 +232,17 @@ const REQUEST_FAILED_TEXT: Record<
     failed: msg("Could not read relay agent activity snapshot."),
     failedWithDetail: msg("Could not read relay agent activity snapshot:"),
   },
-  "read linked T3 Chat account": {
-    failed: msg("Could not read linked T3 Chat account."),
-    failedWithDetail: msg("Could not read linked T3 Chat account:"),
+  "read linked S1 Chat account": {
+    failed: msg("Could not read linked S1 Chat account."),
+    failedWithDetail: msg("Could not read linked S1 Chat account:"),
   },
-  "start T3 Chat linking": {
-    failed: msg("Could not start T3 Chat linking."),
-    failedWithDetail: msg("Could not start T3 Chat linking:"),
+  "start S1 Chat linking": {
+    failed: msg("Could not start S1 Chat linking."),
+    failedWithDetail: msg("Could not start S1 Chat linking:"),
   },
-  "unlink T3 Chat account": {
-    failed: msg("Could not unlink T3 Chat account."),
-    failedWithDetail: msg("Could not unlink T3 Chat account:"),
+  "unlink S1 Chat account": {
+    failed: msg("Could not unlink S1 Chat account."),
+    failedWithDetail: msg("Could not unlink S1 Chat account:"),
   },
 };
 
@@ -343,7 +343,7 @@ export class ManagedRelayDpopSigner extends Context.Service<
       input: ManagedRelayDpopProofInput,
     ) => Effect.Effect<string, ManagedRelayDpopProofCreationError>;
   }
->()("@t3tools/client-runtime/relay/managedRelay/ManagedRelayDpopSigner") {}
+>()("@s1tools/client-runtime/relay/managedRelay/ManagedRelayDpopSigner") {}
 
 export const MANAGED_RELAY_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -434,7 +434,7 @@ export class ManagedRelayClient extends Context.Service<
     }) => Effect.Effect<RelayAgentActivitySnapshotResponse, ManagedRelayClientError>;
     readonly resetTokenCache: Effect.Effect<void>;
   }
->()("@t3tools/client-runtime/relay/managedRelay/ManagedRelayClient") {}
+>()("@s1tools/client-runtime/relay/managedRelay/ManagedRelayClient") {}
 
 const isRelayProtectedError = Schema.is(RelayProtectedError);
 
@@ -931,8 +931,8 @@ export const make = Effect.fn("ManagedRelayClient.make")(function* (
         return yield* client.client
           .getT3ChatLink({ headers: bearerHeaders(input.clerkToken) })
           .pipe(
-            Effect.mapError(relayRequestError("read linked T3 Chat account")),
-            timeoutRelayRequest("Relay T3 Chat link lookup"),
+            Effect.mapError(relayRequestError("read linked S1 Chat account")),
+            timeoutRelayRequest("Relay S1 Chat link lookup"),
           );
       },
       Effect.withSpan("clientRuntime.managedRelay.getT3ChatLink"),
@@ -943,8 +943,8 @@ export const make = Effect.fn("ManagedRelayClient.make")(function* (
         return yield* client.client
           .createT3ChatLinkRequest({ headers: bearerHeaders(input.clerkToken) })
           .pipe(
-            Effect.mapError(relayRequestError("start T3 Chat linking")),
-            timeoutRelayRequest("Relay T3 Chat link request"),
+            Effect.mapError(relayRequestError("start S1 Chat linking")),
+            timeoutRelayRequest("Relay S1 Chat link request"),
           );
       },
       Effect.withSpan("clientRuntime.managedRelay.createT3ChatLinkRequest"),
@@ -955,8 +955,8 @@ export const make = Effect.fn("ManagedRelayClient.make")(function* (
         return yield* client.client
           .unlinkT3Chat({ headers: bearerHeaders(input.clerkToken) })
           .pipe(
-            Effect.mapError(relayRequestError("unlink T3 Chat account")),
-            timeoutRelayRequest("Relay T3 Chat unlinking"),
+            Effect.mapError(relayRequestError("unlink S1 Chat account")),
+            timeoutRelayRequest("Relay S1 Chat unlinking"),
           );
       },
       Effect.withSpan("clientRuntime.managedRelay.unlinkT3Chat"),

@@ -1,8 +1,8 @@
-import { EnvironmentId, ThreadId, TurnItemId } from "@t3tools/contracts";
+import { EnvironmentId, ThreadId, TurnItemId } from "@s1tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 
-import { injectMcpAppDocumentBootstrap } from "@t3tools/shared/mcpApp";
+import { injectMcpAppDocumentBootstrap } from "@s1tools/shared/mcpApp";
 
 import "~/index.css";
 import { act, fakeTimers, render } from "../../../test/render";
@@ -179,7 +179,7 @@ describe("McpAppFrame", () => {
     await expect
       .element(
         screen.getByText(
-          "The Demo app needs a newer T3 Code server on this environment. Update the server to use it.",
+          "The Demo app needs a newer S1 Code server on this environment. Update the server to use it.",
         ),
       )
       .toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { OrchestratorMcpFailure, TrimmedNonEmptyString, WorkflowHook } from "@t3tools/contracts";
+import { OrchestratorMcpFailure, TrimmedNonEmptyString, WorkflowHook } from "@s1tools/contracts";
 import * as Schema from "effect/Schema";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import { McpSchema, Tool, Toolkit } from "effect/ai";
@@ -15,7 +15,7 @@ const ExactName = Schema.String.check(
   Schema.makeFilter((name: string) => name.trim().length > 0, { expected: "a non-blank string" }),
 );
 
-const WorkflowTool = Tool.make("t3_workflow", {
+const WorkflowTool = Tool.make("s1_workflow", {
   description:
     "Durable workflow runs on this server. start: `workflow`, `input`, `idempotencyKey` (same key, same run). list: runs, by `status` and `tag`. read: one run and its steps. questions: what runs ask a person, by `kind`. hooks: the URL paths that start runs. store: what workflows keep, under keys starting with `key`; store_set a `key` to `value`; store_delete. signal: wake a wait with `value`, addressed by `runId` and `wait`, or by `workflow` and `channel`; answers a question as `{choice, reason?}`. withdraw: end the question `wait` of `runId` unanswered, with an optional `reason`; its run goes on as if the question timed out. resume: run a paused run's failed step again. cancel.",
   parameters: Schema.Struct({

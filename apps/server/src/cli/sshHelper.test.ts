@@ -3,7 +3,7 @@ import { assert, it } from "@effect/vitest";
 import { keepsRunningServer } from "./sshHelper.ts";
 
 const runtime = (fields: Record<string, unknown>) =>
-  JSON.stringify({ version: 1, pid: 42, port: 3773, ...fields });
+  JSON.stringify({ version: 1, pid: 42, port: 4773, ...fields });
 
 it("keeps a same-or-newer server and replaces an older or unidentified one", () => {
   assert.isTrue(keepsRunningServer(runtime({ serverVersion: "0.1.6" }), 42, "0.1.6"));

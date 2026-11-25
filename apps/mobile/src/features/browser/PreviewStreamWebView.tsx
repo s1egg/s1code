@@ -1,8 +1,8 @@
-import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
+import { errorDisplayMessage } from "@s1tools/client-runtime/errors";
 import { Button } from "../../components/ui/Button";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import * as Dialog from "../../components/ui/Dialog";
-import previewStreamScript from "@t3tools/mobile-preview-stream";
+import previewStreamScript from "@s1tools/mobile-preview-stream";
 import {
   previewStreamControlLabel,
   previewStreamHostSetupMessage,
@@ -11,8 +11,8 @@ import {
   type PreviewStreamFileChooser,
   type PreviewStreamInput,
   type PreviewStreamSelectMenu,
-} from "@t3tools/client-runtime/preview/server-browser-stream";
-import type { EnvironmentId, PreviewStreamHostSetup } from "@t3tools/contracts";
+} from "@s1tools/client-runtime/preview/server-browser-stream";
+import type { EnvironmentId, PreviewStreamHostSetup } from "@s1tools/contracts";
 import {
   useEffectEvent,
   useImperativeHandle,
@@ -316,7 +316,7 @@ function PreviewStreamDocumentView({
     onControl?.(null);
   });
   // The stream lives exactly as long as this view.
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- starts the bootstrap timeout and stops the WebView stream when this view unmounts
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- starts the bootstrap timeout and stops the WebView stream when this view unmounts
   useLayoutEffect(() => {
     active.current = true;
     const view = webView.current;
@@ -487,7 +487,7 @@ function PreviewStreamDocumentView({
             setSelectMenu((current) => (current?.id === selectMenu.id ? null : current))
           }
         >
-          {/* oxlint-disable-next-line t3code/require-registered-list-scroll -- Sheet content; the sheet keeps its own header handling. */}
+          {/* oxlint-disable-next-line s1code/require-registered-list-scroll -- Sheet content; the sheet keeps its own header handling. */}
           <LegendList
             data={selectMenu.options}
             // The page answers by option index.

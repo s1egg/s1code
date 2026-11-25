@@ -1,4 +1,4 @@
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ThreadId } from "@s1tools/contracts";
 import { expect, it } from "vite-plus/test";
 
 import { closingTerminalIds, holdTerminalIdWhileClosing } from "./closingTerminals";

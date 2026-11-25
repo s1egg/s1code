@@ -1,12 +1,12 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@s1tools/contracts";
 
 import type { RelayEnvironmentView } from "../connection/useConnectionController";
 import type { ConnectedEnvironmentSummary } from "../../state/remote-runtime-types";
 
 const SHOWCASE_LOCAL_ENVIRONMENT_DISPLAY_URLS: Readonly<Record<string, string>> = {
   "Moonbase Terminal": "https://moonbase.tail9f3a.ts.net/",
-  "Suspense Station": "https://suspense-vps.hel1.t3.sh/",
-  "Kernel Cabin": "http://100.82.16.5:3773/",
+  "Suspense Station": "https://suspense-vps.hel1.s1.sh/",
+  "Kernel Cabin": "http://100.82.16.5:4773/",
 };
 
 export function applyShowcaseLocalEnvironmentDisplayUrls(
@@ -32,17 +32,17 @@ export function resolveShowcaseEnvironmentUpdateDisplayUrl(input: {
 
 const pocketPiId = EnvironmentId.make("showcase-pocket-pi");
 const pocketPiEndpoint = {
-  httpBaseUrl: "https://pocket-pi.t3.sh",
-  wsBaseUrl: "wss://pocket-pi.t3.sh",
-  providerKind: "t3_relay" as const,
+  httpBaseUrl: "https://pocket-pi.s1.sh",
+  wsBaseUrl: "wss://pocket-pi.s1.sh",
+  providerKind: "s1_relay" as const,
 };
 
 export const SHOWCASE_CONNECTED_CLOUD_ENVIRONMENTS: ReadonlyArray<ConnectedEnvironmentSummary> = [
   {
     environmentId: EnvironmentId.make("showcase-aurora-gpu"),
-    // oxlint-disable-next-line t3code/no-untranslated-copy -- showcase fixture data
+    // oxlint-disable-next-line s1code/no-untranslated-copy -- showcase fixture data
     environmentLabel: "Aurora GPU Pod",
-    displayUrl: "https://aurora-gpu.t3.sh",
+    displayUrl: "https://aurora-gpu.s1.sh",
     isRelayManaged: true,
     isEnabled: true,
     connectionState: "connected",
@@ -55,7 +55,7 @@ export const SHOWCASE_AVAILABLE_CLOUD_ENVIRONMENTS: ReadonlyArray<RelayEnvironme
   {
     environment: {
       environmentId: pocketPiId,
-      // oxlint-disable-next-line t3code/no-untranslated-copy -- showcase fixture data
+      // oxlint-disable-next-line s1code/no-untranslated-copy -- showcase fixture data
       label: "Pocket Pi",
       endpoint: pocketPiEndpoint,
       linkedAt: "2026-07-16T08:00:00.000Z",

@@ -1,4 +1,4 @@
-import type { OrchestrationV2ThreadStreamItem } from "@t3tools/contracts";
+import type { OrchestrationV2ThreadStreamItem } from "@s1tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";

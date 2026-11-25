@@ -2,17 +2,17 @@ import { expect } from "e2e";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 
-import { T3_HOME } from "../e2e.config.ts";
-import { runPromise, test, WEB } from "./t3.ts";
+import { S1_HOME } from "../e2e.config.ts";
+import { runPromise, test, WEB } from "./s1.ts";
 
 test(
   "Appearance reflects new edits after the environment theme directory is restored",
   WEB,
-  async ({ t3, app, screen }) => {
-    await t3.project("theme-directory");
-    const themes = `${T3_HOME}/userdata/themes`;
-    const previous = `${T3_HOME}/themes-before-restore`;
-    const restored = `${T3_HOME}/themes-to-restore`;
+  async ({ s1, app, screen }) => {
+    await s1.project("theme-directory");
+    const themes = `${S1_HOME}/userdata/themes`;
+    const previous = `${S1_HOME}/themes-before-restore`;
+    const restored = `${S1_HOME}/themes-to-restore`;
     const file = "restore-fixture.json";
     const contents = (name: string) =>
       JSON.stringify({
@@ -30,7 +30,7 @@ test(
       }),
     );
     try {
-      await t3.open("/settings/appearance");
+      await s1.open("/settings/appearance");
       await screen.getByRole("button", "Use Original Palette theme", { exact: true }).waitFor();
       await runPromise(
         Effect.gen(function* () {

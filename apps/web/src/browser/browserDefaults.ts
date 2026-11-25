@@ -6,7 +6,7 @@ import {
   type PreviewAppearancePreference,
   type PreviewViewportSetting,
   type PreviewZoomFactor,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 
 import {
   ensureClientSettingsHydrated,

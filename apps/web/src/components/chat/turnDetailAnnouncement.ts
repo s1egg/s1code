@@ -1,6 +1,6 @@
-import type { RunId, ScreenReaderAnnouncements } from "@t3tools/contracts";
+import type { RunId, ScreenReaderAnnouncements } from "@s1tools/contracts";
 import * as DateTime from "effect/DateTime";
-import { searchToolLabelParts } from "@t3tools/shared/toolActivity";
+import { searchToolLabelParts } from "@s1tools/shared/toolActivity";
 import { msg } from "gt-react";
 
 import { m } from "../../i18n/messages";
@@ -186,7 +186,7 @@ export interface TurnDetailMemory {
 }
 
 /** The heading every agent message has in the timeline. */
-const MESSAGE_AUTHOR = "T3 Code";
+const MESSAGE_AUTHOR = "S1 Code";
 
 /**
  * Decides which of the turn's messages and steps a screen reader hears next.

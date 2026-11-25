@@ -99,7 +99,7 @@ const recordScript = read("actions/record-build-tag/action.yml")
   .replace(/^remote=.*$/m, 'remote="$TEST_REMOTE"');
 
 function recordTag(commitOf, failedFetches = 0) {
-  const directory = mkdtempSync(join(tmpdir(), "t3-record-tag-"));
+  const directory = mkdtempSync(join(tmpdir(), "s1-record-tag-"));
   const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
   try {
     const remote = join(directory, "remote.git");
@@ -405,7 +405,7 @@ test("a fork preview label removed before the run builds nothing", async () => {
 test("a version override rewrites only the app version", () => {
   const config = read("../apps/mobile/app.config.ts");
   const next = setMobileVersion(config, "9.8.7");
-  assert.match(next, /^ {2}version: repoEnv\.T3CODE_MOBILE_VERSION \?\? "9\.8\.7",$/m);
+  assert.match(next, /^ {2}version: repoEnv\.S1CODE_MOBILE_VERSION \?\? "9\.8\.7",$/m);
   assert.equal(setMobileVersion(next, "9.8.7"), next);
   assert.deepEqual(
     next.split("\n").filter((line, index) => line !== config.split("\n")[index]).length,

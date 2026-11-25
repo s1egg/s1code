@@ -1,4 +1,4 @@
-import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
+import { errorDisplayMessage } from "@s1tools/client-runtime/errors";
 import * as Dialog from "../../components/ui/Dialog";
 import {
   StackActions,
@@ -6,26 +6,26 @@ import {
   type PartialState,
   type StackActionType,
 } from "@react-navigation/native";
-import { availableScratchWorkspaceRoot } from "@t3tools/client-runtime/operations/projects";
+import { availableScratchWorkspaceRoot } from "@s1tools/client-runtime/operations/projects";
 import {
   findPromptLinkProjects,
   findPromptLinkPullRequestThread,
   resolvePromptLinkModelSelection,
-} from "@t3tools/client-runtime/prompt-links";
+} from "@s1tools/client-runtime/prompt-links";
 import {
   executeAtomQuery,
   isAtomCommandInterrupted,
   runAtomCommand,
   squashAtomCommandFailure,
-} from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+} from "@s1tools/client-runtime/state/runtime";
+import type { EnvironmentProject } from "@s1tools/client-runtime/state/shell";
+import type { EnvironmentId, ThreadId } from "@s1tools/contracts";
 import type {
   LinkedPrompt,
   PromptLinkPullRequest,
   PromptLinkRepository,
-} from "@t3tools/shared/promptLinks";
-import { parseNewThreadLink } from "@t3tools/shared/promptLinksCopy";
+} from "@s1tools/shared/promptLinks";
+import { parseNewThreadLink } from "@s1tools/shared/promptLinksCopy";
 import { Atom, type AsyncResult } from "effect/reactivity";
 import { msg } from "gt-react-native";
 

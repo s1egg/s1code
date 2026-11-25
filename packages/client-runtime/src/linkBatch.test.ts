@@ -1,4 +1,4 @@
-import { EnvironmentId, PeerLinkError } from "@t3tools/contracts";
+import { EnvironmentId, PeerLinkError } from "@s1tools/contracts";
 import * as Result from "effect/Result";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -18,7 +18,7 @@ const machine = (name: string, overrides: Partial<LinkableMachine> = {}): Linkab
   connected: true,
   connectOnly: false,
   linked: false,
-  urls: [`https://${name}.example.ts.net`, `http://100.64.0.1:3773`],
+  urls: [`https://${name}.example.ts.net`, `http://100.64.0.1:4773`],
   ...overrides,
 });
 const id = (name: string) => EnvironmentId.make(`environment-${name}`);
@@ -101,7 +101,7 @@ describe("runLinkBatch", () => {
 
     expect(linked[0]).toEqual({
       url: "https://a.example.ts.net",
-      alternateUrls: ["http://100.64.0.1:3773"],
+      alternateUrls: ["http://100.64.0.1:4773"],
       expectedEnvironmentId: id("a"),
       expectedLabel: "a",
       pairingCode: `code-for-${id("a")}`,
@@ -293,7 +293,7 @@ describe("runLinkBatch link back", () => {
       id("a"),
       {
         url: "https://source.example.ts.net",
-        alternateUrls: ["http://100.64.0.1:3773"],
+        alternateUrls: ["http://100.64.0.1:4773"],
         expectedEnvironmentId: id("source"),
         expectedLabel: "source",
         pairingCode: `code-for-${id("source")}`,

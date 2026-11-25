@@ -1,4 +1,4 @@
-import type { EnvironmentCloudLinkStateResult } from "@t3tools/contracts";
+import type { EnvironmentCloudLinkStateResult } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { cloudChangeReplacesLink } from "./t3ConnectState";

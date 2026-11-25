@@ -63,8 +63,8 @@ const layerEnvironmentFor = (
       Layer.mergeAll(
         NodeServices.layer,
         DesktopConfig.layerTest({
-          T3CODE_HOME: baseDir,
-          VITE_DEV_SERVER_URL: isDevelopment ? "http://127.0.0.1:5733" : undefined,
+          S1CODE_HOME: baseDir,
+          VITE_DEV_SERVER_URL: isDevelopment ? "http://127.0.0.1:4780" : undefined,
           ...env,
         }),
       ),
@@ -123,7 +123,7 @@ describe("DesktopObservability", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-output-log-test-",
+        prefix: "s1-desktop-backend-output-log-test-",
       });
       const layerEnvironment = layerEnvironmentFor(baseDir, false);
       const logPath = yield* Effect.gen(function* () {
@@ -139,7 +139,7 @@ describe("DesktopObservability", () => {
         const factory = yield* DesktopObservability.DesktopBackendOutputLogFactory;
         const outputLog = yield* factory.forInstance("primary");
         yield* outputLog.beginSession({
-          details: "pid=123 port=3773 cwd=/repo",
+          details: "pid=123 port=4773 cwd=/repo",
         });
         yield* outputLog.writeOutputChunk("stdout", new TextEncoder().encode("hello server\n"));
         assert.isFalse(yield* fileSystem.exists(logPath));
@@ -165,7 +165,7 @@ describe("DesktopObservability", () => {
       assert.equal(start.annotations.runId, "test-run");
       assert.equal(start.annotations.instanceId, "primary");
       assert.equal(start.annotations.phase, "START");
-      assert.equal(start.annotations.details, "pid=123 port=3773 cwd=/repo");
+      assert.equal(start.annotations.details, "pid=123 port=4773 cwd=/repo");
 
       assert.equal(output.message, "backend child process output");
       assert.equal(output.level, "INFO");
@@ -201,7 +201,7 @@ describe("DesktopObservability", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-output-snapshot-test-",
+        prefix: "s1-desktop-backend-output-snapshot-test-",
       });
       const layerEnvironment = layerEnvironmentFor(baseDir, false);
       const logPath = yield* Effect.gen(function* () {
@@ -241,7 +241,7 @@ describe("DesktopObservability", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-backend-output-bound-test-",
+        prefix: "s1-desktop-backend-output-bound-test-",
       });
       const layerEnvironment = layerEnvironmentFor(baseDir, false);
       const logPath = yield* Effect.gen(function* () {
@@ -285,7 +285,7 @@ describe("DesktopObservability", () => {
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const directory = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-rotating-prune-test-",
+        prefix: "s1-desktop-rotating-prune-test-",
       });
       const filePath = `${directory}/server-child.log`;
       const retained = ["1", "3", "04", "4.0", "4e0", "0x4", "+4", "notes"];
@@ -307,7 +307,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "s1-desktop-observability-test-",
       });
       const layerEnvironment = layerEnvironmentFor(baseDir);
       yield* writeObservabilitySettings(layerEnvironment, {
@@ -340,7 +340,7 @@ describe("DesktopObservability", () => {
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "s1-desktop-observability-test-",
       });
       const layerEnvironment = layerEnvironmentFor(baseDir);
       yield* writeObservabilitySettings(layerEnvironment, {
@@ -364,12 +364,12 @@ describe("DesktopObservability", () => {
     );
   });
 
-  it.effect("describes the Node runtime and the desktop mode under semantic or t3code keys", () => {
+  it.effect("describes the Node runtime and the desktop mode under semantic or s1code keys", () => {
     const requests: Array<ExportedRequest> = [];
     return Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-desktop-observability-test-",
+        prefix: "s1-desktop-observability-test-",
       });
       const layerEnvironment = layerEnvironmentFor(baseDir);
       yield* writeObservabilitySettings(layerEnvironment, {
@@ -388,7 +388,7 @@ describe("DesktopObservability", () => {
         body,
         `"key":"process.runtime.version","value":{"stringValue":"${process.versions.node}"}`,
       );
-      assert.include(body, '"key":"t3code.desktop.mode","value":{"stringValue":"development"}');
+      assert.include(body, '"key":"s1code.desktop.mode","value":{"stringValue":"development"}');
       assert.notInclude(body, "service.mode");
     }).pipe(
       Effect.scoped,

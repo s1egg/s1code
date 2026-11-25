@@ -1,14 +1,14 @@
-import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell";
+import type { EnvironmentThreadShell } from "@s1tools/client-runtime/state/shell";
 import type {
   PullRequestSummary,
   ThreadPullRequestKey,
   ThreadPullRequestLink,
   VcsStatusResult,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import {
   sourceControlClients,
   type ChangeRequestTerminology,
-} from "@t3tools/client-runtime/source-control-clients";
+} from "@s1tools/client-runtime/source-control-clients";
 import { changeRequestTermKind } from "../lib/changeRequestTerm";
 
 import {
@@ -16,7 +16,7 @@ import {
   resolveThreadCurrentPullRequestLink,
   resolveThreadPullRequestBadge,
   threadPullRequestKeyOf,
-} from "@t3tools/client-runtime/thread-pull-requests";
+} from "@s1tools/client-runtime/thread-pull-requests";
 import { msg } from "gt-react-native";
 
 import { m, type MessageResolver } from "../i18n/messages";

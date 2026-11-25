@@ -1,8 +1,8 @@
 # Security policy
 
-Report security vulnerabilities affecting T3 Code or T3 Tools-operated infrastructure to
-[security@t3.codes](mailto:security@t3.codes). Please do not disclose them publicly until we have had
-a reasonable opportunity to investigate and remediate them.
+Report security vulnerabilities in this fork at
+[s1egg/s1code security](https://github.com/s1egg/s1code/security). Please do not disclose them
+publicly until there has been a reasonable opportunity to investigate and remediate them.
 
-See the [full security policy](https://t3.codes/security-policy) for reporting details, scope,
-and safe harbor terms for good-faith research.
+Vulnerabilities in official T3 Code still go to [security@t3.codes](mailto:security@t3.codes).
+See upstream [TRADEMARK.md](../TRADEMARK.md) for what stays T3 Tools, Inc.

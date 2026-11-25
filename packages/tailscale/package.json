@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/tailscale",
+  "name": "@s1tools/tailscale",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,8 +13,8 @@
     "test": "vp test run --config ../../vite.config.ts --dir ."
   },
   "dependencies": {
-    "@t3tools/contracts": "workspace:*",
-    "@t3tools/shared": "workspace:*",
+    "@s1tools/contracts": "workspace:*",
+    "@s1tools/shared": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

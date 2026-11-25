@@ -24,7 +24,7 @@ export type ManagedTunnelClient = ReturnType<typeof makeClient>;
 
 export interface ManagedTunnel extends Binding.Service<
   ManagedTunnel,
-  "T3CodeRelay.ManagedTunnel",
+  "S1CodeRelay.ManagedTunnel",
   () => Effect.Effect<
     ManagedTunnelClient,
     never,
@@ -33,7 +33,7 @@ export interface ManagedTunnel extends Binding.Service<
 > {}
 
 /** Alchemy's read-write tunnel binding, plus `disconnect`, which it does not expose. */
-export const ManagedTunnel = Binding.Service<ManagedTunnel>("T3CodeRelay.ManagedTunnel");
+export const ManagedTunnel = Binding.Service<ManagedTunnel>("S1CodeRelay.ManagedTunnel");
 
 // Same token policy id and permissions as Alchemy's ReadWriteTunnelBinding, so the
 // Worker's scoped token is unchanged.

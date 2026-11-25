@@ -1,8 +1,8 @@
-import { EnvironmentId, ScheduledTaskId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ScheduledTaskId, ThreadId } from "@s1tools/contracts";
 import {
   formatComposerContextReference,
   threadContextRecord,
-} from "@t3tools/shared/composerContextReferences";
+} from "@s1tools/shared/composerContextReferences";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -85,9 +85,9 @@ describe("recallableComposerPrompt", () => {
 
   it("removes canonical references without restoring dangling chips", () => {
     const sent =
-      "Look at [Terminal](t3-context://v1/terminal/term-1) please\n    indented  code\n![image](t3-context://v1/image/img-1)";
+      "Look at [Terminal](s1-context://v1/terminal/term-1) please\n    indented  code\n![image](s1-context://v1/image/img-1)";
     expect(recallableComposerPrompt(sent)).toBe("Look at please\n    indented  code");
-    expect(recallableComposerPrompt("![image](t3-context://v1/image/img-1)")).toBe("");
+    expect(recallableComposerPrompt("![image](s1-context://v1/image/img-1)")).toBe("");
   });
 });
 
@@ -123,7 +123,7 @@ describe("buildComposerPromptHistoryEntries", () => {
       {
         id: "m1",
         role: "user",
-        text: `Agent in ${threadChip} finished on ${machineChip}. See [Gone](t3-context://v1/thread/gone) ![shot](t3-context://v1/image/img-1)`,
+        text: `Agent in ${threadChip} finished on ${machineChip}. See [Gone](s1-context://v1/thread/gone) ![shot](s1-context://v1/image/img-1)`,
         context: { version: 1, records: [thread, unmentioned, machine] },
       },
     ]);
@@ -144,7 +144,7 @@ describe("buildComposerPromptHistoryEntries", () => {
     });
   });
 
-  it("skips messages sent by automations, agents, and T3 Code", () => {
+  it("skips messages sent by automations, agents, and S1 Code", () => {
     const typed = buildComposerPromptHistoryEntries([
       { id: "m1", role: "user", text: "typed" },
       { id: "m2", role: "user", text: "scheduled", scheduledTaskId: ScheduledTaskId.make("task") },

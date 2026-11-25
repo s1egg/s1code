@@ -1,4 +1,4 @@
-// `t3_worktree_handoff` through its real access declaration, the real WorktreeMcpService and the
+// `s1_worktree_handoff` through its real access declaration, the real WorktreeMcpService and the
 // real TaskFolders over real Git; only the orchestrator, the project record and the setup-script
 // runner are stand-ins.
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
@@ -13,7 +13,7 @@ import {
   type RuntimeMode,
   ThreadId,
   type WorktreeMcpHandoffResult,
-} from "@t3tools/contracts";
+} from "@s1tools/contracts";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -99,7 +99,7 @@ const handoffFrom = <A, E>(
   const shell = () => ({ ...McpToolAccessTestkit.liveThreadShell(threadId, modes), projectId });
   const setupScriptRuns: Array<string> = [];
   const git = GitVcsDriver.layer.pipe(
-    Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "t3-handoff-" })),
+    Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "s1-handoff-" })),
     Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
   );
   const service = WorktreeMcpService.layer.pipe(
@@ -177,7 +177,7 @@ const handoffFrom = <A, E>(
     const path = yield* Path.Path;
     const driver = yield* GitVcsDriver.GitVcsDriver;
     const tmp = yield* fileSystem.realPath(
-      yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-handoff-" }),
+      yield* fileSystem.makeTempDirectoryScoped({ prefix: "s1-handoff-" }),
     );
     const run = (cwd: string, ...args: ReadonlyArray<string>) =>
       driver.execute({ operation: "handoff-test", cwd, args });
@@ -197,7 +197,7 @@ const handoffFrom = <A, E>(
     );
     return yield* test({
       handoff: toolkit
-        .handle("t3_worktree_handoff", { branch: "handed-off", startFromOrigin: false })
+        .handle("s1_worktree_handoff", { branch: "handed-off", startFromOrigin: false })
         .pipe(
           Stream.unwrap,
           Stream.runCollect,
@@ -209,10 +209,10 @@ const handoffFrom = <A, E>(
         ),
       writeLayout: fileSystem
         .writeFileString(
-          path.join(project, "t3.json"),
+          path.join(project, "s1.json"),
           JSON.stringify({
             worktreeLayout: {
-              create: `touch "${marker}" && git worktree add -q -b "$T3_WORKTREE_BRANCH" "$T3_WORKTREE_PROJECT_PATH"`,
+              create: `touch "${marker}" && git worktree add -q -b "$S1_WORKTREE_BRANCH" "$S1_WORKTREE_PROJECT_PATH"`,
             },
           }),
         )
@@ -224,7 +224,7 @@ const handoffFrom = <A, E>(
 };
 
 it.live.each(belowFullAccess)(
-  "t3_worktree_handoff from a $runtimeMode/$interactionMode thread leaves an approved layout command unrun",
+  "s1_worktree_handoff from a $runtimeMode/$interactionMode thread leaves an approved layout command unrun",
   (modes) =>
     handoffFrom(modes, ({ handoff, writeLayout, layoutRan, setupScriptRuns }) =>
       Effect.gen(function* () {
@@ -242,7 +242,7 @@ it.live.each(belowFullAccess)(
 );
 
 it.live.each(belowFullAccess)(
-  "t3_worktree_handoff from a $runtimeMode/$interactionMode thread leaves the setup script unrun",
+  "s1_worktree_handoff from a $runtimeMode/$interactionMode thread leaves the setup script unrun",
   (modes) =>
     handoffFrom(modes, ({ handoff, setupScriptRuns }) =>
       Effect.gen(function* () {
@@ -256,7 +256,7 @@ it.live.each(belowFullAccess)(
     ),
 );
 
-it.live("t3_worktree_handoff from a Full access thread runs an approved layout command", () =>
+it.live("s1_worktree_handoff from a Full access thread runs an approved layout command", () =>
   handoffFrom(
     { runtimeMode: "full-access", interactionMode: "default" },
     ({ handoff, writeLayout, layoutRan, setupScriptRuns }) =>
@@ -280,7 +280,7 @@ const limitedToAuto: ManagedPolicySummary = {
 };
 
 it.live(
-  "t3_worktree_handoff from a Full access thread above the administrator's limit leaves an approved layout command unrun",
+  "s1_worktree_handoff from a Full access thread above the administrator's limit leaves an approved layout command unrun",
   () =>
     handoffFrom(
       fullAccess,
@@ -302,7 +302,7 @@ it.live(
 );
 
 it.live(
-  "t3_worktree_handoff from a Full access thread above the administrator's limit leaves the setup script unrun",
+  "s1_worktree_handoff from a Full access thread above the administrator's limit leaves the setup script unrun",
   () =>
     handoffFrom(
       fullAccess,
@@ -318,7 +318,7 @@ it.live(
     ),
 );
 
-it.live("t3_worktree_handoff neither runs nor approves a layout command nobody approved", () =>
+it.live("s1_worktree_handoff neither runs nor approves a layout command nobody approved", () =>
   handoffFrom(
     { runtimeMode: "full-access", interactionMode: "default" },
     ({ handoff, writeLayout, layoutRan }) =>

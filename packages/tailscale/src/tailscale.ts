@@ -1,7 +1,7 @@
-import { ExecutionEnvironmentDescriptor } from "@t3tools/contracts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import * as NetService from "@t3tools/shared/Net";
-import { isLocalLoopbackHost, normalizeHostname } from "@t3tools/shared/hostClassification";
+import { ExecutionEnvironmentDescriptor } from "@s1tools/contracts";
+import * as HostProcess from "@s1tools/shared/HostProcess";
+import * as NetService from "@s1tools/shared/Net";
+import { isLocalLoopbackHost, normalizeHostname } from "@s1tools/shared/hostClassification";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -13,7 +13,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 export const DEFAULT_TAILSCALE_SERVE_PORT = 443;
 /**
  * Bounds `tailscale status` and `tailscale debug prefs`. Allows the 1.8-2.6 s
- * `tailscale status` has been measured at when T3 Code spawns it on Windows.
+ * `tailscale status` has been measured at when S1 Code spawns it on Windows.
  * A CLI that never answers takes longer than this to fail, because the kill
  * that follows the timeout also takes time (`taskkill` on Windows).
  */
@@ -614,7 +614,7 @@ const dialedHostPort = (url: string) => {
 
 const reachesTarget = (url: string, target: { readonly host: string; readonly port: number }) => {
   const dialed = dialedHostPort(url);
-  // Go reads the port as a decimal number, so 03773 is 3773.
+  // Go reads the port as a decimal number, so 04773 is 4773.
   if (dialed === undefined || Number(dialed.port) !== target.port) return undefined;
   const reach = reaches(dialed.host, target.host);
   return reach === undefined ? undefined : { reach, hostname: dialed.host };
@@ -767,11 +767,11 @@ export const probeTailscaleHttpsEndpoint = Effect.fn("tailscale.probeTailscaleHt
   }) {
     const client = yield* HttpClient.HttpClient;
     const descriptor = yield* Effect.gen(function* () {
-      const url = new URL("/.well-known/t3/environment", input.baseUrl);
+      const url = new URL("/.well-known/s1/environment", input.baseUrl);
       const response = yield* client
         .execute(HttpClientRequest.get(url.toString()))
         .pipe(Effect.flatMap(HttpClientResponse.filterStatusOk));
-      // Another app or another T3 server can hold the Serve port; only our own descriptor counts.
+      // Another app or another S1 server can hold the Serve port; only our own descriptor counts.
       return yield* HttpClientResponse.schemaBodyJson(ExecutionEnvironmentDescriptor)(response);
     }).pipe(Effect.timeoutOption(input.timeout ?? TAILSCALE_PROBE_TIMEOUT));
 

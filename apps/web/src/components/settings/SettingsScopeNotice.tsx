@@ -1,4 +1,4 @@
-import { resolveEnvironmentMachineKind, type EnvironmentId } from "@t3tools/contracts";
+import { resolveEnvironmentMachineKind, type EnvironmentId } from "@s1tools/contracts";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useGT } from "gt-react";
 import { ChevronRightIcon, LayersIcon } from "lucide-react";
