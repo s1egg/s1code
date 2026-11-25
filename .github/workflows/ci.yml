@@ -10,7 +10,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
+  # "hosted" keeps this queue off the original Blacksmith run, which stays
+  # queued forever on a runner this fork does not have and cannot be cancelled.
+  group: ci-hosted-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
