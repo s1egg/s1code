@@ -398,7 +398,7 @@ jobs:
     name: iOS preview client
     needs: [request, preview]
     if: needs.preview.outputs.ios_build == 'true'
-    runs-on: macos-15-intel
+    runs-on: macos-26-intel
     timeout-minutes: 60
     environment:
       name: mobile-preview-fork

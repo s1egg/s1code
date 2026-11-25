@@ -206,7 +206,12 @@ jobs:
         if: github.event_name == 'pull_request' || steps.login.outputs.ready == 'true'
         shell: bash # pipefail: a failed build fails the step through tee
         run: |
-          node scripts/mobile-native-client.ts ensure android --prepare --abi "$ABI" ${EXPECTED_FINGERPRINT:+--expect-fingerprint "$EXPECTED_FINGERPRINT"} | tee "$RUNNER_TEMP/dev-client.log"
+          set -o pipefail
+          build() {
+            node scripts/mobile-native-client.ts ensure android --prepare --abi "$ABI" ${EXPECTED_FINGERPRINT:+--expect-fingerprint "$EXPECTED_FINGERPRINT"} | tee "$RUNNER_TEMP/dev-client.log"
+          }
+          # A cold Gradle cache sometimes fails the first plugin-portal lookup.
+          build || { echo "Android build failed; retrying once."; build; }
           result="$(tail -n 1 "$RUNNER_TEMP/dev-client.log")"
           echo "### android dev client: \`$(jq -r '.source' <<<"$result")\` for fingerprint \`$(jq -r '.fingerprint' <<<"$result")\`" >> "$GITHUB_STEP_SUMMARY"
 
@@ -223,9 +228,9 @@ jobs:
   ios:
     name: iOS simulator
     if: github.repository == 's1egg/s1code' && (github.event_name != 'workflow_dispatch' || inputs.platform == 'ios')
-    # macos-latest is the arm64 macOS 26 image, and this account cannot acquire
-    # those runners. The Intel macOS 15 image is the closest one that starts.
-    runs-on: macos-15-intel
+    # macos-latest (arm64 macOS 26) is not being assigned. Intel macOS 15 starts,
+    # but its Xcode 16.4 cannot resolve clerk-ios, which needs Swift tools 6.2.
+    runs-on: macos-26-intel
     timeout-minutes: 60
     concurrency:
       group: mobile-dev-client-ios-${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.fingerprint || github.sha }}
