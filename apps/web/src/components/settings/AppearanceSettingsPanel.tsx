@@ -9,9 +9,11 @@ import {
   type EffortDisplay,
   type EnvironmentIdentificationMode,
   MAX_APPEARANCE_CONTRAST,
+  MAX_BACKGROUND_GLOW,
   MAX_GLASS_OPACITY,
   MAX_PANEL_ANIMATION_DURATION_MS,
   MIN_APPEARANCE_CONTRAST,
+  MIN_BACKGROUND_GLOW,
   MIN_GLASS_OPACITY,
   MIN_PANEL_ANIMATION_DURATION_MS,
 } from "@s1tools/contracts/settings";
@@ -139,6 +141,12 @@ export function AppearanceSettingsPanel() {
     "--settings-slider-progress": `${glassOpacityRatio * 100}%`,
     "--settings-slider-fill-offset": `${0.5 - glassOpacityRatio}rem`,
   } as CSSProperties;
+  const backgroundGlowRatio =
+    (settings.backgroundGlow - MIN_BACKGROUND_GLOW) / (MAX_BACKGROUND_GLOW - MIN_BACKGROUND_GLOW);
+  const backgroundGlowSliderStyle = {
+    "--settings-slider-progress": `${backgroundGlowRatio * 100}%`,
+    "--settings-slider-fill-offset": `${0.5 - backgroundGlowRatio}rem`,
+  } as CSSProperties;
   const appearanceContrastRatio =
     (settings.appearanceContrast - MIN_APPEARANCE_CONTRAST) /
     (MAX_APPEARANCE_CONTRAST - MIN_APPEARANCE_CONTRAST);
@@ -264,6 +272,54 @@ export function AppearanceSettingsPanel() {
                 style={glassOpacitySliderStyle}
                 type="range"
                 value={settings.glassOpacity}
+              />
+            </div>
+          }
+        />
+
+        <SettingsRow
+          {...searchableSetting("setting-background-glow")}
+          description={gt(
+            "Soft accent-colored light in the window corners in dark mode. Set to 0 for a flat background.",
+          )}
+          resetAction={
+            settings.backgroundGlow !== DEFAULT_UNIFIED_SETTINGS.backgroundGlow ? (
+              <SettingResetButton
+                ariaLabel={gt("Reset background glow to default")}
+                onClick={() =>
+                  updateSettings({ backgroundGlow: DEFAULT_UNIFIED_SETTINGS.backgroundGlow })
+                }
+              />
+            ) : null
+          }
+          control={
+            <div className="flex w-full items-center gap-3 sm:w-52">
+              <output
+                className="min-w-12 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
+                htmlFor="background-glow"
+              >
+                {settings.backgroundGlow}
+              </output>
+              <input
+                aria-label={gt("Background glow")}
+                className="settings-slider min-w-0 flex-1"
+                id="background-glow"
+                max={MAX_BACKGROUND_GLOW}
+                min={MIN_BACKGROUND_GLOW}
+                onChange={(event) => {
+                  const backgroundGlow = Number(event.currentTarget.value);
+                  if (
+                    Number.isInteger(backgroundGlow) &&
+                    backgroundGlow >= MIN_BACKGROUND_GLOW &&
+                    backgroundGlow <= MAX_BACKGROUND_GLOW
+                  ) {
+                    updateSettings({ backgroundGlow });
+                  }
+                }}
+                step={1}
+                style={backgroundGlowSliderStyle}
+                type="range"
+                value={settings.backgroundGlow}
               />
             </div>
           }

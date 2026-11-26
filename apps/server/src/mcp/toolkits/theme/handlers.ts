@@ -1,6 +1,6 @@
 import { OrchestratorMcpFailure } from "@s1tools/contracts";
 import { THEME_GUIDE } from "@s1tools/shared/themeCss";
-import { MOBILE_THEME_IDS } from "@s1tools/shared/themePalettes";
+import { MOBILE_THEME_IDS, WEB_ONLY_THEME_IDS } from "@s1tools/shared/themePalettes";
 import * as Effect from "effect/Effect";
 import * as Struct from "effect/Struct";
 import * as EnvironmentTheme from "../../../environmentTheme.ts";
@@ -30,7 +30,7 @@ export const layer = McpToolAccess.toLayer(ThemeToolkit, {
       );
       return {
         current,
-        builtIn: MOBILE_THEME_IDS,
+        builtIn: [...MOBILE_THEME_IDS, ...WEB_ONLY_THEME_IDS],
         published: published.map(({ id, name, css, background }) => ({
           id,
           name,

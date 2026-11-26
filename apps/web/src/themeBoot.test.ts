@@ -1,3 +1,4 @@
+import { WEB_ONLY_THEMES } from "@s1tools/shared/themePalettes";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import indexHtml from "../index.html?raw";
@@ -189,6 +190,19 @@ describe("index.html boot script", () => {
       prefersDark: true,
     },
     {
+      name: "built-in dark-only Midnight stays dark on a light OS",
+      storage: { [THEME_STORAGE_KEY]: "s1-midnight", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
+      prefersDark: false,
+    },
+    {
+      name: "built-in dark-only Midnight stays dark under an explicit light mode",
+      storage: {
+        [THEME_STORAGE_KEY]: "s1-midnight",
+        [THEME_APPEARANCE_MODE_STORAGE_KEY]: "light",
+      },
+      prefersDark: false,
+    },
+    {
       name: "a legacy s1-grove preference resolves through the alias",
       storage: { [THEME_STORAGE_KEY]: "s1-grove", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
       prefersDark: true,
@@ -330,6 +344,24 @@ describe("index.html boot script", () => {
         expect(boot.backgroundColor).toBe(colors!.chrome);
         expect(boot.metaContent).toBe(colors!.chrome);
       }
+    }
+  });
+
+  it("keeps every dark-only built-in boot splash in sync with the real palettes", () => {
+    for (const theme of WEB_ONLY_THEMES) {
+      expect(theme.appearance).toBe("dark");
+      expect(getThemeColorsForMode(theme, "light")).toBeNull();
+      const boot = runBootScript({
+        storage: { [THEME_STORAGE_KEY]: theme.id },
+        prefersDark: false,
+      });
+      expect(boot.themeId).toBe(theme.id);
+      expect(boot.isDark).toBe(true);
+      expect(boot.bootVariables["--boot-background"]).toBe(theme.colors.canvas);
+      expect(boot.bootVariables["--boot-foreground"]).toBe(theme.colors.text);
+      expect(boot.bootVariables["--boot-accent"]).toBe(theme.colors.accent);
+      expect(boot.backgroundColor).toBe(theme.colors.chrome);
+      expect(boot.metaContent).toBe(theme.colors.chrome);
     }
   });
 

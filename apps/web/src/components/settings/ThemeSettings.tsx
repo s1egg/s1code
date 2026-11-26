@@ -54,6 +54,7 @@ import {
 } from "./ThemePreviewCircles";
 import { ThemeWireframe } from "./ThemeWireframe";
 import { T, useGT } from "gt-react";
+import { WEB_ONLY_THEMES } from "@s1tools/shared/themePalettes";
 
 const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
   S1_CHAT_THEME,
@@ -61,6 +62,7 @@ const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
   OCEAN_THEME,
   EMBER_THEME,
   IRIS_THEME,
+  ...WEB_ONLY_THEMES,
 ];
 
 function collectionVariantLabels(themes: ReadonlyArray<ThemeDefinition>): ReadonlyArray<string> {
@@ -824,7 +826,11 @@ export function ThemeLibrary({
                   initialAppearance,
                 })
               }
-              onUse={() => persistTheme(maintainerTheme.id)}
+              onUse={() => {
+                const half = singleAppearanceOf(maintainerTheme);
+                if (half === null) persistTheme(maintainerTheme.id);
+                else assignHalf(half, maintainerTheme.id);
+              }}
               onUseMode={handlePairPick(maintainerTheme.id)}
               theme={card}
             />

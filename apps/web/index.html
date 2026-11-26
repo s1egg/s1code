@@ -122,6 +122,38 @@
               chrome: "oklch(0.225975 0.031062 293.741)",
             },
           },
+          "s1-midnight": {
+            dark: {
+              background: "#101119",
+              foreground: "#ececf6",
+              accent: "#8b7dff",
+              chrome: "#16171f",
+            },
+          },
+          "s1-graphite": {
+            dark: {
+              background: "#121314",
+              foreground: "#ededee",
+              accent: "#5aa2ff",
+              chrome: "#18191a",
+            },
+          },
+          "s1-charcoal": {
+            dark: {
+              background: "#161311",
+              foreground: "#f0ebe4",
+              accent: "#e58a5c",
+              chrome: "#1c1917",
+            },
+          },
+          "s1-deepsea": {
+            dark: {
+              background: "#0d1516",
+              foreground: "#e6f0ee",
+              accent: "#3fd0b0",
+              chrome: "#131b1c",
+            },
+          },
         };
         const BUILT_IN_THEME_MODES = Object.fromEntries(
           Object.entries(BUILT_IN_THEME_PALETTES).map(([id, palettes]) => [
@@ -138,6 +170,10 @@
           "ocean",
           "ember",
           "iris",
+          "s1-midnight",
+          "s1-graphite",
+          "s1-charcoal",
+          "s1-deepsea",
           "s1-chat-dark",
           "s1-grove",
           "s1-ocean",
@@ -248,7 +284,11 @@
             themeModes !== null;
           const theme = isKnownTheme && storedTheme ? storedTheme : "system";
           const isThemed = isKnownTheme && themeModes !== null;
-          const baseAppearance = customTheme ? customTheme.appearance : "light";
+          const baseAppearance = customTheme
+            ? customTheme.appearance
+            : (builtInModes?.includes("light") ?? true)
+              ? "light"
+              : "dark";
           const systemMode = prefersDark ? "dark" : "light";
           const storedAppearanceMode = window.localStorage.getItem(
             THEME_APPEARANCE_MODE_STORAGE_KEY,

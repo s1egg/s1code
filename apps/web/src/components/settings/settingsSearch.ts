@@ -367,6 +367,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("transparent transparency solid menus dialogs composer")],
   },
   {
+    // Prefixed because the slider control already owns the `background-glow` id.
+    id: "setting-background-glow",
+    title: msg("Background glow"),
+    to: "/settings/appearance",
+    searchTerms: [msg("window gradient accent dark flat wallpaper")],
+  },
+  {
     id: "diff-color-scheme",
     title: msg("Diff colors"),
     to: "/settings/diffs",

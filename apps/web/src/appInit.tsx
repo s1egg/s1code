@@ -105,6 +105,9 @@ function startClientAppearance(): void {
         root.style.removeProperty("--glass-blur");
       }
     }
+    if (previous?.backgroundGlow !== settings.backgroundGlow) {
+      root.style.setProperty("--background-glow", `${settings.backgroundGlow}%`);
+    }
     if (
       previous?.fontFamilySans !== settings.fontFamilySans ||
       previous.fontFamilyCode !== settings.fontFamilyCode ||

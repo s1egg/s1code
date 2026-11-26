@@ -147,6 +147,17 @@ export const GlassOpacity = Schema.Int.check(
 export type GlassOpacity = typeof GlassOpacity.Type;
 const DEFAULT_GLASS_OPACITY: GlassOpacity = 80;
 
+export const MIN_BACKGROUND_GLOW = 0;
+export const MAX_BACKGROUND_GLOW = 48;
+export const BackgroundGlow = Schema.Int.check(
+  Schema.isBetween({
+    minimum: MIN_BACKGROUND_GLOW,
+    maximum: MAX_BACKGROUND_GLOW,
+  }),
+);
+export type BackgroundGlow = typeof BackgroundGlow.Type;
+const DEFAULT_BACKGROUND_GLOW: BackgroundGlow = 30;
+
 export const MIN_APPEARANCE_CONTRAST = 50;
 export const MAX_APPEARANCE_CONTRAST = 200;
 export const AppearanceContrast = Schema.Int.check(
@@ -494,6 +505,9 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   glassOpacity: GlassOpacity.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_GLASS_OPACITY)),
+  ),
+  backgroundGlow: BackgroundGlow.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_BACKGROUND_GLOW)),
   ),
   fontSizeInterface: InterfaceFontSize.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_INTERFACE_FONT_SIZE)),
@@ -2136,6 +2150,7 @@ export const ClientSettingsPatch = Schema.Struct({
   diffLayout: Schema.optionalKey(DiffLayout),
   environmentIdentificationMode: Schema.optionalKey(EnvironmentIdentificationMode),
   glassOpacity: Schema.optionalKey(GlassOpacity),
+  backgroundGlow: Schema.optionalKey(BackgroundGlow),
   onboardingCompletedAt: Schema.optionalKey(Schema.NullOr(Schema.String)),
   fontSizeInterface: Schema.optionalKey(InterfaceFontSize),
   fontSizePrompt: Schema.optionalKey(PromptFontSize),

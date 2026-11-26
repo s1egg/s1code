@@ -135,6 +135,16 @@ describe("ClientSettings terminal close confirmation", () => {
   });
 });
 
+describe("ClientSettings background glow", () => {
+  it("defaults to 30 and accepts 0 through 48 whole steps", () => {
+    expect(decodeClientSettings({}).backgroundGlow).toBe(30);
+    expect(decodeClientSettingsPatch({ backgroundGlow: 0 }).backgroundGlow).toBe(0);
+    expect(decodeClientSettingsPatch({ backgroundGlow: 48 }).backgroundGlow).toBe(48);
+    expect(() => decodeClientSettingsPatch({ backgroundGlow: 49 })).toThrow();
+    expect(() => decodeClientSettingsPatch({ backgroundGlow: 12.5 })).toThrow();
+  });
+});
+
 describe("ServerSettings usage price overrides", () => {
   const prices = { inputCostPerMillionTokens: 2, outputCostPerMillionTokens: 8 };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { converter } from "culori/fn";
-import { BUILT_IN_THEMES } from "@s1tools/shared/themePalettes";
+import { BUILT_IN_THEMES, WEB_ONLY_THEMES } from "@s1tools/shared/themePalettes";
 
 import { CONTEXT_CHIP_ACCENTS, contextChipColorVariable } from "./lib/contextChipAccents";
 import { appAtomRegistry } from "./rpc/atomRegistry";
@@ -87,7 +87,10 @@ describe("theme files", () => {
     const palettes = [
       getStandardThemeColors("light"),
       getStandardThemeColors("dark"),
-      ...BUILT_IN_THEMES.flatMap((theme) => [theme.colors, ...Object.values(theme.variants ?? {})]),
+      ...[...BUILT_IN_THEMES, ...WEB_ONLY_THEMES].flatMap((theme) => [
+        theme.colors,
+        ...Object.values(theme.variants ?? {}),
+      ]),
     ];
     for (const colors of palettes) {
       expect(
@@ -102,6 +105,17 @@ describe("theme files", () => {
       for (const background of [colors.muted, colors.messageSurface, colors.codeBackground]) {
         expect(distance(colors.searchMatchBackground, background)).toBeGreaterThan(0.08);
         expect(distance(colors.searchMatchActiveBackground, background)).toBeGreaterThan(0.08);
+      }
+    }
+  });
+
+  it("keeps button labels readable in the dark-only themes", () => {
+    for (const { colors } of WEB_ONLY_THEMES) {
+      for (const surface of [colors.canvas, colors.surface, colors.surfaceOverlay]) {
+        expect(contrastRatio(colors.error, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+      for (const fill of [colors.messageAction, colors.messageActionHover]) {
+        expect(contrastRatio(colors.messageActionForeground, fill)).toBeGreaterThanOrEqual(4.5);
       }
     }
   });
@@ -624,7 +638,7 @@ describe("context chip colors", () => {
   const palettes = [
     getStandardThemeColors("light"),
     getStandardThemeColors("dark"),
-    ...BUILT_IN_THEMES.flatMap((theme) =>
+    ...[...BUILT_IN_THEMES, ...WEB_ONLY_THEMES].flatMap((theme) =>
       getThemeModes(theme).map((mode) => getThemeColorsForMode(theme, mode)!),
     ),
   ];

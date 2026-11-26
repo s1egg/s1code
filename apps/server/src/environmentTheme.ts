@@ -18,6 +18,7 @@ import {
   MOBILE_DEFAULT_THEME_ID,
   MOBILE_THEME_IDS,
   UNPUBLISHABLE_THEME_IDS,
+  WEB_ONLY_THEME_IDS,
 } from "@s1tools/shared/themePalettes";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -472,7 +473,11 @@ const make = Effect.gen(function* () {
       Effect.gen(function* () {
         if (themeId === undefined) return yield* select;
         if (theme === undefined) {
-          const known = [...MOBILE_THEME_IDS, ...(yield* refresh).themes.map(({ id }) => id)];
+          const known = [
+            ...MOBILE_THEME_IDS,
+            ...WEB_ONLY_THEME_IDS,
+            ...(yield* refresh).themes.map(({ id }) => id),
+          ];
           if (!known.includes(themeId)) {
             return yield* new EnvironmentThemeRefusedError({
               themeId,
