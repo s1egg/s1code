@@ -170,6 +170,14 @@ export function IssuesDrillIn({
   // page address saved the projects to hide.
   const explicitScope = useExplicitListScope(threadRef, "issues");
   const [threadProjectOnly, setThreadProjectOnly] = useState(project !== null && !explicitScope);
+  const listRequest = useThreadDetailsStore((state) => state.listRequest);
+  const [readListRequest, setReadListRequest] = useState(listRequest);
+  if (listRequest !== readListRequest) {
+    // An old page address saved new filters while the list was on screen.
+    setReadListRequest(listRequest);
+    setSearch(readIssueListPreferences());
+    setThreadProjectOnly(project !== null && !explicitScope);
+  }
   const { environments } = useEnvironments();
   const projects = useProjects();
   const issuesSupported = useIssuesSupported();

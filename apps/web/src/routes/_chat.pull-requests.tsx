@@ -11,7 +11,7 @@ import {
 } from "../components/pullRequest/pullRequestsSearch.logic";
 import { useRightPanelStore } from "../rightPanelStore";
 import { appAtomRegistry } from "../rpc/atomRegistry";
-import { readProjects } from "../state/entities";
+import { readProjects, whenProjectsLoaded } from "../state/entities";
 import { environmentPresentations } from "../state/presentation";
 
 export const Route = createFileRoute("/_chat/pull-requests")({
@@ -21,20 +21,21 @@ export const Route = createFileRoute("/_chat/pull-requests")({
     redirectToThreadDetails(
       "pull-requests",
       search.repository && search.number
-        ? (threadRef) => {
-            // Read when the thread's sidebar mounts, by when its projects have loaded.
-            const linked = resolveLinkedPullRequest(
-              search,
-              readProjects().filter((project) => !project.isScratch),
-              new Set(appAtomRegistry.get(environmentPresentations.presentationsAtom).keys()),
-            );
-            if (linked === null) return;
-            const { environmentId, ...pullRequest } = linked;
-            useRightPanelStore.getState().openPullRequest(threadRef, {
-              ...(environmentId !== threadRef.environmentId ? { environmentId } : {}),
-              ...pullRequest,
-            });
-          }
+        ? (threadRef) =>
+            // A linked server's projects can arrive after the thread's sidebar mounts.
+            whenProjectsLoaded(search.selectedEnvironmentId ?? search.environmentId ?? null, () => {
+              const linked = resolveLinkedPullRequest(
+                search,
+                readProjects().filter((project) => !project.isScratch),
+                new Set(appAtomRegistry.get(environmentPresentations.presentationsAtom).keys()),
+              );
+              if (linked === null) return;
+              const { environmentId, ...pullRequest } = linked;
+              useRightPanelStore.getState().openPullRequest(threadRef, {
+                ...(environmentId !== threadRef.environmentId ? { environmentId } : {}),
+                ...pullRequest,
+              });
+            })
         : undefined,
       { explicitListScope: search.projectId !== undefined || search.environmentId !== undefined },
     );

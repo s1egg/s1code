@@ -84,7 +84,11 @@ vi.mock(import("~/state/issues"), async (original) => {
 });
 
 import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
-import { threadDetailsListCountKey, useThreadDetailsStore } from "../chat/threadDetailsStore";
+import {
+  openThreadDetailsDrillIn,
+  threadDetailsListCountKey,
+  useThreadDetailsStore,
+} from "../chat/threadDetailsStore";
 import { IssuesDrillIn } from "./IssuesDrillIn";
 import { readIssueListPreferences, writeIssueListPreferences } from "./issueListPreferences";
 
@@ -155,6 +159,34 @@ describe("IssuesDrillIn", () => {
     expect(state.targets).toEqual([
       expect.objectContaining({ input: expect.objectContaining({ excludeProjectIds: ["api"] }) }),
     ]);
+  });
+
+  it("shows the filters an old page address saved while the list was already on screen", async () => {
+    using _reset = resetList();
+    const attached = { threadRef, presentation: "popover" as const };
+    useThreadDetailsStore.getState().attach(attached);
+    using _attached = {
+      [Symbol.dispose]: () => useThreadDetailsStore.getState().detach(attached),
+    };
+    await using _screen = await render(<IssuesDrillIn threadRef={threadRef} project={project} />);
+    expect(state.targets).toEqual([
+      expect.objectContaining({ input: expect.objectContaining({ excludeProjectIds: ["web"] }) }),
+    ]);
+
+    // What the redirect from an old Issues address does.
+    writeIssueListPreferences({
+      who: "all",
+      status: "closed",
+      hideProjects: [[EnvironmentId.make(ENV), ProjectId.make("api")]],
+    });
+    openThreadDetailsDrillIn("issues", { explicitListScope: true, reloadList: true });
+    await expect
+      .poll(() => state.targets)
+      .toEqual([
+        expect.objectContaining({
+          input: expect.objectContaining({ state: "closed", excludeProjectIds: ["api"] }),
+        }),
+      ]);
   });
 
   it("cuts a long search to what the list accepts before saving and asking", async () => {

@@ -86,7 +86,11 @@ vi.mock(import("~/state/pullRequests"), async (original) => {
 });
 
 import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
-import { threadDetailsListCountKey, useThreadDetailsStore } from "../chat/threadDetailsStore";
+import {
+  openThreadDetailsDrillIn,
+  threadDetailsListCountKey,
+  useThreadDetailsStore,
+} from "../chat/threadDetailsStore";
 import { PullRequestsDrillIn } from "./PullRequestsDrillIn";
 import { writePullRequestListPreferences } from "./pullRequestListPreferences";
 
@@ -132,6 +136,38 @@ it("lists another project's pull requests once the thread it sits beside changes
 
   await screen.rerender(<PullRequestsDrillIn threadRef={threadRef} project={docs} />);
   await expect.poll(() => state.inputs.at(-1)).toMatchObject({ projectId: "project-2" });
+
+  await screen.rerender(<PullRequestsDrillIn threadRef={threadRef} project={null} />);
+  await expect.poll(() => state.inputs.at(-1)).not.toHaveProperty("projectId");
+});
+
+it("shows the filters an old page address saved while the list was already on screen", async () => {
+  window.localStorage.removeItem("s1.pullRequests.preferences");
+  const attached = { threadRef, presentation: "popover" as const };
+  useThreadDetailsStore.setState({ listCounts: {}, scope: null, explicitListScope: null });
+  useThreadDetailsStore.getState().attach(attached);
+  using _store = {
+    [Symbol.dispose]: () => {
+      useThreadDetailsStore.getState().detach(attached);
+      useThreadDetailsStore.setState({ scope: null, explicitListScope: null, drillIn: null });
+    },
+  };
+  await using _screen = await render(
+    <PullRequestsDrillIn threadRef={threadRef} project={project} />,
+  );
+  await expect.poll(() => state.inputs.at(-1)).toMatchObject({ projectId: "project-1" });
+
+  // What the redirect from an old Pull requests address does.
+  writePullRequestListPreferences({
+    involvement: "all",
+    state: "closed",
+    projectId: ProjectId.make("project-2"),
+    environmentId: EnvironmentId.make(ENV),
+  });
+  openThreadDetailsDrillIn("pull-requests", { explicitListScope: true, reloadList: true });
+  await expect
+    .poll(() => state.inputs.at(-1))
+    .toMatchObject({ state: "closed", projectId: "project-2" });
 });
 
 it("opens with the project an old page address named instead of the thread's own", async () => {

@@ -133,14 +133,20 @@ export function resolveLinkedPullRequest<
         })
       : findScopedProject(projects, selectedEnvironmentId, linkedProjectId);
   if (project === undefined) return null;
-  // The address is user-controlled; its URL only stands in for the link when it names this PR.
+  // The address is user-controlled; its URL only stands in for the link when it names this PR on
+  // the same forge, since two forges can each hold acme/web#12.
   const link = search.selectedUrl
     ? sourceControlClients.parseChangeRequestUrl(search.selectedUrl)?.link
     : undefined;
+  const identity = project.repositoryIdentity;
+  const pullRequestHost =
+    host ?? (identity ? sourceControlClients.changeRequestHost(identity, identity.provider) : null);
   const url =
     link !== undefined &&
     link.number === number &&
-    link.repository.toLowerCase() === repository.toLowerCase()
+    link.repository.toLowerCase() === repository.toLowerCase() &&
+    pullRequestHost != null &&
+    link.host.toLowerCase() === pullRequestHost.toLowerCase()
       ? search.selectedUrl
       : undefined;
   return {

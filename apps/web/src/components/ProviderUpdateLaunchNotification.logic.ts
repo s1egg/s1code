@@ -356,7 +356,8 @@ function latestFinishedAtForProviders(providers: ReadonlyArray<ServerProvider>):
   }, null);
 }
 
-function terminalUpdateKey(provider: ServerProvider): string {
+/** Names one finished update; a dismissed notice stays hidden while a provider still reports it. */
+export function terminalUpdateKey(provider: ServerProvider): string {
   return `${provider.updateState?.status}:${provider.driver}:${provider.updateState?.finishedAt ?? "pending"}:${provider.updateState?.message ?? ""}`;
 }
 

@@ -91,6 +91,14 @@ describe("resolveLinkedPullRequest", () => {
     });
     expect(other).not.toHaveProperty("url");
     expect(other).not.toHaveProperty("revealUrl");
+    for (const selectedUrl of [
+      "https://gitlab.com/acme/web/-/merge_requests/12",
+      "https://git.cafe/acme/web/pull/12",
+    ]) {
+      const otherForge = linked({ repository: "acme/web", number: 12, selectedUrl });
+      expect(otherForge, selectedUrl).toMatchObject({ projectId: web.id });
+      expect(otherForge, selectedUrl).not.toHaveProperty("url");
+    }
   });
 
   it("opens nothing for a repository no project holds", () => {

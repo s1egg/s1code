@@ -1,25 +1,34 @@
+import type { EnvironmentId } from "@s1tools/contracts";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
 
 const ENVIRONMENT_ID = vi.hoisted(() => "workstation");
+const OTHER_ENVIRONMENT_ID = vi.hoisted(() => "laptop");
+const writes = vi.hoisted(() => [] as Array<{ environmentId: string }>);
 
 vi.mock(import("~/state/presentation"), async (original) => {
   const { Atom } = await import("effect/reactivity");
   const actual = await original();
-  const presentation = {
-    entry: { target: { label: "workstation" } },
+  const presentation = (label: string) => ({
+    entry: { target: { label } },
     connection: { phase: "connected" },
     serverConfig: {
       environment: { capabilities: { usagePriceOverrides: true, usageModelAliases: true } },
     },
-  };
+  });
   return {
     ...actual,
     environmentPresentations: {
       ...actual.environmentPresentations,
-      presentationsAtom: Atom.make(new Map([[ENVIRONMENT_ID, presentation]])) as never,
+      presentationsAtom: Atom.make(
+        new Map([
+          [ENVIRONMENT_ID, presentation("workstation")],
+          [OTHER_ENVIRONMENT_ID, presentation("laptop")],
+        ]),
+      ) as never,
     },
   };
 });
@@ -52,14 +61,47 @@ vi.mock(import("~/state/session"), async (original) => {
       ...actual.environmentSession,
       sessionStateAtom: (() => session) as never,
     },
+    readEnvironmentScope: (() => true) as never,
   };
 });
-vi.mock(import("~/state/use-atom-command"), async (original) => ({
-  ...(await original()),
-  useAtomCommand: (() => vi.fn()) as never,
-}));
+vi.mock(import("~/state/use-atom-command"), async (original) => {
+  const { AsyncResult } = await import("effect/reactivity");
+  const { serverEnvironment } = await import("~/state/server");
+  const write = async (input: { environmentId: string }) => {
+    writes.push(input);
+    return AsyncResult.success(undefined);
+  };
+  return {
+    ...(await original()),
+    useAtomCommand: ((command: unknown) =>
+      command === serverEnvironment.updateSettings
+        ? write
+        : async () => AsyncResult.success(undefined)) as never,
+  };
+});
 
-import { UsagePriceOverrides } from "./UsagePriceOverrides";
+import { UsageDrillIn } from "./UsageDrillIn";
+import { UsagePriceOverrides, UsagePricesDrillIn } from "./UsagePriceOverrides";
+
+/** Usage and its Model prices drill-in, sharing the environment filter as the thread sidebar does. */
+function UsageWithPrices() {
+  const [environmentIds, setEnvironmentIds] = useState<ReadonlySet<EnvironmentId> | null>(null);
+  const [prices, setPrices] = useState(false);
+  return prices ? (
+    <>
+      <button type="button" onClick={() => setPrices(false)}>
+        Back
+      </button>
+      <UsagePricesDrillIn selectedEnvironmentIds={environmentIds} />
+    </>
+  ) : (
+    <UsageDrillIn
+      onOpenPrices={() => setPrices(true)}
+      selectedEnvironmentIds={environmentIds}
+      onSelectedEnvironmentIdsChange={setEnvironmentIds}
+    />
+  );
+}
 
 const renderPrices = (initialModel?: string) =>
   render(<UsagePriceOverrides usage={[]} initialModel={initialModel} />);
@@ -77,19 +119,33 @@ describe("UsagePriceOverrides", () => {
     await userEvent.type(page.getByLabelText("Input price for glm-5.3"), "2");
     await expect
       .element(page.getByRole("alert"))
-      .toHaveTextContent("Output is required on workstation.");
+      .toHaveTextContent("Output is required on laptop.");
     await expect.element(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
   });
 
-  it("applies to the environments Usage is filtered to, not every environment", async () => {
-    await using _screen = await render(
-      <UsagePriceOverrides
-        usage={[]}
-        initialSelectedEnvironmentIds={new Set([ENVIRONMENT_ID as never])}
-      />,
-    );
+  it("saves prices only to the environment Usage is filtered to, and Back keeps the filter", async () => {
+    writes.length = 0;
+    await using _screen = await render(<UsageWithPrices />);
+    await page.getByRole("button", { name: "Usage environments: All environments" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "laptop" }).click();
+    await userEvent.keyboard("{Escape}");
+    await expect
+      .element(page.getByRole("button", { name: "Usage environments: workstation" }))
+      .toBeInTheDocument();
+
+    await page.getByRole("button", { name: "Model prices" }).click();
     await expect
       .element(page.getByRole("button", { name: "Apply to workstation" }))
+      .toBeInTheDocument();
+    const input = page.getByLabelText("Input price for priced-model");
+    await userEvent.clear(input);
+    await userEvent.type(input, "2");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect.poll(() => writes.map((write) => write.environmentId)).toEqual([ENVIRONMENT_ID]);
+
+    await page.getByRole("button", { name: "Back" }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Usage environments: workstation" }))
       .toBeInTheDocument();
   });
 

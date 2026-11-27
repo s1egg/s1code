@@ -163,24 +163,32 @@ export function ThreadDetailsSidebar({
     ) : null;
   }
   return (
-    <ThreadDetailsPopover anchor={anchor} handle={handle} area={area}>
+    <ThreadDetailsPopover
+      threadKey={scopedThreadKey(scopeThreadRef(environmentId, threadId))}
+      anchor={anchor}
+      handle={handle}
+      area={area}
+    >
       <ThreadDetailsContent {...props} />
     </ThreadDetailsPopover>
   );
 }
 
 function ThreadDetailsPopover({
+  threadKey,
   anchor,
   handle,
   area,
   children,
 }: {
+  threadKey: string;
   anchor: RefObject<Element | null>;
   handle: ReturnType<typeof PopoverCreateHandle>;
   area: ReturnType<typeof workspaceAreaProps>;
   children: ReactNode;
 }) {
-  const open = useThreadDetailsStore((state) => state.popoverOpen);
+  // Until this thread's sidebar attaches, the store can still hold the previous thread's flag.
+  const open = useThreadDetailsStore((state) => state.scope === threadKey && state.popoverOpen);
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- clears the popover flag in the thread details store when the sidebar docks again, so it does not reopen unasked the next time it turns into a popover
   useEffect(() => () => useThreadDetailsStore.getState().setPopoverOpen(false), []);
   return (

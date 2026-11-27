@@ -1,6 +1,7 @@
 /**
- * The pull request row a close sweep at `y` reaches: the last row starting at or above it, with
- * `y` held inside the part of the list its scroller shows, so a sweep never takes rows offscreen.
+ * The pull request row a close sweep at `y` reaches: among the rows the list's scroller shows, the
+ * last one starting at or above `y`, or the first shown row when `y` is above them all. A sweep
+ * never takes rows offscreen, and reaches nothing when no row shows.
  */
 export function closeSweepRowKeyAt(list: Element, y: number): string | null {
   const listBounds = list.getBoundingClientRect();
@@ -8,10 +9,11 @@ export function closeSweepRowKeyAt(list: Element, y: number): string | null {
   const scrollerBounds = scroller?.getBoundingClientRect();
   const top = Math.max(listBounds.top, scrollerBounds?.top ?? -Infinity);
   const bottom = Math.min(listBounds.bottom, scrollerBounds?.bottom ?? Infinity);
-  const visibleY = Math.min(Math.max(y, top), bottom - 1);
   let key: string | null = null;
   for (const row of list.querySelectorAll<HTMLElement>("[data-pull-request-key]")) {
-    if (key !== null && row.getBoundingClientRect().top > visibleY) break;
+    const bounds = row.getBoundingClientRect();
+    if (bounds.bottom <= top) continue;
+    if (bounds.top >= bottom || (key !== null && bounds.top > y)) break;
     key = row.dataset.pullRequestKey ?? null;
   }
   return key;

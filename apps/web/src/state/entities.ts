@@ -31,13 +31,14 @@ import type {
 } from "@s1tools/contracts";
 import type { ThreadCheckpointSummary } from "@s1tools/client-runtime/state/thread-checkpoints";
 import { Atom } from "effect/reactivity";
-import { appAtomRegistry } from "../rpc/atomRegistry";
+import { appAtomRegistry, subscribeAtomChanges } from "../rpc/atomRegistry";
 import { environmentProjects } from "./projects";
 import { environmentPresentations } from "./presentation";
 import { environmentServerConfigsAtom } from "./server";
 import {
   allEnvironmentProjectSnapshotsReadyAtom,
   allEnvironmentShellsBootstrappedAtom,
+  environmentShell,
 } from "./shell";
 import { environmentThreadDetails, environmentThreadShells } from "./threads";
 import { waitForAtomValue } from "./waitForAtomValue";
@@ -303,6 +304,31 @@ export function subscribeProject(
 
 export function readProjects(): ReadonlyArray<EnvironmentProject> {
   return appAtomRegistry.get(environmentProjects.projectsAtom);
+}
+
+/**
+ * Runs `action` once the environment's projects have loaded, or once every environment that can
+ * connect has, which also covers no environment and one that never connects.
+ */
+export function whenProjectsLoaded(environmentId: EnvironmentId | null, action: () => void): void {
+  const loaded = () =>
+    (environmentId !== null &&
+      appAtomRegistry.get(environmentShell.hasSnapshotAtom(environmentId))) ||
+    appAtomRegistry.get(allEnvironmentShellsBootstrappedAtom);
+  if (loaded()) {
+    action();
+    return;
+  }
+  const stops: Array<() => void> = [];
+  const check = () => {
+    if (stops.length === 0 || !loaded()) return;
+    for (const stop of stops.splice(0)) stop();
+    action();
+  };
+  stops.push(subscribeAtomChanges(allEnvironmentShellsBootstrappedAtom, check));
+  if (environmentId !== null) {
+    stops.push(subscribeAtomChanges(environmentShell.hasSnapshotAtom(environmentId), check));
+  }
 }
 
 export function waitForProject(

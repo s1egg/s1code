@@ -20,7 +20,7 @@ export function redirectToThreadDetails(
     readonly explicitListScope?: boolean;
   },
 ): never {
-  openThreadDetailsDrillIn(drillIn, options);
+  openThreadDetailsDrillIn(drillIn, { ...options, reloadList: true });
   if (openInPanel) withThreadDetails((attached) => openInPanel(attached.threadRef));
   throw redirect({ href: getThreadViewHref(), replace: true });
 }

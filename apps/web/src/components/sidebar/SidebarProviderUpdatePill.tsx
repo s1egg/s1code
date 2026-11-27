@@ -11,6 +11,7 @@ import { primaryServerProvidersAtom } from "../../state/server";
 import {
   getProviderUpdateSidebarPillView,
   type ProviderUpdateSidebarPillView,
+  terminalUpdateKey,
 } from "../ProviderUpdateLaunchNotification.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
@@ -52,6 +53,17 @@ const useProviderUpdateNoticeStore = create<{
   readonly visibleAfterIso: string | undefined;
 }>()(() => ({ dismissedKeys: new Set(), visibleAfterIso: undefined }));
 
+/** Keeps only dismissals some provider still reports, so the set never outgrows the providers. */
+function recordDismissedKeys(
+  keys: ReadonlyArray<string>,
+  providers: ReadonlyArray<ServerProvider>,
+) {
+  const reported = new Set(providers.map(terminalUpdateKey));
+  useProviderUpdateNoticeStore.setState((previous) => ({
+    dismissedKeys: new Set([...previous.dismissedKeys, ...keys].filter((key) => reported.has(key))),
+  }));
+}
+
 export function SidebarProviderUpdatePill() {
   const gt = useGT();
   const messages = useMessages();
@@ -62,7 +74,6 @@ export function SidebarProviderUpdatePill() {
   const [renderedView, setRenderedView] = useState<ProviderUpdateSidebarPillView | null>(null);
   const [pendingView, setPendingView] = useState<ProviderUpdateSidebarPillView | null>(null);
   const [exitingKey, setExitingKey] = useState<string | null>(null);
-  const [dismissAfterExitKeys, setDismissAfterExitKeys] = useState<ReadonlyArray<string>>([]);
   const effectiveVisibleAfterIso = visibleAfterIso ?? latestProviderCheckedAt(providers);
   const view = getProviderUpdateSidebarPillView(
     providers,
@@ -101,9 +112,11 @@ export function SidebarProviderUpdatePill() {
     if (exitingKey === key) {
       return;
     }
+    // Recorded now: thread details can close before the exit finishes. The pill keeps showing the
+    // notice it renders until then.
+    if (dismissKeys.length > 0) recordDismissedKeys(dismissKeys, providers);
     setPendingView(nextView);
     setExitingKey(key);
-    setDismissAfterExitKeys(dismissKeys);
   };
 
   if (exitingKey === null) {
@@ -123,15 +136,9 @@ export function SidebarProviderUpdatePill() {
   );
 
   const finishExit = useEffectEvent(() => {
-    if (dismissAfterExitKeys.length > 0) {
-      useProviderUpdateNoticeStore.setState((previous) => ({
-        dismissedKeys: new Set([...previous.dismissedKeys, ...dismissAfterExitKeys]),
-      }));
-    }
     setRenderedView(pendingView);
     setPendingView(null);
     setExitingKey(null);
-    setDismissAfterExitKeys([]);
   });
 
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- fallback timer that finishes the exit if the CSS transition never ends

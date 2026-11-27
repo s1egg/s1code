@@ -10,7 +10,7 @@ On web and desktop, the sidebar has a narrow rail of projects on its left and th
 selected project beside it. Click a project in the rail to list its threads. Opening a thread
 from anywhere else, such as the command palette, a link, or a notification, selects its project.
 The rail remembers your last project on this device. A project shows a small sparkle while one of
-its threads works, and an amber ring while one waits on your approval, an answer, or a decision
+its threads works, and an amber dot while one waits on your approval, an answer, or a decision
 on its plan. Threads started without a project, and threads whose project is gone, share one
 entry at the end of the rail. An archived project stays on the rail while it still has threads or
 drafts. Right-click a project for

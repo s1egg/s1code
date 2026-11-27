@@ -40,6 +40,8 @@ interface ThreadDetailsStoreState {
    * of the thread's own project. Cleared when the drill-in changes.
    */
   readonly explicitListScope: "pull-requests" | "issues" | null;
+  /** Counts old page addresses that saved list preferences, so a list on screen reads them again. */
+  readonly listRequest: number;
   /** The last list length each drill-in showed for a project, keyed by threadDetailsListCountKey. */
   readonly listCounts: Readonly<Record<string, number>>;
   readonly setPopoverOpen: (open: boolean) => void;
@@ -59,6 +61,7 @@ export const useThreadDetailsStore = create<ThreadDetailsStoreState>()((set, get
   pending: [],
   openedForDrillIn: false,
   explicitListScope: null,
+  listRequest: 0,
   listCounts: {},
   setPopoverOpen: (popoverOpen) => set({ popoverOpen }),
   setDrillIn: (drillIn) => set({ drillIn, openedForDrillIn: false, explicitListScope: null }),
@@ -116,16 +119,21 @@ export function withThreadDetails(action: (attached: AttachedThreadDetails) => v
 /** Opens the sidebar wherever it shows, on the given drill-in. */
 export function openThreadDetailsDrillIn(
   drillIn: ThreadDetailsDrillInId,
-  options?: { readonly explicitListScope?: boolean },
+  options?: {
+    readonly explicitListScope?: boolean;
+    /** The list's saved preferences changed, so a list already on screen reads them again. */
+    readonly reloadList?: boolean;
+  },
 ) {
   withThreadDetails((attached) => {
     const wasOpen = sidebarOpen(attached);
+    const isList = drillIn === "pull-requests" || drillIn === "issues";
     useThreadDetailsStore.setState({
       drillIn,
-      explicitListScope:
-        options?.explicitListScope && (drillIn === "pull-requests" || drillIn === "issues")
-          ? drillIn
-          : null,
+      explicitListScope: options?.explicitListScope && isList ? drillIn : null,
+      ...(options?.reloadList && isList
+        ? { listRequest: useThreadDetailsStore.getState().listRequest + 1 }
+        : {}),
       ...(attached.presentation === "popover"
         ? { popoverOpen: true }
         : { openedForDrillIn: !wasOpen }),

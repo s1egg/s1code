@@ -189,15 +189,22 @@ export function PullRequestsDrillIn({
   const resolve = useMessages();
   const projectKey = project ? `${project.environmentId}:${project.id}` : null;
   const explicitScope = useExplicitListScope(threadRef, "pull-requests");
+  const listRequest = useThreadDetailsStore((state) => state.listRequest);
   const [scope, setScope] = useState(() => ({
     projectKey,
+    listRequest,
     search: initialListScope(project, explicitScope),
   }));
-  // The sidebar stays mounted across threads: another project's thread lists its own project.
-  // A project that only finished loading keeps filters an old page address asked for.
-  if (projectKey !== null && projectKey !== scope.projectKey) {
+  if (listRequest !== scope.listRequest) {
+    // An old page address saved new filters while the list was on screen.
+    setScope({ projectKey, listRequest, search: initialListScope(project, explicitScope) });
+  } else if (projectKey !== scope.projectKey) {
+    // The sidebar stays mounted across threads: another thread lists its own project, or every
+    // project when it has none. A project that only finished loading keeps filters an old page
+    // address asked for.
     setScope({
       projectKey,
+      listRequest,
       search:
         scope.projectKey === null && explicitScope
           ? scope.search
@@ -205,7 +212,8 @@ export function PullRequestsDrillIn({
     });
   }
   const search = scope.search;
-  const setSearch = (next: PullRequestListPreferences) => setScope({ projectKey, search: next });
+  const setSearch = (next: PullRequestListPreferences) =>
+    setScope({ projectKey, listRequest, search: next });
   const sort = search.sort ?? "ready";
   const statsPolicy: PullRequestStatsPolicy =
     sort === "ready" || sort === "largest" || sort === "smallest" ? "eager" : "visible";

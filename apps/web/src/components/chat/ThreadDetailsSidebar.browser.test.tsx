@@ -304,6 +304,36 @@ it("opens as a popover while the right panel is open, and closes it when it dock
   expect(document.querySelector('[data-thread-details-panel="popover"]')).toBeNull();
 });
 
+it("closes the popover on a thread switch without first mounting it for the next thread", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using screen = await render(
+    <Panel key="thread" fixture={fixture} presentation="popover" />,
+  );
+  await act(() => useThreadDetailsStore.getState().setPopoverOpen(true));
+  await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
+
+  const mounted: Element[] = [];
+  const collect = (records: MutationRecord[]) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof Element) {
+          mounted.push(...node.querySelectorAll('[data-thread-details-panel="popover"]'));
+        }
+      }
+    }
+  };
+  const observer = new MutationObserver(collect);
+  observer.observe(document.body, { childList: true, subtree: true });
+  using _observer = { [Symbol.dispose]: () => observer.disconnect() };
+  const otherThread = ThreadId.make("other-thread");
+  await screen.rerender(
+    <Panel key={otherThread} fixture={fixture} presentation="popover" threadId={otherThread} />,
+  );
+  collect(observer.takeRecords());
+  expect(mounted).toEqual([]);
+  expect(useThreadDetailsStore.getState().popoverOpen).toBe(false);
+});
+
 it("drills into the context window and returns to the sections with back or Escape", async () => {
   using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
   await using _screen = await render(<Panel fixture={fixture} withContext />);

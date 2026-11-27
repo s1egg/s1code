@@ -18,7 +18,7 @@ import { selectThreadRightPanelState, useRightPanelStore } from "../../rightPane
 import { readIssueListPreferences } from "../issue/issueListPreferences";
 import { readPullRequestListPreferences } from "../pullRequest/pullRequestListPreferences";
 import { startMainAppLocationTracking } from "../sidebar/mainAppLocation";
-import { readProjects } from "../../state/entities";
+import { readProjects, whenProjectsLoaded } from "../../state/entities";
 import { showThreadDetailsDrillIn } from "./openThreadDetails";
 import { useThreadDetailsStore } from "./threadDetailsStore";
 
@@ -26,6 +26,18 @@ vi.mock("../../state/entities", { spy: true });
 
 const THREAD_PATH = "/env-1/thread-1";
 const threadRef = scopeThreadRef(EnvironmentId.make("env-1"), ThreadId.make("thread-1"));
+
+const githubProject = (id: string, environmentId: string, repository: string) =>
+  ({
+    id,
+    environmentId,
+    repositoryIdentity: {
+      canonicalKey: `github.com/${repository}`,
+      locator: { source: "git-remote", remoteName: "origin", remoteUrl: "" },
+      provider: SourceControlProviderKind.make("github"),
+      displayName: repository,
+    },
+  }) as never;
 
 /** The app's thread route, Workflows, and the old pages' redirect routes. */
 function appRouter() {
@@ -44,18 +56,8 @@ function appRouter() {
     history: createMemoryHistory({ initialEntries: [THREAD_PATH] }),
   });
   let stopTracking = () => {};
-  vi.mocked(readProjects).mockReturnValue([
-    {
-      id: "project-1",
-      environmentId: "env-1",
-      repositoryIdentity: {
-        canonicalKey: "github.com/s1egg/s1code",
-        locator: { source: "git-remote", remoteName: "origin", remoteUrl: "" },
-        provider: SourceControlProviderKind.make("github"),
-        displayName: "s1egg/s1code",
-      },
-    } as never,
-  ]);
+  vi.mocked(readProjects).mockReturnValue([githubProject("project-1", "env-1", "s1egg/s1code")]);
+  vi.mocked(whenProjectsLoaded).mockImplementation((_environmentId, action) => action());
   return {
     router,
     // Tracking starts on the loaded thread, as the app's first resolved page records it; with no
@@ -67,6 +69,7 @@ function appRouter() {
     [Symbol.dispose]: () => {
       stopTracking();
       vi.mocked(readProjects).mockReset();
+      vi.mocked(whenProjectsLoaded).mockReset();
       useThreadDetailsStore.setState({
         drillIn: null,
         popoverOpen: false,
@@ -141,6 +144,37 @@ describe("old page addresses", () => {
         projectId: "project-1",
         repository: "s1egg/s1code",
         number: 41,
+      }),
+    ]);
+  });
+
+  it("open an old address's pull request on a linked server once that server's projects arrive", async () => {
+    using app = appRouter();
+    const loaded: Array<() => void> = [];
+    vi.mocked(whenProjectsLoaded).mockImplementation((_environmentId, action) => {
+      loaded.push(action);
+    });
+    await app.load();
+    await app.router.navigate({
+      href: "/pull-requests?repository=acme%2Fapi&number=7&selectedEnvironmentId=env-2",
+    });
+
+    using _sidebar = mountSidebar();
+    expect(vi.mocked(whenProjectsLoaded)).toHaveBeenCalledWith("env-2", expect.any(Function));
+    vi.mocked(readProjects).mockReturnValue([
+      githubProject("project-1", "env-1", "s1egg/s1code"),
+      githubProject("api", "env-2", "acme/api"),
+    ]);
+    for (const action of loaded) action();
+    expect(
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, threadRef).surfaces,
+    ).toEqual([
+      expect.objectContaining({
+        kind: "pull-request",
+        environmentId: "env-2",
+        projectId: "api",
+        repository: "acme/api",
+        number: 7,
       }),
     ]);
   });
