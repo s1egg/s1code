@@ -7,6 +7,8 @@ import {
   useCommandPaletteStore,
 } from "../commandPaletteStore";
 import { overlayModeForCommand } from "../components/CommandPalette.logic";
+import { toggleThreadDetailsDrillInFromAnywhere } from "../components/chat/openThreadDetails";
+import { isThreadDetailsDrillInShown } from "../components/chat/threadDetailsStore";
 import { APPEARANCE_OPTIONS, notifyThemeSaveFailure } from "../components/CommandPaletteThemeItems";
 import { toggleThemeEditorForTheme } from "../components/settings/themeEditorStore";
 import { toastManager } from "../components/ui/toast";
@@ -101,7 +103,7 @@ export function installCommandPaletteCommands(
         consume(event);
         if (event.repeat) return;
         dispatchCommandPalette({ _tag: "SetOpen", open: false });
-        void router.navigate({ to: "/usage" });
+        void toggleThreadDetailsDrillInFromAnywhere(router, "usage");
       },
       "commandPalette.toggle": toggleOverlay("commandPalette.toggle"),
       "filePicker.toggle": toggleOverlay("filePicker.toggle"),
@@ -123,7 +125,7 @@ export function installCommandPaletteCommands(
             ? selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, threadRef) ===
               "preview"
             : false,
-          usagePageOpen: router.state.location.pathname === "/usage",
+          usagePageOpen: isThreadDetailsDrillInShown("usage"),
         };
       },
     },

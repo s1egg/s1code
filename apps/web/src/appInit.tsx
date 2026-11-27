@@ -314,7 +314,7 @@ export function startAppServices(): AppRouter {
     pendingThreadIdsAtom: threadEnvironment.pendingThreadIdsAtom,
   });
   startMainAppLocationTracking(router);
-  startWorkspaceFocus(router);
+  startWorkspaceFocus();
   startBackgroundThreadAnnouncements(appAtomRegistry, router);
   startThreadVisitedMigration(appAtomRegistry);
   startSshPasswordPromptQueue();

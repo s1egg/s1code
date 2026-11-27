@@ -1194,42 +1194,6 @@ describe("rightPanelStore", () => {
     );
   });
 
-  it("keeps the page's panel tabs reachable when the set of connected servers changes", () => {
-    const panelId = ThreadId.make("pull-requests-panel");
-    const stableRef = scopeThreadRef("pull-requests-panel" as EnvironmentId, panelId);
-    const fromServerA = {
-      environmentId: "server-a",
-      projectId: "project-a",
-      repository: "s1egg/s1code",
-      number: 1,
-    };
-    const fromServerB = {
-      environmentId: "server-b",
-      projectId: "project-b",
-      repository: "s1egg/s1code",
-      number: 2,
-    };
-
-    useRightPanelStore.getState().openPullRequest(stableRef, fromServerA);
-    useRightPanelStore.getState().openPullRequest(stableRef, fromServerB);
-
-    const state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, stableRef);
-    expect(state.surfaces.map((surface) => surface.id)).toEqual([
-      pullRequestSurfaceId(fromServerA),
-      pullRequestSurfaceId(fromServerB),
-    ]);
-
-    const refWhileBothConnected = scopeThreadRef("server-a" as EnvironmentId, panelId);
-    const refAfterServerADisconnects = scopeThreadRef("server-b" as EnvironmentId, panelId);
-    expect(refWhileBothConnected).not.toEqual(refAfterServerADisconnects);
-    expect(
-      selectThreadRightPanelState(
-        useRightPanelStore.getState().byThreadKey,
-        refAfterServerADisconnects,
-      ).surfaces,
-    ).toEqual([]);
-  });
-
   it("tracks split panes and the active pane within a terminal surface", () => {
     useRightPanelStore.getState().openTerminal(refA, "term-1");
     useRightPanelStore.getState().splitTerminal(refA, "terminal:term-1", "term-2");

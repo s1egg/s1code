@@ -13,7 +13,6 @@ import {
   largestPullRequestReadCount,
   pullRequestQuickActions,
   filterPullRequestsByInvolvement,
-  findProjectForRepository,
   findScopedProject,
   mergePullRequestLists,
   pullRequestEntryKey,
@@ -32,7 +31,6 @@ import {
   rankPullRequestsByMergeReadiness,
   sortPullRequestGroups,
   resolveQueryEnvironmentIds,
-  resolveSelectedEnvironmentId,
   type EnvironmentPullRequestEntry,
   applyPullRequestOverrides,
   pullRequestOverrideAfterAction,
@@ -666,14 +664,6 @@ describe("which environments a listing should ask", () => {
   });
 });
 
-describe("the server a saved selection names", () => {
-  const known = new Set([ENV_1, ENV_2]);
-
-  it("resolves to nothing yet for a server that is known but not ready, rather than falling back", () => {
-    expect(resolveSelectedEnvironmentId(ENV_2, known, ENV_1)).toBe(ENV_2);
-  });
-});
-
 describe("the priority groups against a paginated feed", () => {
   const authoredRow = (number: number, updatedAt: string) =>
     entry({ number, updatedAt, author: { login: "Bilal", name: null, avatarUrl: null } });
@@ -846,81 +836,6 @@ describe("refresh page size", () => {
   // regression: #19403 refreshes were not bounded by each tracker read
   it("asks for the whole host where one search reads every repository", () => {
     expect(largestPullRequestReadCount(twoPagesAcrossFourRepositories("github"))).toBe(792);
-  });
-});
-
-describe("findProjectForRepository", () => {
-  it("resolves Azure bare names using matching project and environment scope", () => {
-    const azure = (id: string, environmentId: string, path: string) => ({
-      id,
-      environmentId,
-      repositoryIdentity: {
-        canonicalKey: `dev.azure.com/${path}`,
-        locator: { source: "git-remote" as const, remoteName: "origin", remoteUrl: "" },
-        provider: SourceControlProviderKind.make("azure-devops"),
-        displayName: path,
-        owner: "contoso",
-        name: path.split("/").at(-1)!,
-      },
-    });
-    const payments = azure("p1", ENV_1, "contoso/payments/_git/api");
-    const billing = azure("p2", ENV_1, "contoso/billing/_git/api");
-    const remoteBilling = azure("p2", ENV_2, "contoso/billing/_git/api");
-    const unrelated = azure("p3", ENV_2, "contoso/billing/_git/web");
-    const projects = [payments, billing, remoteBilling, unrelated];
-
-    expect(findProjectForRepository(projects, { repository: "api" })).toBe(payments);
-    expect(
-      findProjectForRepository(projects, {
-        repository: "api",
-        scopedProjectId: "p2",
-        scopedEnvironmentId: ENV_2,
-      }),
-    ).toBe(remoteBilling);
-    expect(
-      findProjectForRepository(projects, {
-        repository: "api",
-        scopedProjectId: "p3",
-        scopedEnvironmentId: ENV_2,
-      }),
-    ).toBe(payments);
-  });
-
-  it("keeps repository matches on the selected environment when project IDs overlap", () => {
-    const project = (id: string, environmentId: string, repository: string) => ({
-      id,
-      environmentId,
-      repositoryIdentity: {
-        canonicalKey: `github.com/${repository}`,
-        locator: { source: "git-remote" as const, remoteName: "origin", remoteUrl: "" },
-        provider: SourceControlProviderKind.make("github"),
-        displayName: repository,
-      },
-    });
-    const unrelated = project("p1", ENV_1, "acme/web");
-    const local = project("p2", ENV_1, "acme/api");
-    const remote = project("p1", ENV_2, "acme/api");
-    const projects = [unrelated, local, remote];
-
-    expect(findProjectForRepository(projects, { repository: "acme/api" })).toBe(local);
-    expect(
-      findProjectForRepository(projects, {
-        repository: "acme/api",
-        selectedEnvironmentId: ENV_2,
-      }),
-    ).toBe(remote);
-    expect(
-      findProjectForRepository(projects, {
-        repository: "acme/web",
-        selectedEnvironmentId: ENV_2,
-      }),
-    ).toBeUndefined();
-    expect(
-      findProjectForRepository(projects, {
-        repository: "acme/api",
-        selectedEnvironmentId: "env-connecting",
-      }),
-    ).toBeUndefined();
   });
 });
 

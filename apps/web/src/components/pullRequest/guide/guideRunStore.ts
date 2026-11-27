@@ -1,8 +1,6 @@
 import type { EnvironmentId, PullRequestRef } from "@s1tools/contracts";
 import { create } from "zustand";
 
-import type { PullRequestDetailTab } from "~/rightPanelStore";
-
 import { pullRequestReviewKey } from "../pullRequestReviewStore";
 
 export interface GuideRunWatch {
@@ -28,13 +26,10 @@ const NO_PROGRESS: GuideProgress = { position: 0, seen: new Set() };
 
 interface GuideRunStoreState {
   readonly watches: Readonly<Record<string, GuideRunWatch>>;
-  /** The tab the pull requests page shows, for the pull request (run key) it was chosen on. */
-  readonly pageDetailTab: { readonly key: string; readonly tab: PullRequestDetailTab } | null;
   readonly progress: Readonly<Record<string, GuideProgress>>;
   readonly setProgress: (key: string, change: (current: GuideProgress) => GuideProgress) => void;
   readonly watch: (watch: GuideRunWatch) => void;
   readonly settle: (key: string) => void;
-  readonly showPageDetailTab: (key: string, tab: PullRequestDetailTab) => void;
 }
 
 export function guideRunKey(environmentId: EnvironmentId, reference: PullRequestRef): string {
@@ -43,7 +38,6 @@ export function guideRunKey(environmentId: EnvironmentId, reference: PullRequest
 
 export const useGuideRunStore = create<GuideRunStoreState>()((set) => ({
   watches: {},
-  pageDetailTab: null,
   progress: {},
   setProgress: (key, change) =>
     set((state) => ({
@@ -61,7 +55,6 @@ export const useGuideRunStore = create<GuideRunStoreState>()((set) => ({
       const { [key]: _settled, ...watches } = state.watches;
       return { watches };
     }),
-  showPageDetailTab: (key, tab) => set({ pageDetailTab: { key, tab } }),
 }));
 
 export function guideProgressKey(runKey: string, headSha: string): string {

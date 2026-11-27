@@ -1,4 +1,3 @@
-import type { AnyRouter } from "@tanstack/react-router";
 import { dismissContextMenu } from "../contextMenuFallback";
 import { useRightPanelStore } from "../rightPanelStore";
 
@@ -215,10 +214,7 @@ export function createWorkspaceFocusController(doc: Document) {
     const area =
       name === "content"
         ? (areas.find((element) => element.dataset.workspaceArea === "composer") ??
-          areas.find(
-            (element) =>
-              element.dataset.workspaceArea === "pull-requests" || element.matches("main"),
-          ) ??
+          areas.find((element) => element.matches("main")) ??
           areas.find((element) => element.dataset.workspaceArea === "conversation") ??
           areas.find((element) => element.dataset.workspaceArea === "panel"))
         : areas.find((element) => element.dataset.workspaceArea === name);
@@ -386,10 +382,10 @@ let focusRequestVersion = 0;
 export const getWorkspaceFocusRequestVersion = () => focusRequestVersion;
 
 /**
- * Starts workspace focus for the app: F6 area moves, focus requests, focus-loss recovery,
- * focus into a panel the user opens, and focus into the Pull Requests page on entry.
+ * Starts workspace focus for the app: F6 area moves, focus requests, focus-loss recovery, and
+ * focus into a panel the user opens.
  */
-export function startWorkspaceFocus(router: AnyRouter): () => void {
+export function startWorkspaceFocus(): () => void {
   const active = createWorkspaceFocusController(document);
   controller = active;
   const stopPanels = useRightPanelStore.subscribe((state, previous) => {
@@ -402,13 +398,8 @@ export function startWorkspaceFocus(router: AnyRouter): () => void {
         requestWorkspaceFocus({ area: "panel" });
     }
   });
-  const stopRoute = router.subscribe("onResolved", ({ fromLocation, toLocation }) => {
-    if (toLocation.pathname === "/pull-requests" && fromLocation?.pathname !== "/pull-requests")
-      requestWorkspaceFocus({ area: "pull-requests" });
-  });
   return () => {
     stopPanels();
-    stopRoute();
     active.dispose();
     if (controller === active) controller = undefined;
   };

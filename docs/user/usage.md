@@ -1,8 +1,8 @@
 # Usage and limits
 
-Open **Usage** from thread details or the command palette, or press `mod+u` on web and
-desktop when the terminal is not focused. Press it again to close Usage. Customize **Usage: Toggle** in
-**Settings → Keybindings**.
+On web and desktop, Usage opens in thread details, beside the thread you are on. Choose **Usage**
+there, choose **Open usage** in the command palette, or press `mod+u` when the terminal is not
+focused. Press it again to close Usage. Customize **Usage: Toggle** in **Settings → Keybindings**.
 
 On mobile, choose **Usage** in the workspace navigation.
 
@@ -13,7 +13,7 @@ from your connected environments. It shows token use, cache savings, model break
 cost, split by token type and by speed. These estimates are not your subscription bill.
 **Premium** is what Fast and Ultrafast requests cost above standard rates. Cost that cannot be
 split, such as a provider-reported cost for a model without public rates, shows as **Other**.
-Select a model under **Breakdown** to see its trend, cache hit rate, and cost per million tokens.
+Select a model under **Models** to see its trend, cache hit rate, and cost per million tokens.
 
 Totals depend on the history available on each server. Grok turns without a saved completed-turn
 record are missing from the totals.
@@ -66,18 +66,18 @@ update model pricing.
 
 ## Set custom model prices
 
-On web or desktop, open the environment dropdown on **Usage**, then choose **Model prices** to add,
-edit, or reset a model's estimated price. **Apply to** starts with your current Usage filter;
-choose all environments or select individual destinations. Enter the exact model ID and USD
-rates per million input and output tokens. You can enter any model ID, including models
-without public pricing. When a model on **Usage** has no known price, select it under
-**Breakdown** and choose **Set price** to open this table with that model added.
+On web or desktop, choose **Model prices** at the bottom of **Usage** to add, edit, or reset a
+model's estimated price. **Apply to** starts with all environments; select individual destinations
+to narrow it. Enter the exact model ID and USD rates per million input and output tokens. You can
+enter any model ID, including models without public pricing. When a model on **Usage** has no
+known price, select it under **Models** and choose **Set price** to open the prices with that
+model added.
 
 Cache read and cache write rates are optional and use the input rate when blank. Enter `0` for
 tokens that are free. Saved prices replace automatic pricing for all of that environment's
 history and are shared with clients connected to it. When environments have different prices,
-cells show **Mixed**. Edit rates directly in the table, then choose **Save changes** to apply all
-edited rows. Untouched cells keep each environment's rate. Select one environment to inspect its
+cells show **Mixed**. Edit rates directly, then choose **Save changes** to apply all edited
+models. Untouched cells keep each environment's rate. Select one environment to inspect its
 prices. **Reset to automatic** marks a model's override for removal when you save; you can undo
 it before saving.
 
@@ -88,8 +88,8 @@ the model on its own again.
 
 Each destination reports whether the change saved. Offline or unavailable environments are
 marked **Not saved**. Reconnect them and choose **Retry failed saves** to finish the same change
-without writing again to environments that already saved. Changes are not queued after you close
-the dialog.
+without writing again to environments that already saved. Changes are not queued after you leave
+**Model prices**.
 
 ## Show only some models
 
@@ -239,9 +239,7 @@ Session, Weekly, or both for each provider. Reopen S1 to refresh expired reading
 
 ## Keyboard shortcuts
 
-On web and desktop, open Usage from the command palette. While on Usage,
-press `C`, `T`, or `L` for Cost, Tokens, or Limits while not typing in a field.
-Use `Ctrl+Shift+1/2/3/4` (`Cmd+Shift+1/2/3/4` on macOS) for the past
-24 hours, 7 days, 30 days, or 90 days. Period shortcuts do nothing on Limits.
-Press `Escape` to return to the previous page. Customize these shortcuts in
-**Settings → Keybindings**.
+On web and desktop, while focus is in Usage, press `C`, `T`, or `L` for Cost, Tokens, or Limits
+while not typing in a field. Use `Ctrl+Shift+1/2/3/4` (`Cmd+Shift+1/2/3/4` on macOS) for the past
+24 hours, 7 days, 30 days, or 90 days. Period shortcuts do nothing on Limits. Press `Escape` to
+return to the rest of thread details. Customize these shortcuts in **Settings → Keybindings**.

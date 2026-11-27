@@ -15,6 +15,12 @@ export const THREAD_DETAILS_ITEMS = [
   { id: "gitActions", label: msg("Git actions"), defaultVisible: true },
   { id: "context", label: msg("Context window"), defaultVisible: true },
   { id: "usage", label: msg("Usage"), defaultVisible: true },
+  { id: "pullRequests", label: msg("Pull requests"), defaultVisible: true },
+  {
+    id: "issues",
+    label: msg("Issues", { $context: "thread details item: list of issues" }),
+    defaultVisible: true,
+  },
   {
     id: "servers",
     label: msg("Servers", { $context: "thread details item: running dev servers" }),

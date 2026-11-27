@@ -13,7 +13,8 @@ import {
 } from "~/threadNotifications";
 
 import { toastManager } from "../../ui/toast";
-import { readPullRequestListPreferences } from "../pullRequestListPreferences";
+import { openInShownThread } from "../../chat/openThreadDetails";
+import { pullRequestSurfaceId, useRightPanelStore } from "~/rightPanelStore";
 import { useGuideRunStore, type GuideRunWatch } from "./guideRunStore";
 import { m } from "~/i18n/messages";
 
@@ -96,20 +97,22 @@ function watchGuideRun(
       watch.title ??
       observedPullRequestTitle(registry, watch.environmentId, watch.reference) ??
       `${watch.reference.repository} #${watch.reference.number}`;
-    const open = () => {
-      useGuideRunStore.getState().showPageDetailTab(runKey, "guide");
-      void router.navigate({
-        to: "/pull-requests",
-        search: {
-          ...readPullRequestListPreferences(),
+    const open = () =>
+      void openInShownThread(router, (threadRef) => {
+        const target = {
+          // Thread tabs name another environment only; the thread's own is implied.
+          ...(threadRef.environmentId === watch.environmentId
+            ? {}
+            : { environmentId: watch.environmentId }),
+          projectId: watch.reference.projectId,
+          ...(watch.reference.host === undefined ? {} : { host: watch.reference.host }),
           repository: watch.reference.repository,
           number: watch.reference.number,
-          selectedProjectId: watch.reference.projectId,
-          selectedEnvironmentId: watch.environmentId,
-          ...(watch.reference.host === undefined ? {} : { selectedHost: watch.reference.host }),
-        },
+        };
+        const panels = useRightPanelStore.getState();
+        panels.openPullRequest(threadRef, { ...target, detailTab: "guide" });
+        panels.setPullRequestDetailTab(threadRef, pullRequestSurfaceId(target), "guide");
       });
-    };
     const mode = getClientSettings().notificationMode;
     if (hasNotificationSound(mode)) {
       void playNotificationSound(failure === null ? "completion" : "input", () =>

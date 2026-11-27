@@ -35,6 +35,8 @@ interface UsageProviderChartProps {
   readonly resolution: "day" | "hour";
   readonly timeZone: string;
   readonly hour12: boolean;
+  /** Shorter, with a narrower axis, for the thread details sidebar. */
+  readonly compact?: boolean;
 }
 
 export interface DayColumn {
@@ -291,8 +293,10 @@ function UsageChartPlot({
   loadingProviders,
   format,
   formatTooltipPeriod,
+  heightClass,
   children,
 }: {
+  readonly heightClass: string;
   readonly periods: readonly string[];
   readonly columns: readonly DayColumn[];
   readonly stepX: number;
@@ -363,7 +367,7 @@ function UsageChartPlot({
   return (
     <div
       ref={plotRef}
-      className="relative h-56 flex-1"
+      className={cn("relative min-w-0 flex-1", heightClass)}
       onMouseMove={handleMove}
       onMouseLeave={() => {
         hoverPositionRef.current = null;
@@ -417,6 +421,7 @@ export function UsageProviderChart({
   resolution,
   timeZone,
   hour12,
+  compact = false,
 }: UsageProviderChartProps) {
   const gt = useGT();
   const locale = useLocale();
@@ -447,10 +452,15 @@ export function UsageProviderChart({
       ? formatRelativeHourShort(period, referenceTime, timeZone, hour12, m, locale)
       : formatPeriod(period);
 
+  const heightClass = compact ? "h-32" : "h-56";
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex gap-2">
-        <div aria-hidden className="relative h-56 w-14 shrink-0">
+        <div
+          aria-hidden
+          className={cn("relative shrink-0", heightClass, compact ? "w-10" : "w-14")}
+        >
           {scale.labeled
             ? scale.ticks.map((tick) => (
                 <span
@@ -472,6 +482,7 @@ export function UsageProviderChart({
           loadingProviders={loadingProviders}
           format={format}
           formatTooltipPeriod={formatTooltipPeriod}
+          heightClass={heightClass}
         >
           {scale.ticks.map((tick) => {
             const y = toY(tick);
@@ -515,7 +526,10 @@ export function UsageProviderChart({
 
       <div
         aria-hidden
-        className="flex justify-between pl-16 text-3xs text-muted-foreground uppercase"
+        className={cn(
+          "flex justify-between text-3xs text-muted-foreground uppercase",
+          compact ? "ps-12" : "ps-16",
+        )}
       >
         <span>{periods[0] === undefined ? "" : formatPeriod(periods[0])}</span>
         <span>

@@ -459,7 +459,6 @@ function EnabledThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThread
             url: link.url,
             environmentId: threadRef.environmentId,
             primaryEnvironmentId,
-            lendHostProject: true,
           });
     prefetch(
       target?.host === undefined

@@ -25,7 +25,7 @@ vi.mock(import("@tanstack/react-router"), async (original) => ({
   useNavigate: (() => state.navigate) as never,
   useRouter: (() => ({
     navigate: state.navigate,
-    state: { matches: [{ params: state.routeParams }] },
+    state: { matches: [{ params: state.routeParams }], location: { pathname: "/" } },
   })) as never,
 }));
 vi.mock(import("../../state/environments"), async (original) => ({
@@ -104,8 +104,10 @@ import { selectThreadDiffPanelSelection, useDiffPanelStore } from "../../diffPan
 import {
   selectActiveRightPanel,
   selectActiveRightPanelSurface,
+  selectThreadRightPanelState,
   useRightPanelStore,
 } from "../../rightPanelStore";
+import { useThreadDetailsStore } from "../chat/threadDetailsStore";
 import { DesktopWebLinkCoordinator } from "./DesktopWebLinkCoordinator";
 
 const discoverySettled = allReachableShellsLiveAtom as Atom.Writable<boolean>;
@@ -127,18 +129,25 @@ const project = {
   },
 } as EnvironmentProject;
 const pullRequestUrl = "https://github.com/Effect-TS/effect/pull/9339";
-const pullRequestView = {
-  to: "/pull-requests",
-  search: {
-    involvement: "all",
-    state: "all",
-    repository: "effect-ts/effect",
-    number: 9339,
-    selectedHost: "github.com",
-    selectedProjectId: projectId,
-    selectedEnvironmentId: environmentId,
-  },
-};
+// Outside a thread, a pull request opens beside the last thread, which the app returns to first.
+const mainAppView = { href: "/" };
+const shownThreadRef = scopeThreadRef(environmentId, ThreadId.make("thread-1"));
+
+/** The thread sidebar mounting on the thread the app returned to, which the PR opens beside. */
+function expectPullRequestBesideShownThread() {
+  const shown = { threadRef: shownThreadRef, presentation: "docked" as const };
+  useThreadDetailsStore.getState().attach(shown);
+  try {
+    expect(
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, shownThreadRef),
+    ).toMatchObject({
+      isOpen: true,
+      surfaces: [{ kind: "pull-request", projectId, repository: "effect-ts/effect", number: 9339 }],
+    });
+  } finally {
+    useThreadDetailsStore.getState().detach(shown);
+  }
+}
 
 const pairingUrl = "https://vps.example.com/pair#token=ABC123";
 const pairLink = `s1code://pair?pairingUrl=${encodeURIComponent(pairingUrl)}`;
@@ -199,7 +208,8 @@ it("holds a launch PR link until project discovery settles, then opens the PR vi
     appAtomRegistry.set(discoverySettled, true);
     await navigated;
   });
-  expect(state.navigate).toHaveBeenCalledExactlyOnceWith(pullRequestView);
+  expect(state.navigate).toHaveBeenCalledExactlyOnceWith(mainAppView);
+  expectPullRequestBesideShownThread();
   expect(state.openScratchProject).not.toHaveBeenCalled();
 });
 
@@ -344,6 +354,7 @@ it("holds a launch PR link with Local environment disabled until discovery settl
     appAtomRegistry.set(discoverySettled, true);
     await navigated;
   });
-  expect(state.navigate).toHaveBeenCalledExactlyOnceWith(pullRequestView);
+  expect(state.navigate).toHaveBeenCalledExactlyOnceWith(mainAppView);
+  expectPullRequestBesideShownThread();
   expect(state.openScratchProject).not.toHaveBeenCalled();
 });

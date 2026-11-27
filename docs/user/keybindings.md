@@ -56,7 +56,7 @@ in Settings.
 
 ## Copy pull request references
 
-With a PR open in the right panel or on the Pull requests page, use `mod+shift+c`
+With a PR open in the right panel, use `mod+shift+c`
 to copy its URL and `mod+shift+k` to copy its number with a `#` prefix.
 Both shortcuts can be changed in Settings. Search for “Copy Link or Thread”
 or “Copy Number”. They copy the selected PR and leave terminal input alone.
@@ -130,7 +130,8 @@ Available context keys are `terminalFocus`, `terminalOpen`, `previewFocus`,
 `previewOpen`, `rightPanelOpen`, `modelPickerOpen`, `usagePageOpen`, `composerFocus`,
 `draftThreadRoute`, `turnRunning`, `composerEmpty`, `editableFocus`, `isWeb`, and `isDesktop`.
 In a thread, `rightPanelOpen` is true while its right panel is open; the default
-`mod+t` uses it to open the panel's new-tab menu.
+`mod+t` uses it to open the panel's new-tab menu. `usagePageOpen` is true while thread details
+show Usage.
 `draftThreadRoute` is true on a draft thread, including a restored draft, until it is first sent.
 `composerEmpty` is true while the composer has no text, attachments, or context, and is not
 editing a queued message or answering a question.

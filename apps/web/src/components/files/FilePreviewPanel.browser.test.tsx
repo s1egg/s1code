@@ -321,7 +321,7 @@ describe("source file focus", () => {
       </div>,
     );
     using _focus = {
-      [Symbol.dispose]: startWorkspaceFocus({ subscribe: () => () => {} } as never),
+      [Symbol.dispose]: startWorkspaceFocus(),
     };
     const editorHasFocus = () => expect(deepActiveElement()?.matches("[data-content]")).toBe(true);
     // The explorer measures its parent row; a wrapper without a box would cap it at the minimum.

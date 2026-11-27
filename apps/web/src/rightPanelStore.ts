@@ -1,9 +1,5 @@
-import {
-  parseScopedThreadKey,
-  scopedThreadKey,
-  scopeThreadRef,
-} from "@s1tools/client-runtime/environment";
-import { EnvironmentId, RunId, ThreadId, type ScopedThreadRef } from "@s1tools/contracts";
+import { parseScopedThreadKey, scopedThreadKey } from "@s1tools/client-runtime/environment";
+import { RunId, ThreadId, type ScopedThreadRef } from "@s1tools/contracts";
 import { msg } from "gt-react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -130,24 +126,6 @@ export function decodeThreadSurface(surface: object): ThreadSurface | null {
 
 const RIGHT_PANEL_STORAGE_KEY = "s1code:right-panel-state:v2";
 const RIGHT_PANEL_STORAGE_VERSION = 17;
-
-export const PULL_REQUESTS_PANEL_REF = scopeThreadRef(
-  EnvironmentId.make("pull-requests-panel"),
-  ThreadId.make("pull-requests-panel"),
-);
-
-/** The issues page's shared panel, with the same fixed sentinel ref as the pull-request list. */
-export const ISSUES_PANEL_REF = scopeThreadRef(
-  EnvironmentId.make("issues-panel"),
-  ThreadId.make("issues-panel"),
-);
-
-/**
- * The pull-request and issues lists' shared panels are session
- * state: reopening the app should show the list, not last session's tabs and detail fetches.
- */
-const isPullRequestsPanelKey = (threadKey: string) =>
-  threadKey.endsWith(":pull-requests-panel") || threadKey.endsWith(":issues-panel");
 
 export interface ThreadRightPanelState {
   isOpen: boolean;
@@ -542,7 +520,11 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
     typeof persistedState.byThreadKey === "object"
       ? Object.fromEntries(
           Object.entries(persistedState.byThreadKey as Record<string, ThreadRightPanelState>)
-            .filter(([threadKey]) => !isPullRequestsPanelKey(threadKey))
+            // The old Pull requests and Issues pages kept their own panels under fixed keys.
+            .filter(
+              ([threadKey]) =>
+                !threadKey.endsWith(":pull-requests-panel") && !threadKey.endsWith(":issues-panel"),
+            )
             .map(([threadKey, threadState]) => {
               const validThreadState =
                 threadState && typeof threadState === "object" ? threadState : null;
@@ -1286,16 +1268,10 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
       ),
       partialize: (state) => ({
         byThreadKey: Object.fromEntries(
-          Object.entries(state.byThreadKey).flatMap(([threadKey, threadState]) =>
-            isPullRequestsPanelKey(threadKey)
-              ? []
-              : [
-                  [
-                    threadKey,
-                    { ...threadState, surfaces: threadState.surfaces.map(withoutReveal) },
-                  ],
-                ],
-          ),
+          Object.entries(state.byThreadKey).map(([threadKey, threadState]) => [
+            threadKey,
+            { ...threadState, surfaces: threadState.surfaces.map(withoutReveal) },
+          ]),
         ),
       }),
       migrate: migratePersistedRightPanelState,

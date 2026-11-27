@@ -62,14 +62,7 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
 import { UsagePriceOverrides } from "./UsagePriceOverrides";
 
 const renderPrices = (initialModel?: string) =>
-  render(
-    <UsagePriceOverrides
-      usage={[]}
-      initialSelectedEnvironmentIds={null}
-      initialModel={initialModel}
-      onOpenChange={() => {}}
-    />,
-  );
+  render(<UsagePriceOverrides usage={[]} initialModel={initialModel} />);
 
 describe("UsagePriceOverrides", () => {
   it("waits for a price before flagging an unpriced model's new row", async () => {

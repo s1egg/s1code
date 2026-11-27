@@ -2,7 +2,7 @@ import { thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import { parsePullRequestAnchor } from "@s1tools/shared/pullRequestAnchor";
 import type { EnvironmentId, ScopedThreadRef } from "@s1tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
-import { useNavigate } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
 import { type MouseEvent } from "react";
 import { msg } from "gt-react";
 
@@ -18,7 +18,8 @@ import { useOpenLink } from "../browser/useOpenLink";
 import { useClientSettings } from "../hooks/useSettings";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { m } from "../i18n/messages";
-import { PULL_REQUESTS_PANEL_REF, useRightPanelStore } from "../rightPanelStore";
+import { useRightPanelStore } from "../rightPanelStore";
+import { openInShownThread } from "../components/chat/openThreadDetails";
 import {
   selectThreadBranchBaseRef,
   selectThreadDiffPanelSelection,
@@ -43,12 +44,14 @@ export function usePullRequestPreviewTarget(environmentId: EnvironmentId | null,
   });
 }
 
-/** Where a click on this link opens the in-app panel, read at call time as the click reads it. */
+/**
+ * Where a click on this link opens the in-app panel, read at call time as the click reads it.
+ * Always a thread's panel, so a repository no project tracks borrows a project on its host.
+ */
 export function pullRequestLinkPanelTarget(input: {
   readonly url: string;
   readonly environmentId: EnvironmentId | undefined;
   readonly primaryEnvironmentId: EnvironmentId | null;
-  readonly lendHostProject: boolean;
 }) {
   // Read at click time: every provider status push replaces the config map, and
   // subscribing would hand every rendered link a new handler. Projects likewise, so a
@@ -60,7 +63,7 @@ export function pullRequestLinkPanelTarget(input: {
     configLoaded: (environmentId) => serverConfigs.has(environmentId),
     environmentId: input.environmentId,
     primaryEnvironmentId: input.primaryEnvironmentId,
-    lendHostProject: input.lendHostProject,
+    lendHostProject: true,
   });
 }
 
@@ -85,7 +88,7 @@ export function useOpenChangeRequestLink(
   targetEnvironmentId?: EnvironmentId,
   onCommitUnavailable?: () => void,
 ) => boolean {
-  const navigate = useNavigate();
+  const router = useRouter();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const openInApp = useClientSettings((settings) => settings.pullRequestLinksOpenInApp);
   const ignoreWhitespace = useClientSettings((settings) => settings.diffIgnoreWhitespace);
@@ -104,22 +107,14 @@ export function useOpenChangeRequestLink(
         url: targetUrl,
         environmentId: resolvedThreadRef?.environmentId ?? targetEnvironmentId,
         primaryEnvironmentId,
-        lendHostProject: resolvedPanelRef !== undefined,
       });
       if (target === null) return false;
       const { project, repository, number, host } = target;
       const revealUrl = parsePullRequestAnchor(targetUrl) === null ? undefined : targetUrl;
-      const pullRequestsSearch = {
-        repository,
-        number,
-        ...(host === undefined ? {} : { selectedHost: host }),
-        selectedProjectId: project.id,
-        selectedEnvironmentId: project.environmentId,
-      };
-      if (resolvedPanelRef) {
-        useRightPanelStore.getState().openPullRequest(resolvedPanelRef, {
-          // The standalone PR panel has a synthetic ref; each tab keeps its real environment.
-          ...(resolvedPanelRef.environmentId === project.environmentId
+      const open = (panelRef: ScopedThreadRef) =>
+        useRightPanelStore.getState().openPullRequest(panelRef, {
+          // Thread tabs name another environment only; the panel's own is implied.
+          ...(panelRef.environmentId === project.environmentId
             ? {}
             : { environmentId: project.environmentId }),
           projectId: project.id,
@@ -129,30 +124,9 @@ export function useOpenChangeRequestLink(
           ...(revealUrl === undefined ? {} : { revealUrl }),
           number,
         });
-        // The pull request list keeps its selection in the URL; the Issues page's panel does not.
-        if (resolvedPanelRef === PULL_REQUESTS_PANEL_REF) {
-          void navigate({
-            to: "/pull-requests",
-            search: (previous) => ({
-              ...previous,
-              involvement: previous.involvement ?? "all",
-              state: previous.state ?? "all",
-              ...pullRequestsSearch,
-            }),
-            replace: true,
-          });
-        }
-        return true;
-      }
-      void navigate({
-        to: "/pull-requests",
-        search: {
-          involvement: "all",
-          state: "all",
-          ...pullRequestsSearch,
-          ...(revealUrl === undefined ? {} : { selectedUrl: revealUrl }),
-        },
-      });
+      // Outside a thread, such as on the Workflows page, it opens beside the last thread.
+      if (resolvedPanelRef) open(resolvedPanelRef);
+      else void openInShownThread(router, open);
       return true;
     };
     const commitThread = resolvedThreadRef ? readThreadShell(resolvedThreadRef) : null;

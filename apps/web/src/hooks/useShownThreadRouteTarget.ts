@@ -14,7 +14,7 @@ function threadRouteTargetKey(target: ThreadRouteTarget | null) {
   return target.kind === "server" ? scopedThreadKey(target.threadRef) : target.draftId;
 }
 
-/** Settings and Usage render over the thread that opened them; that thread stays the shown one. */
+/** Settings renders over the thread that opened it; that thread stays the shown one. */
 export function useShownThreadRouteTarget() {
   const routeTarget = useThreadRouteTarget();
   // Read matches, not location, so this agrees with the params useThreadRouteTarget reads.

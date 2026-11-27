@@ -23,7 +23,6 @@ import type {
   IssueTrackerKind,
   PreviewSessionSnapshot,
   ProjectId,
-  PullRequestState,
   ResolvedKeybindingsConfig,
   ThreadId,
 } from "@s1tools/contracts";
@@ -124,7 +123,6 @@ export interface RightPanelTabsProps {
   keybindings: ResolvedKeybindingsConfig;
   getShortcutContext: () => ShortcutMatchContext;
   widthStorageKey?: string;
-  defaultWidth?: number;
   inlineSize?: PreviewPanelInlineSize;
   layoutControls?: ReactNode;
   surfaces: readonly RightPanelSurface[];
@@ -170,19 +168,8 @@ export interface RightPanelTabsProps {
   sideChatAvailable?: boolean;
   /** Overrides the default reason while side chats are available but cannot start. */
   sideChatDisabledReason?: string | null;
-  pullRequestStatusSeeds?: Readonly<Record<string, PullRequestTabStatusSeed>>;
   children: ReactNode;
 }
-
-export interface PullRequestTabStatus {
-  projectId: string;
-  repository: string;
-  number: number;
-  state: PullRequestState;
-  isDraft: boolean;
-}
-
-export type PullRequestTabStatusSeed = Pick<PullRequestTabStatus, "state" | "isDraft">;
 
 function shouldOpenDefaultBrowserProfileFromMenuClick(pointerType: string | undefined): boolean {
   return pointerType !== "touch";
@@ -682,14 +669,12 @@ function SurfaceIcon({
   previewCapturedUrl,
   theme,
   environmentId,
-  pullRequestStatusSeed,
 }: {
   surface: RightPanelSurface;
   previewUrl: string | null;
   previewCapturedUrl: string | null;
   theme: "light" | "dark";
   environmentId: EnvironmentId | null;
-  pullRequestStatusSeed: PullRequestTabStatusSeed | undefined;
 }) {
   switch (surface.kind) {
     case "preview":
@@ -710,13 +695,7 @@ function SurfaceIcon({
     case "terminal":
       return <TerminalSquare className="size-3 shrink-0" />;
     case "pull-request":
-      return (
-        <PullRequestSurfaceIcon
-          surface={surface}
-          environmentId={environmentId}
-          seed={pullRequestStatusSeed}
-        />
-      );
+      return <PullRequestSurfaceIcon surface={surface} environmentId={environmentId} />;
     case "pull-requests":
       return <PullRequestGlyph.link className="size-3 shrink-0" />;
     case "issue":
@@ -839,11 +818,9 @@ function IssueSurfaceIcon({
 function PullRequestSurfaceIcon({
   surface,
   environmentId,
-  seed,
 }: {
   surface: Extract<RightPanelSurface, { kind: "pull-request" }>;
   environmentId: EnvironmentId | null;
-  seed: PullRequestTabStatusSeed | undefined;
 }) {
   const resolvedEnvironmentId =
     (surface.environmentId as EnvironmentId | undefined) ?? environmentId;
@@ -889,13 +866,13 @@ function PullRequestSurfaceIcon({
     number: surface.number,
   };
   const sharedSummary = useSharedPullRequestSummary(resolvedEnvironmentId, reference);
-  const status = linkedSnapshot ?? newestPullRequestSummary(detail, sharedSummary) ?? seed ?? null;
+  const status = linkedSnapshot ?? newestPullRequestSummary(detail, sharedSummary) ?? null;
   if (status === null) {
     return <PullRequestGlyph.pullRequest className="size-3 shrink-0 text-muted-foreground" />;
   }
   const presentation = resolvePullRequestState({
     state: status.state,
-    isDraft: status.isDraft ?? detail?.isDraft ?? seed?.isDraft ?? false,
+    isDraft: status.isDraft ?? detail?.isDraft ?? false,
   });
   return <presentation.Icon className={cn("size-3 shrink-0", presentation.toneClassName)} />;
 }
@@ -956,7 +933,6 @@ function RightPanelTab(
     previewCapturedUrl: string | null;
     theme: "light" | "dark";
     environmentId: EnvironmentId | null;
-    pullRequestStatusSeed: PullRequestTabStatusSeed | undefined;
     renaming: boolean;
     canRename: boolean;
     ownsDesktopTitleBar: boolean;
@@ -1000,7 +976,6 @@ function RightPanelTab(
           previewCapturedUrl={props.previewCapturedUrl}
           theme={props.theme}
           environmentId={props.environmentId}
-          pullRequestStatusSeed={props.pullRequestStatusSeed}
         />
         {props.pending ? (
           <span
@@ -1474,7 +1449,6 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       {...(props.maximized !== undefined ? { maximized: props.maximized } : {})}
       {...(props.open !== undefined ? { open: props.open } : {})}
       {...(props.widthStorageKey !== undefined ? { widthStorageKey: props.widthStorageKey } : {})}
-      {...(props.defaultWidth !== undefined ? { defaultWidth: props.defaultWidth } : {})}
       {...(props.inlineSize ? { inlineSize: props.inlineSize } : {})}
       onMouseDown={preventThumbButtonFocus}
       onMouseUp={(event) =>
@@ -1537,7 +1511,6 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                     previewCapturedUrl={favicon.capturedUrl}
                     theme={resolvedTheme}
                     environmentId={props.environmentId}
-                    pullRequestStatusSeed={props.pullRequestStatusSeeds?.[surface.id]}
                     renaming={renamingDevice === surface.id}
                     canRename={props.onRenameDevice !== undefined}
                     ownsDesktopTitleBar={ownsDesktopTitleBar}

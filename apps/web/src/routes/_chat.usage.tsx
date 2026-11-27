@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { UsagePage } from "../components/usage/UsagePage";
+import { redirectToThreadDetails } from "../components/chat/threadDetailsRedirects";
 
 export const Route = createFileRoute("/_chat/usage")({
-  component: UsagePage,
+  beforeLoad: () => redirectToThreadDetails("usage"),
 });

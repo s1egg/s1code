@@ -1114,7 +1114,7 @@ it("selecting a side-chat tab focuses that side chat's composer", async () => {
     // AppRoot brings its own router.
     router: false,
   });
-  using _focus = { [Symbol.dispose]: startWorkspaceFocus(router) };
+  using _focus = { [Symbol.dispose]: startWorkspaceFocus() };
   const mainEditor = screen.getByRole("textbox", { name: `Message ${parent.title}`, exact: true });
   const sideEditor = screen.getByRole("textbox", { name: `Message ${side.title}`, exact: true });
   await expect.element(sideEditor).toBeVisible();

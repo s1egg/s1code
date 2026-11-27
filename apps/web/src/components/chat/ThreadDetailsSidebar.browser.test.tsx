@@ -98,6 +98,11 @@ vi.mock(import("~/state/entities"), async (importOriginal) => ({
         : [],
     )) as never,
 }));
+vi.mock(import("~/state/environments"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  usePullRequestsSupported: () => true,
+  useIssuesSupported: () => true,
+}));
 // Neither folder is a repository, which is what the server reports for both.
 vi.mock(import("~/state/vcs"), async (importOriginal) => {
   const actual = await importOriginal();
@@ -129,7 +134,8 @@ import { __setClientSettingsForTests } from "../../hooks/useSettings";
 import type { ThreadPanelPresentation } from "../../rightPanelLayout";
 import { PopoverCreateHandle } from "../ui/popover";
 import { ThreadDetailsSidebar } from "./ThreadDetailsSidebar";
-import { useThreadDetailsStore } from "./threadDetailsStore";
+import { openThreadDetailsDrillIn, useThreadDetailsStore } from "./threadDetailsStore";
+import { getClientSettings } from "../../hooks/useSettings";
 
 const threadRef: ScopedThreadRef = {
   environmentId: EnvironmentId.make("environment"),
@@ -168,7 +174,7 @@ function setup(input: {
     ...DEFAULT_CLIENT_SETTINGS,
     threadDetailsOpen: input.dockedOpen ?? true,
   });
-  useThreadDetailsStore.setState({ popoverOpen: false, drillIn: null });
+  useThreadDetailsStore.setState({ popoverOpen: false, drillIn: null, pending: [] });
   const anchor = document.createElement("div");
   document.body.append(anchor);
   return {
@@ -301,6 +307,60 @@ it("drills into the context window and returns to the sections with back or Esca
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
   await expect.element(contextRow).toHaveFocus();
+});
+
+it("opens Usage from its row, with Model prices a drill-in inside it", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using _screen = await render(<Panel fixture={fixture} />);
+  const usageRow = page.getByRole("button", { name: "Usage", exact: true });
+  await usageRow.click();
+  const back = page.getByRole("button", { name: "Back" });
+  await expect.element(back).toHaveFocus();
+  await expect.element(page.getByRole("heading", { name: "Usage" })).toBeVisible();
+  await expect.element(page.getByRole("group", { name: "Usage metric" })).toBeVisible();
+
+  const pricesRow = page.getByRole("button", { name: "Model prices" });
+  await pricesRow.click();
+  await expect.element(page.getByRole("heading", { name: "Model prices" })).toBeVisible();
+
+  // Back leaves the nested view for Usage, then Usage for the sections.
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("heading", { name: "Usage" })).toBeVisible();
+  await expect.element(pricesRow).toHaveFocus();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
+  await expect.element(usageRow).toHaveFocus();
+});
+
+it("opens the pull request and issue lists from their rows", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using _screen = await render(<Panel fixture={fixture} />);
+  const pullRequestsRow = page.getByRole("button", { name: "Pull requests", exact: true });
+  await pullRequestsRow.click();
+  await expect.element(page.getByRole("heading", { name: "Pull requests" })).toBeVisible();
+  await expect.element(page.getByRole("searchbox", { name: "Search pull requests" })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect.element(pullRequestsRow).toHaveFocus();
+
+  await page.getByRole("button", { name: "Issues", exact: true }).click();
+  await expect.element(page.getByRole("heading", { name: "Issues" })).toBeVisible();
+  await expect.element(page.getByRole("searchbox", { name: "Search issues" })).toBeVisible();
+});
+
+it("opens a drill-in asked for before the sidebar mounted, docking it", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain", dockedOpen: false });
+  openThreadDetailsDrillIn("issues");
+  await using _screen = await render(<Panel fixture={fixture} />);
+  await expect.element(page.getByRole("heading", { name: "Issues" })).toBeVisible();
+  expect(getClientSettings().threadDetailsOpen).toBe(true);
+});
+
+it("opens a drill-in as the popover while the right panel is open", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using _screen = await render(<Panel fixture={fixture} presentation="popover" />);
+  await act(() => openThreadDetailsDrillIn("pull-requests"));
+  await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
+  await expect.element(page.getByRole("heading", { name: "Pull requests" })).toBeVisible();
 });
 
 it("offers no git controls in a No project thread, but shows its linked pull request", async () => {

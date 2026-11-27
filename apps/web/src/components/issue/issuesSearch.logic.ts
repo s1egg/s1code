@@ -10,7 +10,17 @@ import { splitsSurrogatePair } from "@s1tools/shared/assistantCitations";
 
 import type { IssueListTarget } from "@s1tools/client-runtime/state/issues";
 
-import type { IssuesSearch } from "./IssuesPage";
+import type { IssueListPreferences } from "./issueListPreferences";
+
+/** An old Issues page address: the list's filters, and the issue its panel had open. */
+export interface IssuesSearch extends IssueListPreferences {
+  readonly selectedEnvironmentId?: EnvironmentId | undefined;
+  readonly selectedProjectId?: ProjectId | undefined;
+  readonly selectedHost?: string | undefined;
+  readonly tracker?: string | undefined;
+  readonly scope?: string | undefined;
+  readonly key?: string | undefined;
+}
 
 // The router reads a bare `key=42` as a number.
 const bounded = (value: unknown): string | undefined => {
@@ -35,8 +45,6 @@ const projectPairs = (raw: unknown): IssuesSearch["hideProjects"] => {
   return pairs.length === 0 ? undefined : pairs.slice(0, ISSUE_LIST_MAX_EXCLUDED_PROJECTS);
 };
 
-// Every optional key is an own key, even when undefined: the router lays these over the parent
-// route's unvalidated search, where a key left out would keep its raw value.
 export const issuesSearchFromUrl = (raw: Record<string, unknown>): IssuesSearch => ({
   who:
     raw.who === "assigned" || raw.who === "authored" || raw.who === "mentioned" ? raw.who : "all",

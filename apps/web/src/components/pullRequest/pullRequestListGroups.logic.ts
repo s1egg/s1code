@@ -4,7 +4,6 @@ import type {
   PullRequestListResult,
 } from "@s1tools/contracts";
 
-import type { PullRequestTabStatusSeed } from "~/components/RightPanelTabs";
 import { pullRequestSurfaceId } from "~/rightPanelStore";
 import {
   comparePullRequestsByRecency,
@@ -89,16 +88,6 @@ export function pullRequestGroups({
     return missed.length === 0 ? matched : [...matched, ...rankPullRequestMatches(missed, text)];
   })();
 
-  const listedPullRequestTabStatuses: Record<string, PullRequestTabStatusSeed> = Object.fromEntries(
-    entries.map((entry) => [
-      pullRequestSurfaceId(entry),
-      {
-        state: entry.state,
-        isDraft: entry.isDraft,
-      },
-    ]),
-  );
-
   const groups = (() => {
     if (involvement !== "all") return [{ key: "others" as const, label: "", entries }];
     if (baselineEmpty) {
@@ -130,7 +119,6 @@ export function pullRequestGroups({
   );
   return {
     entries,
-    listedPullRequestTabStatuses,
     groups,
     entriesByStatsKey,
     heldPullRequestsBySurface,

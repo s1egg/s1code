@@ -8,7 +8,7 @@ import type {
 } from "@s1tools/contracts";
 
 import type { ContextWindowSnapshot } from "@s1tools/client-runtime/state/context-window";
-import { scopeProjectRef } from "@s1tools/client-runtime/environment";
+import { scopeProjectRef, scopeThreadRef } from "@s1tools/client-runtime/environment";
 import { isScratchProject } from "@s1tools/client-runtime/state/projects";
 
 import type { ComposerThreadTarget, DraftId } from "../../composerDraftStore";
@@ -44,6 +44,11 @@ import { ThreadDetailsItemsMenuItems } from "./ThreadDetailsItemsMenu";
 import { ThreadDetailsDrillInView, ThreadDetailsNavRow } from "./ThreadDetailsDrillIn";
 import { resolveThreadDetailsVisibility } from "./threadDetailsItems";
 import { type ThreadDetailsDrillInId, useThreadDetailsStore } from "./threadDetailsStore";
+import { ThreadDetailsListRows } from "./ThreadDetailsListRows";
+import { UsageDrillIn } from "../usage/UsageDrillIn";
+import { UsagePricesDrillIn } from "../usage/UsagePriceOverrides";
+import { PullRequestsDrillIn } from "../pullRequest/PullRequestsDrillIn";
+import { IssuesDrillIn } from "../issue/IssuesDrillIn";
 import {
   ContextWindowBreakdown,
   ContextWindowMeter,
@@ -129,6 +134,13 @@ export function ThreadDetailsSidebar({
 }) {
   const dockedOpen = useClientSettings((settings) => settings.threadDetailsOpen);
   const gt = useGT();
+  const { environmentId, threadId } = props;
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- tells the thread details store which sidebar is on screen, so commands outside ChatView can open it on a drill-in
+  useEffect(() => {
+    const attached = { threadRef: scopeThreadRef(environmentId, threadId), presentation };
+    useThreadDetailsStore.getState().attach(attached);
+    return () => useThreadDetailsStore.getState().detach(attached);
+  }, [environmentId, threadId, presentation]);
   const area = {
     ...workspaceAreaProps("details", 3, gt("Thread details")),
     "data-workspace-focus-key": `details:${props.environmentId}:${props.threadId}`,
@@ -296,13 +308,34 @@ function ThreadDetailsContent(props: ThreadDetailsContentProps) {
   };
   const closeDrillIn = () => {
     const id = useThreadDetailsStore.getState().drillIn;
-    flushSync(() => useThreadDetailsStore.getState().setDrillIn(null));
-    if (id) focusIn(`[data-thread-details-drill-in="${id}"]`);
+    if (!id) return;
+    flushSync(() => useThreadDetailsStore.getState().setDrillIn(drillIns[id].parent ?? null));
+    focusIn(`[data-thread-details-drill-in="${id}"]`);
   };
-  const drillIns: Record<ThreadDetailsDrillInId, { title: string; content: ReactNode }> = {
+  const drillIns: Record<
+    ThreadDetailsDrillInId,
+    { title: string; content: ReactNode; parent?: ThreadDetailsDrillInId }
+  > = {
     context: {
       title: gt("Context window"),
       content: <ThreadDetailsContextView usage={contextWindow} />,
+    },
+    usage: {
+      title: gt("Usage"),
+      content: <UsageDrillIn onOpenPrices={() => openDrillIn("usage-prices")} />,
+    },
+    "usage-prices": {
+      title: gt("Model prices"),
+      content: <UsagePricesDrillIn />,
+      parent: "usage",
+    },
+    "pull-requests": {
+      title: gt("Pull requests"),
+      content: <PullRequestsDrillIn threadRef={activeThreadRef} project={project} />,
+    },
+    issues: {
+      title: gt("Issues", { $context: "thread details view: list of issues" }),
+      content: <IssuesDrillIn threadRef={activeThreadRef} project={project} />,
     },
   };
   const activeDrillIn = drillIn ? drillIns[drillIn] : null;
@@ -468,7 +501,18 @@ function ThreadDetailsContent(props: ThreadDetailsContentProps) {
               </ThreadDetailsSection>
             ) : null}
 
-            {visible.usage ? <ThreadDetailsUsage {...props.usage} /> : null}
+            {visible.usage ? (
+              <ThreadDetailsUsage {...props.usage} onOpen={() => openDrillIn("usage")} />
+            ) : null}
+
+            {visible.pullRequests || visible.issues ? (
+              <ThreadDetailsListRows
+                project={project}
+                showPullRequests={visible.pullRequests}
+                showIssues={visible.issues}
+                onOpen={openDrillIn}
+              />
+            ) : null}
 
             {!props.draftId && visible.servers ? (
               <ThreadServersPanel environmentId={props.environmentId} threadId={props.threadId} />

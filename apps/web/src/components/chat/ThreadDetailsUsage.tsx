@@ -13,9 +13,8 @@ import {
   remainingPercent,
 } from "@s1tools/shared/usageLimits";
 import { formatDuration, limitsNotice } from "@s1tools/shared/usageLimitsCopy";
-import { Link, useNavigate } from "@tanstack/react-router";
 import { msg, useGT, useMessages } from "gt-react";
-import type { ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 
 import { usePrimarySettings } from "../../hooks/useSettings";
 import { useNowMinute } from "../../hooks/useNowMinute";
@@ -48,6 +47,8 @@ export interface ThreadDetailsUsageInput {
 
 type UsageTone = "error" | "warning" | null;
 
+const OpenUsageContext = createContext<() => void>(() => undefined);
+
 function limitTone(left: number): UsageTone {
   if (left <= 10) return "error";
   if (left <= 20) return "warning";
@@ -55,17 +56,17 @@ function limitTone(left: number): UsageTone {
 }
 
 /**
- * The way into the usage page, above the selected provider's limit windows. Each window reads as
- * room left and opens the usage page too.
+ * The way into the Usage view, above the selected provider's limit windows. Each window reads as
+ * room left and opens the Usage view too.
  */
 export function ThreadDetailsUsage({
   providerInstanceId,
   model,
   providers,
   sources,
-}: Omit<ThreadDetailsUsageInput, "contextWindow">) {
+  onOpen,
+}: Omit<ThreadDetailsUsageInput, "contextWindow"> & { readonly onOpen: () => void }) {
   const gt = useGT();
-  const navigate = useNavigate();
   const nowMinute = useNowMinute();
   const now = Date.parse(`${nowMinute}:00Z`);
   const resolved = resolveThreadDetailsLimits(providerInstanceId, model, providers, sources, now);
@@ -77,17 +78,21 @@ export function ThreadDetailsUsage({
       title={gt("Usage")}
       showHeading={false}
     >
-      <ThreadDetailsNavRow label={gt("Usage")} onClick={() => void navigate({ to: "/usage" })} />
+      <ThreadDetailsNavRow label={gt("Usage")} drillIn="usage" onClick={onOpen} />
       <div className="grid grid-cols-[auto_minmax(3rem,1fr)_auto] gap-x-3 text-xs empty:hidden">
-        {resolved?.kind === "pool"
-          ? resolved.windows.map((window) => <PoolRow key={window.id} window={window} now={now} />)
-          : resolved &&
-            (quotas.length === 0 || limitsNotice(resolved.limits) === null) && (
-              <InstanceRows limits={resolved.limits} now={now} />
-            )}
-        {quotas.map(({ key, accountLabel, window }) => (
-          <LimitRow key={key} window={window} now={now} accountLabel={accountLabel} />
-        ))}
+        <OpenUsageContext value={onOpen}>
+          {resolved?.kind === "pool"
+            ? resolved.windows.map((window) => (
+                <PoolRow key={window.id} window={window} now={now} />
+              ))
+            : resolved &&
+              (quotas.length === 0 || limitsNotice(resolved.limits) === null) && (
+                <InstanceRows limits={resolved.limits} now={now} />
+              )}
+          {quotas.map(({ key, accountLabel, window }) => (
+            <LimitRow key={key} window={window} now={now} accountLabel={accountLabel} />
+          ))}
+        </OpenUsageContext>
       </div>
     </ThreadDetailsSection>
   );
@@ -225,7 +230,7 @@ function PoolRow({ window, now }: { readonly window: LimitPoolWindow; readonly n
   );
 }
 
-/** One label, hairline, and value row that links to the usage page; hovering it opens the details tooltip. */
+/** One label, hairline, and value row that opens the Usage view; hovering it opens the details tooltip. */
 function UsageRow({
   label,
   fill,
@@ -246,14 +251,15 @@ function UsageRow({
   readonly tooltip: ReactNode;
 }) {
   const gt = useGT();
+  const openUsage = use(OpenUsageContext);
   const rowProps = {
     "aria-label": gt("{label}: {value}", { label, value: ariaValue }),
     className:
-      "group col-span-3 grid h-6 cursor-pointer grid-cols-subgrid items-center rounded-lg px-2.5 outline-none hover:bg-black/[0.035] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-black/[0.06] data-popup-open:bg-black/[0.035] dark:hover:bg-white/[0.08] dark:active:bg-white/[0.12] dark:data-popup-open:bg-white/[0.08]",
+      "group col-span-3 grid h-6 cursor-pointer grid-cols-subgrid items-center rounded-lg px-2.5 text-start outline-none hover:bg-black/[0.035] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-black/[0.06] data-popup-open:bg-black/[0.035] dark:hover:bg-white/[0.08] dark:active:bg-white/[0.12] dark:data-popup-open:bg-white/[0.08]",
   };
   return (
     <Tooltip>
-      <TooltipTrigger render={<Link to="/usage" {...rowProps} />}>
+      <TooltipTrigger render={<button type="button" onClick={openUsage} {...rowProps} />}>
         <span className="max-w-28 truncate text-muted-foreground group-hover:text-foreground">
           {label}
         </span>
