@@ -3,7 +3,7 @@ import type { ScopedThreadRef } from "@s1tools/contracts";
 
 import {
   selectActiveRightPanelSurface,
-  selectPaneVisible,
+  selectPaneOnScreen,
   useRightPanelStore,
 } from "../rightPanelStore";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
@@ -81,7 +81,7 @@ export function focusActiveTerminal(threadRef: ScopedThreadRef): void {
     useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
     threadRef,
   );
-  const visible = selectPaneVisible(
+  const visible = selectPaneOnScreen(
     useRightPanelStore.getState().byThreadKey,
     threadRef,
     "terminal",
@@ -150,7 +150,7 @@ export function restoreFocusOnThreadEnter(
       useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
       threadRef,
     );
-    const paneVisible = selectPaneVisible(
+    const paneVisible = selectPaneOnScreen(
       useRightPanelStore.getState().byThreadKey,
       threadRef,
       "terminal",

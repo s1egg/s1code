@@ -44,13 +44,15 @@ export function revealServerTabs(
   for (const session of sessions) {
     const force = session.revealRequest?.force === true;
     if (!options.autoShowFloatingPreview && !force) continue;
-    const surface = useRightPanelStore
-      .getState()
-      .byThreadKey[scopedThreadKey(threadRef)]?.surfaces.find(
-        (surface) => surface.kind === "preview" && surface.resourceId === session.tabId,
-      );
+    const panel = useRightPanelStore.getState().byThreadKey[scopedThreadKey(threadRef)];
+    const surface = panel?.surfaces.find(
+      (surface) => surface.kind === "preview" && surface.resourceId === session.tabId,
+    );
     if (surface && force) {
       useRightPanelStore.getState().revealSurface(threadRef, surface.id);
+    } else if (surface && panel?.waitingSurfaceIds?.includes(surface.id)) {
+      // Pages open hidden and are revealed once loaded, by when they already wait as items.
+      useRightPanelStore.getState().floatSurface(threadRef, surface, true);
     } else if (!surface) {
       useRightPanelStore
         .getState()

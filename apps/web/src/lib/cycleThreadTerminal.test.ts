@@ -54,7 +54,10 @@ it("cycles terminals and split panes in display order, wraps both ways, and focu
     expect(focused).toBe("z");
     const remoteRef = scopeThreadRef(EnvironmentId.make("remote"), ref.threadId);
     expect(cycleThreadTerminal(remoteRef, "next")).toBe(false);
-    useRightPanelStore.getState().hidePane(ref, "terminal");
+    useRightPanelStore.getState().minimizePane(ref, "terminal");
+    expect(cycleThreadTerminal(ref, "next")).toBe(true);
+    expect(focused).toBe("a");
+    useRightPanelStore.getState().dismissFloatingPane(ref, "terminal");
     expect(cycleThreadTerminal(ref, "next")).toBe(false);
   } finally {
     for (const dispose of unregister) dispose();

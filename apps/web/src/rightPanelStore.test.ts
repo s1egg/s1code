@@ -1,10 +1,11 @@
-import { scopeThreadRef } from "@s1tools/client-runtime/environment";
+import { scopedThreadKey, scopeThreadRef } from "@s1tools/client-runtime/environment";
 import { EnvironmentId, RunId, ThreadId } from "@s1tools/contracts";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { useClosedViewStore } from "./closedViewStore";
 import { linkedThreadTitle } from "./linkedThreadSurface";
 import { reopenClosedView } from "./reopenClosedView";
+import { selectThreadTerminalUiState, useTerminalUiStateStore } from "./terminalUiStateStore";
 import {
   floatingPanes,
   hostRightPanel,
@@ -1592,6 +1593,27 @@ describe("rightPanelStore", () => {
     expect(state.waitingSurfaceIds).toBeUndefined();
   });
 
+  it("hides the pane instead of showing a waiting page when its page closes", () => {
+    const store = useRightPanelStore.getState();
+    const state = () =>
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    store.openBrowser(refA, "tab-a");
+    store.reconcileBrowserSurfaces(refA, ["tab-a", "tab-b"]);
+    store.closeSurface(refA, "browser:tab-a");
+    expect(visiblePanes(state())).toEqual([]);
+    expect(state().waitingSurfaceIds).toEqual(["browser:tab-b"]);
+    store.reconcileBrowserSurfaces(refA, ["tab-b"]);
+    expect(visiblePanes(state())).toEqual([]);
+    expect(state().waitingSurfaceIds).toEqual(["browser:tab-b"]);
+
+    store.openBrowser(refA, "tab-c");
+    store.reconcileBrowserSurfaces(refA, ["tab-b", "tab-c", "tab-d"]);
+    store.minimizePane(refA, "browser");
+    store.closeSurface(refA, "browser:tab-c");
+    expect(floatingPanes(state())).toEqual([]);
+    expect(state().waitingSurfaceIds).toEqual(["browser:tab-b", "browser:tab-d"]);
+  });
+
   it("floats the panes hiding every pane hands off, and puts them back with the layout", () => {
     const store = useRightPanelStore.getState();
     store.open(refA, "diff");
@@ -1650,12 +1672,65 @@ describe("rightPanelStore", () => {
       },
     });
     expect(migrated.terminalGroups).toEqual({
-      "env-1:thread-A": {
-        terminalIds: ["term-3", "term-4"],
-        activeTerminalId: "term-4",
-        splitDirection: "vertical",
+      "env-1:thread-A": [
+        {
+          terminalIds: ["term-3", "term-4"],
+          activeTerminalId: "term-4",
+          splitDirection: "vertical",
+        },
+      ],
+    });
+  });
+
+  it("imports every pre-pane terminal tab's split on upgrade, even while Diff was showing", async () => {
+    useTerminalUiStateStore.setState({
+      terminalUiStateByThreadKey: {},
+      suppressedTerminalIdsByThreadKey: {},
+      serverObservationsByThreadKey: {},
+    });
+    const { storage, name } = useRightPanelStore.persist.getOptions();
+    await storage!.setItem(name!, {
+      version: 17,
+      state: {
+        byThreadKey: {
+          [scopedThreadKey(refA)]: {
+            isOpen: true,
+            activeSurfaceId: "diff",
+            surfaces: [
+              {
+                id: "terminal:term-1",
+                kind: "terminal",
+                resourceId: "term-1",
+                terminalIds: ["term-1", "term-2"],
+                activeTerminalId: "term-2",
+                splitDirection: "vertical",
+              },
+              { id: "diff", kind: "diff" },
+              {
+                id: "terminal:term-5",
+                kind: "terminal",
+                resourceId: "term-5",
+                terminalIds: ["term-5"],
+                activeTerminalId: "term-5",
+              },
+            ],
+          },
+        },
       },
     });
+    await useRightPanelStore.persist.rehydrate();
+
+    const state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(visiblePanes(state)).toEqual(["diff"]);
+    expect(
+      selectThreadTerminalUiState(
+        useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
+        refA,
+      ).terminalGroups,
+    ).toMatchObject([
+      { terminalIds: ["term-1", "term-2"], splitDirection: "vertical" },
+      { terminalIds: ["term-5"] },
+    ]);
   });
 
   it("hands off only the pane a narrow window's sheet shows when the sheet closes", () => {

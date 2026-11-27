@@ -300,11 +300,14 @@ export function movePane(
   return splitTile(removed, target, pane, side, 0.5);
 }
 
-/** The least room a tile or split needs along `axis` before its contents overlap. */
-export function minNodeSize(node: LayoutNode, axis: "width" | "height"): number {
-  if (node.type === "chat") return MIN_TILE_SIZE.chat[axis];
+/**
+ * The least room a tile or split needs along `axis` before its contents overlap. `chatExtra` is
+ * room the chat tile gives away inside itself along that axis, as docked thread details do.
+ */
+export function minNodeSize(node: LayoutNode, axis: "width" | "height", chatExtra = 0): number {
+  if (node.type === "chat") return MIN_TILE_SIZE.chat[axis] + chatExtra;
   if (node.type === "pane") return MIN_TILE_SIZE.pane[axis];
-  const mins = node.children.map((child) => minNodeSize(child, axis));
+  const mins = node.children.map((child) => minNodeSize(child, axis, chatExtra));
   return (node.direction === "row") === (axis === "width")
     ? mins.reduce((sum, size) => sum + size, 0)
     : Math.max(...mins);

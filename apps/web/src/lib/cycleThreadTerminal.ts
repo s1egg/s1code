@@ -1,6 +1,6 @@
 import type { ScopedThreadRef } from "@s1tools/contracts";
 
-import { selectPaneVisible, useRightPanelStore } from "../rightPanelStore";
+import { selectPaneOnScreen, useRightPanelStore } from "../rightPanelStore";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { focusTerminal } from "./terminalFocus";
 
@@ -11,7 +11,7 @@ export function cycleThreadTerminal(
 ): boolean {
   const store = useTerminalUiStateStore.getState();
   const state = selectThreadTerminalUiState(store.terminalUiStateByThreadKey, threadRef);
-  if (!selectPaneVisible(useRightPanelStore.getState().byThreadKey, threadRef, "terminal")) {
+  if (!selectPaneOnScreen(useRightPanelStore.getState().byThreadKey, threadRef, "terminal")) {
     return false;
   }
   const terminalOrder = new Map(state.terminalIds.map((id, index) => [id, index]));

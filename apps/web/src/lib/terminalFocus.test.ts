@@ -180,6 +180,21 @@ describe("focusTerminal", () => {
     unregister();
   });
 
+  it("focuses the surviving terminal of a floating terminal pane", () => {
+    const ref = threadRef("floating");
+    showTerminal(ref, "a");
+    useTerminalUiStateStore.getState().newTerminal(ref, "b");
+    useRightPanelStore.getState().minimizePane(ref, "terminal");
+    useTerminalUiStateStore.getState().closeTerminal(ref, "b");
+    const focus = vi.fn(() => true);
+    const unregister = registerTerminalFocusTarget({ threadRef: ref, terminalId: "a", focus });
+
+    focusActiveTerminal(ref);
+
+    expect(focus).toHaveBeenCalledTimes(1);
+    unregister();
+  });
+
   it("entering a thread with its terminal pane shown focuses the active terminal", () => {
     const ref = threadRef("entered");
     showTerminal(ref, "a");

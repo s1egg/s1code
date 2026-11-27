@@ -124,13 +124,17 @@ function floatingStyle(
   endInset: string,
   height = FLOATING_HEIGHT_PX,
 ): CSSProperties {
+  const chatBottom = percent(1 - chat.y - chat.height);
+  const stacked = `calc(${chatBottom} + ${
+    inset + FLOATING_EDGE_GAP_PX + index * (FLOATING_HEIGHT_PX + FLOATING_STACK_GAP_PX)
+  }px)`;
+  // Never above the chat's header, nor below its bottom edge, however tall the stack's inset.
+  const highest = `calc(${percent(1 - chat.y)} - ${FLOATING_TOP_CLEARANCE_PX + height}px)`;
   return {
     left: "auto",
     top: "auto",
     right: `calc(${percent(1 - chat.x - chat.width)} + ${endInset} + ${FLOATING_EDGE_GAP_PX}px)`,
-    bottom: `calc(${percent(1 - chat.y - chat.height)} + ${
-      inset + FLOATING_EDGE_GAP_PX + index * (FLOATING_HEIGHT_PX + FLOATING_STACK_GAP_PX)
-    }px)`,
+    bottom: `max(calc(${chatBottom} + ${FLOATING_EDGE_GAP_PX}px), min(${stacked}, ${highest}))`,
     width: `min(${FLOATING_WIDTH_PX}px, calc(${percent(chat.width)} - ${endInset} - ${FLOATING_EDGE_GAP_PX * 2}px))`,
     height: `${height}px`,
   };
@@ -263,8 +267,15 @@ export function PaneWorkspace(props: {
     const startSizes = split.sizes;
     const before = startSizes.slice(0, divider.index).reduce((sum, size) => sum + size, 0);
     const pair = startSizes[divider.index]! + startSizes[divider.index + 1]!;
+    // Docked thread details sit inside the chat tile, so the chat's own minimum excludes them.
+    const docked = horizontal
+      ? (tileElements.current
+          .get("chat")
+          ?.querySelector('[data-thread-details-panel="docked"]')
+          ?.getBoundingClientRect().width ?? 0)
+      : 0;
     const minFor = (child: LayoutNode) =>
-      minNodeSize(child, horizontal ? "width" : "height") / splitLength;
+      minNodeSize(child, horizontal ? "width" : "height", docked) / splitLength;
     const [minLeft, minRight] = dividerMinimums(
       minFor(split.children[divider.index]!),
       minFor(split.children[divider.index + 1]!),

@@ -534,6 +534,7 @@ const sameRecord = (
 /**
  * Keeps a thread's panes consistent with its items: a pane whose last item closed leaves the
  * layout, every pane shows one of its own items, and nothing is open with no pane to show.
+ * A pane that lost its item never falls back to a waiting one: with only those left, it hides.
  */
 function settle(state: ThreadRightPanelState): ThreadRightPanelState {
   let next = state;
@@ -544,10 +545,20 @@ function settle(state: ThreadRightPanelState): ThreadRightPanelState {
   const paneSurfaceIds: Partial<Record<PaneKind, string>> = {};
   for (const pane of paneKinds) {
     const shown = state.paneSurfaceIds[pane];
-    paneSurfaceIds[pane] =
-      shown !== undefined && state.surfaces.some((surface) => surface.id === shown)
-        ? shown
-        : state.surfaces.findLast((surface) => paneOf(surface) === pane)!.id;
+    if (shown !== undefined && state.surfaces.some((surface) => surface.id === shown)) {
+      paneSurfaceIds[pane] = shown;
+      continue;
+    }
+    const items = state.surfaces.filter((surface) => paneOf(surface) === pane);
+    const seen = items.findLast((surface) => !state.waitingSurfaceIds?.includes(surface.id));
+    paneSurfaceIds[pane] = (seen ?? items.at(-1)!).id;
+    if (seen === undefined) {
+      next = withoutPaneIn(
+        withoutPaneIn(unplaced(next, pane), "minimized", pane),
+        "floatedOnHide",
+        pane,
+      );
+    }
   }
   if (!sameRecord(paneSurfaceIds, state.paneSurfaceIds)) next = { ...next, paneSurfaceIds };
   const inLayout = new Set(layoutPanes(next.layout));
@@ -821,11 +832,12 @@ function migratedTerminalGroup(raw: unknown): MigratedTerminalGroup | null {
 /**
  * Builds before version 18 kept a row of tabs. The tab that was showing becomes the one pane,
  * beside the chat; the rest are dropped, since a row of tabs has no layout to restore them to.
- * A terminal tab's shells move to the terminal store, which the drawer state never listed.
+ * Every terminal tab's shells move to the terminal store, which the drawer state never listed;
+ * the one that was showing goes last, so its active shell stays active.
  */
 function migrateTabbedThread(saved: Record<string, unknown>): {
   state: ThreadRightPanelState | null;
-  terminal: MigratedTerminalGroup | null;
+  terminals: MigratedTerminalGroup[];
 } {
   const savedActiveId =
     typeof saved.activeSurfaceId === "string" && saved.activeSurfaceId.startsWith("side-chat:")
@@ -853,8 +865,10 @@ function migrateTabbedThread(saved: Record<string, unknown>): {
         ? decoded[0]
         : undefined;
   const active = savedActive ?? activeEntry?.surface ?? null;
-  const terminal =
-    active?.kind === "terminal" && activeEntry ? migratedTerminalGroup(activeEntry.raw) : null;
+  const terminals = decoded
+    .filter((entry) => entry.surface.kind === "terminal")
+    .toSorted((left, right) => Number(left === activeEntry) - Number(right === activeEntry))
+    .flatMap((entry) => migratedTerminalGroup(entry.raw) ?? []);
   const extras = {
     ...(typeof saved.proactiveDiffTurnId === "string"
       ? { proactiveDiffTurnId: RunId.make(saved.proactiveDiffTurnId) }
@@ -870,7 +884,7 @@ function migrateTabbedThread(saved: Record<string, unknown>): {
   if (active === null) {
     return {
       state: Object.keys(extras).length === 0 ? null : { ...EMPTY_THREAD_STATE, ...extras },
-      terminal: null,
+      terminals,
     };
   }
   const pane = paneOf(active);
@@ -884,15 +898,15 @@ function migrateTabbedThread(saved: Record<string, unknown>): {
       ...(saved.maximized === true ? { fill: pane } : {}),
       ...extras,
     },
-    terminal,
+    terminals,
   };
 }
 
 export function migratePersistedRightPanelState(persistedState: unknown): {
   byThreadKey: Record<string, ThreadRightPanelState>;
-  terminalGroups: Record<string, MigratedTerminalGroup>;
+  terminalGroups: Record<string, MigratedTerminalGroup[]>;
 } {
-  const terminalGroups: Record<string, MigratedTerminalGroup> = {};
+  const terminalGroups: Record<string, MigratedTerminalGroup[]> = {};
   if (!persistedState || typeof persistedState !== "object") {
     return { byThreadKey: {}, terminalGroups };
   }
@@ -909,7 +923,7 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
     if (!threadState || typeof threadState !== "object") continue;
     const migrated = migrateTabbedThread(threadState as Record<string, unknown>);
     if (migrated.state !== null) byThreadKey[threadKey] = migrated.state;
-    if (migrated.terminal !== null) terminalGroups[threadKey] = migrated.terminal;
+    if (migrated.terminals.length > 0) terminalGroups[threadKey] = migrated.terminals;
   }
   return { byThreadKey, terminalGroups };
 }
@@ -1445,20 +1459,11 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
               ...(current.waitingSurfaceIds ?? []),
               ...added.map((surface) => surface.id),
             ];
-            const next: ThreadRightPanelState = {
+            return {
               ...current,
               surfaces: [...kept, ...added],
               ...(waiting.length === 0 ? {} : { waitingSurfaceIds: waiting }),
             };
-            const shown = current.paneSurfaceIds.browser;
-            if (shown === undefined || validIds.has(shown)) return next;
-            const fallback = kept.findLast(
-              (surface) => surface.kind === "preview" && !waiting.includes(surface.id),
-            );
-            if (fallback) {
-              return { ...next, paneSurfaceIds: { ...next.paneSurfaceIds, browser: fallback.id } };
-            }
-            return withoutPaneIn(unplaced(next, "browser"), "minimized", "browser");
           }),
         ),
       reconcileFileSurfaces: (ref, workspaceAvailable) =>
@@ -1548,9 +1553,12 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
       }),
       migrate: (persistedState) => {
         const { byThreadKey, terminalGroups } = migratePersistedRightPanelState(persistedState);
-        for (const [threadKey, group] of Object.entries(terminalGroups)) {
+        for (const [threadKey, groups] of Object.entries(terminalGroups)) {
           const threadRef = parseScopedThreadKey(threadKey);
-          if (threadRef) useTerminalUiStateStore.getState().importTerminalGroup(threadRef, group);
+          if (!threadRef) continue;
+          for (const group of groups) {
+            useTerminalUiStateStore.getState().importTerminalGroup(threadRef, group);
+          }
         }
         return { byThreadKey };
       },
@@ -1672,6 +1680,15 @@ export function selectPaneVisible(
   pane: PaneKind,
 ): boolean {
   return isPaneVisible(selectThreadRightPanelState(byThreadKey, ref), pane);
+}
+
+/** Whether a pane is on screen, tiled or floating. */
+export function selectPaneOnScreen(
+  byThreadKey: Record<string, ThreadRightPanelState>,
+  ref: ScopedThreadRef | null | undefined,
+  pane: PaneKind,
+): boolean {
+  return panesOnScreen(selectThreadRightPanelState(byThreadKey, ref)).includes(pane);
 }
 
 /** What the focused pane shows, while it is on screen. */

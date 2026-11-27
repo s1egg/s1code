@@ -365,6 +365,52 @@ describe("startAgentOpenedPreviews", () => {
     );
   });
 
+  it("floats a page opened hidden once the agent reveals it, unless a page is on screen", () => {
+    using _following = following();
+    reconcilePreviewServerSessions(ref, { sessions: [], serverEpoch, revision: 1 });
+    const hidden = serverTab({ reveal: false });
+    applyPreviewServerEvent(ref, {
+      type: "opened",
+      threadId: "thread-1",
+      tabId: hidden.tabId,
+      createdAt: hidden.updatedAt,
+      snapshot: hidden,
+      serverEpoch,
+      revision: 2,
+    });
+    expect(floatingTabId()).toBeNull();
+
+    navigated(3, {
+      ...hidden,
+      reveal: true,
+      revealRequest: { id: "r1", force: false },
+      updatedAt: "2026-01-01T00:00:01.000Z",
+    });
+    expect(floatingTabId()).toBe("tab_a");
+    expect(useRightPanelStore.getState().byThreadKey[threadKey]?.waitingSurfaceIds).toBeUndefined();
+
+    const second = serverTab({ tabId: "tab_b", reveal: false });
+    applyPreviewServerEvent(ref, {
+      type: "opened",
+      threadId: "thread-1",
+      tabId: second.tabId,
+      createdAt: second.updatedAt,
+      snapshot: second,
+      serverEpoch,
+      revision: 4,
+    });
+    navigated(5, {
+      ...second,
+      reveal: true,
+      revealRequest: { id: "r2", force: false },
+      updatedAt: "2026-01-01T00:00:02.000Z",
+    });
+    expect(floatingTabId()).toBe("tab_a");
+    expect(useRightPanelStore.getState().byThreadKey[threadKey]?.waitingSurfaceIds).toEqual([
+      "browser:tab_b",
+    ]);
+  });
+
   it("never reveals tabs this client opened, desktop tabs, or a tab whose close failed", () => {
     using _following = following();
     const tab = serverTab({ tabId: "tab_closing" });

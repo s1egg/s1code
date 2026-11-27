@@ -12,8 +12,9 @@ import "~/components/ChatView";
 import { useClosedViewStore } from "~/closedViewStore";
 import { __setClientSettingsForTests } from "~/hooks/useSettings";
 import stylesheet from "~/index.css?inline";
+import { usePreviewMiniPlayerStore } from "~/previewMiniPlayerStore";
 import { reopenClosedView } from "~/reopenClosedView";
-import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
+import { deviceSurface, selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "~/terminalUiStateStore";
 import { getRouter } from "~/router";
 import {
@@ -291,6 +292,27 @@ it("dragging a divider resizes the tiles it separates, and a double-click resets
   await vi.waitFor(() => expect(view.layout()).toMatchObject({ sizes: [0.6, 0.4] }));
 });
 
+it("a divider leaves the chat its minimum width beside docked thread details", async () => {
+  await using _view = await mountThread("pane-divider-details", {
+    seed: (ref) => {
+      useRightPanelStore.getState().open(ref, "files");
+      useRightPanelStore.getState().movePane(ref, "files", "chat", "left");
+    },
+  });
+  await expect.element(page.getByRole("region", { name: "Thread details" })).toBeVisible();
+  const details = document.querySelector('[data-thread-details-panel="docked"]')!;
+  const from = pointIn(document.querySelector('[data-pane-divider=":0"]')!);
+  await mouse("mousePressed", from);
+  await mouse("mouseMoved", { x: from.x + 100, y: from.y });
+  await mouse("mouseMoved", { x: window.innerWidth - 5, y: from.y });
+  await mouse("mouseReleased", { x: window.innerWidth - 5, y: from.y });
+  await vi.waitFor(() =>
+    expect(rectOf("chat").width - details.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+      319,
+    ),
+  );
+});
+
 it("filling the window with a pane hides the chat until Show session restores the layout", async () => {
   await using view = await mountThread("pane-fill", {
     seed: (ref) => useRightPanelStore.getState().open(ref, "files"),
@@ -491,6 +513,49 @@ it("a narrow window's sheet switches and closes single items, and lists minimize
   await expect
     .element(picker.getByRole("tab", { name: "Diff" }))
     .toHaveAttribute("aria-selected", "true");
+});
+
+const floatDevice = (ref: ScopedThreadRef) =>
+  useRightPanelStore
+    .getState()
+    .floatSurface(
+      ref,
+      deviceSurface({ hostId: "local", deviceId: "pixel", platform: "android", name: "Pixel" }),
+    );
+
+it("minimized panes stack over the composer while the floating preview sits up top", async () => {
+  await using _view = await mountThread("pane-floating-preview-top", {
+    seed: (ref) => {
+      useRightPanelStore.getState().open(ref, "files");
+      useRightPanelStore.getState().minimizePane(ref, "files");
+      floatDevice(ref);
+      usePreviewMiniPlayerStore.getState().move(ref, { x: 10_000, y: 0 });
+    },
+  });
+  await vi.waitFor(() => expect(floatingWindow("files")?.checkVisibility()).toBe(true), {
+    timeout: 5000,
+  });
+  const chat = rectOf("chat");
+  const files = floatingWindow("files")!.getBoundingClientRect();
+  expect(files.top).toBeGreaterThanOrEqual(chat.top + 48);
+  expect(files.bottom).toBeLessThanOrEqual(chat.bottom);
+});
+
+it("the minimized pane picker stays below the chat's header when a tall preview floats under it", async () => {
+  await using _view = await mountThread("pane-floating-preview-tall", {
+    height: 560,
+    seed: (ref) => {
+      useRightPanelStore.getState().open(ref, "files");
+      useRightPanelStore.getState().minimizePane(ref, "files");
+      floatDevice(ref);
+    },
+  });
+  const more = page.getByRole("button", { name: "1 more minimized pane" });
+  await expect.element(more).toBeInTheDocument();
+  const chat = rectOf("chat");
+  const moreRect = more.element().getBoundingClientRect();
+  expect(moreRect.top).toBeGreaterThanOrEqual(chat.top + 48);
+  expect(moreRect.bottom).toBeLessThanOrEqual(chat.bottom);
 });
 
 it("a short chat keeps every minimized pane reachable, folding the ones that do not fit", async () => {

@@ -2097,12 +2097,18 @@ export default function ChatView(props: ChatViewProps) {
       : null;
   const canvasPreview = useThreadPreviewCanvasSource(activeThreadRef, shownPreviewMiniPlayer);
   // Floating pane windows stack above the composer, and above the preview player when it sits
-  // in its corner below them.
+  // in its bottom corner below them.
   const floatingPreviewTop = useStore(chatCanvasStore, (state) => {
     if (!canvasPreview) return 0;
     const { measurements } = state;
     const frame = resolveChatCanvasModel({ measurements, preview: canvasPreview }).layout.frame;
-    if (!frame || frame.x + frame.width < measurements.width - FLOATING_EDGE_SLOP_PX) return 0;
+    if (
+      !frame ||
+      frame.x + frame.width < measurements.width - FLOATING_EDGE_SLOP_PX ||
+      frame.y + frame.height <
+        measurements.height - measurements.composerHeight - FLOATING_EDGE_SLOP_PX
+    )
+      return 0;
     return Math.max(0, measurements.height - frame.y - FLOATING_EDGE_SLOP_PX / 2);
   });
   // Thread details dock at the window's right edge only while no pane sits right of the chat.
