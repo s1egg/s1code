@@ -36,6 +36,7 @@ export function ProjectFavicon(input: {
   project: ProjectFaviconProject;
   className?: string | undefined;
   fallbackIcon?: ComponentType<{ className?: string }>;
+  monochromeFallback?: boolean | undefined;
 }) {
   const { project } = input;
   if (project.projectIcon?.kind === "monogram") {
@@ -92,6 +93,7 @@ function AutomaticProjectFavicon(input: Parameters<typeof ProjectFavicon>[0]) {
       <ProjectFaviconFallback
         className={input.className}
         icon={FallbackIcon}
+        monochrome={input.monochromeFallback}
         projectName={project.title}
       />
     );
@@ -109,6 +111,7 @@ function AutomaticProjectFavicon(input: Parameters<typeof ProjectFavicon>[0]) {
       src={src}
       className={input.className}
       fallbackIcon={FallbackIcon}
+      monochromeFallback={input.monochromeFallback}
       fallbackProjectName={project.title}
       // An icon too large to cache inline loads from a signed URL that expires.
       onRemoteLoadError={() => refreshProjectFaviconUrl(target)}
@@ -120,17 +123,24 @@ function ProjectFaviconFallback({
   className,
   icon: Icon,
   emoji,
+  monochrome = false,
   projectName,
 }: {
   readonly className?: string | undefined;
   readonly icon: ComponentType<{ className?: string }>;
   readonly emoji?: string | undefined;
+  readonly monochrome?: boolean | undefined;
   readonly projectName?: string | undefined;
 }) {
   if (projectName && projectName.trim().length > 0) {
     const identity = deriveProjectIdentity(projectName);
     return (
-      <ProjectMonogram text={identity.monogram} color={identity.color} className={className} />
+      <ProjectMonogram
+        text={identity.monogram}
+        color={identity.color}
+        monochrome={monochrome}
+        className={className}
+      />
     );
   }
 
@@ -155,12 +165,14 @@ function ProjectFaviconImage({
   src,
   className,
   fallbackIcon: FallbackIcon,
+  monochromeFallback,
   fallbackProjectName,
   onRemoteLoadError,
 }: {
   readonly src: string;
   readonly className?: string | undefined;
   readonly fallbackIcon: ComponentType<{ className?: string }>;
+  readonly monochromeFallback?: boolean | undefined;
   readonly fallbackProjectName?: string | undefined;
   readonly onRemoteLoadError: () => void;
 }) {
@@ -183,6 +195,7 @@ function ProjectFaviconImage({
         <ProjectFaviconFallback
           className={className}
           icon={FallbackIcon}
+          monochrome={monochromeFallback}
           projectName={fallbackProjectName}
         />
       ) : null}

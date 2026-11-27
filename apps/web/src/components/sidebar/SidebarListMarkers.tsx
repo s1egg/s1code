@@ -84,7 +84,7 @@ function SidebarGroupLabelText(props: { label: string; count: number; tone?: str
       )}
     >
       <span className="min-w-0 truncate">{props.label}</span>
-      <span className="rounded-full bg-sidebar-row-hover px-1.5 text-2xs leading-4 font-semibold tabular-nums text-sidebar-foreground/80">
+      <span className="font-normal tabular-nums text-sidebar-muted-foreground/65">
         {props.count}
       </span>
     </span>
@@ -177,7 +177,7 @@ export function SidebarGroupLabel(props: {
 export function SidebarSectionHeader(props: {
   marker: "snoozed-header" | "settled-header";
   label: string;
-  /** A muted trailing count. */
+  /** A muted count shown beside the section label. */
   count: number;
   className?: string;
   dragging?: boolean;
@@ -185,11 +185,24 @@ export function SidebarSectionHeader(props: {
   toggle: { expanded: boolean; onToggle: () => void };
 }) {
   const shelf = props.marker === "snoozed-header" ? "snoozed" : "settled";
+  if (shelf === "settled" && props.count === 0 && !props.dragging) {
+    return (
+      <SortableSidebarMarker
+        marker={props.marker}
+        data-testid={`sidebar-${props.marker}`}
+        className="pointer-events-none relative mx-0.5 -mb-px h-0 overflow-hidden"
+      />
+    );
+  }
   return (
     <SortableSidebarMarker
       marker={props.marker}
       data-testid={`sidebar-${props.marker}`}
-      className={cn("relative mx-0.5 flex h-9 items-end", props.className)}
+      className={cn(
+        "relative flex h-9 items-end",
+        shelf === "settled" && "mt-auto pt-2",
+        props.className,
+      )}
     >
       <CollapsibleSectionHeader
         data-sidebar-row={`shelf:${shelf}`}
@@ -197,7 +210,11 @@ export function SidebarSectionHeader(props: {
         expanded={props.toggle.expanded}
         tone={props.isDropTarget ? "accent" : props.dragging ? "emphasized" : "muted"}
         data-testid={`sidebar-${shelf}-shelf-toggle`}
-        accessory={<span className="font-normal tabular-nums">{props.count}</span>}
+        leadingAccessory={
+          <span className="shrink-0 font-normal tabular-nums text-sidebar-muted-foreground/65">
+            {props.count}
+          </span>
+        }
       >
         {props.label}
       </CollapsibleSectionHeader>

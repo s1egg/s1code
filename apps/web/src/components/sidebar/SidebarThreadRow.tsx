@@ -204,6 +204,8 @@ function terminalProcessLabel(count: number, resolve: MessageResolver): string {
 
 function SidebarThreadTooltip({
   thread,
+  statusDetail,
+  statusNeedsUser,
   onOpenIssue,
   project,
   projectDisplayName,
@@ -220,6 +222,8 @@ function SidebarThreadTooltip({
 }: {
   onOpenIssue: () => void;
   thread: SidebarThreadSummary;
+  statusDetail?: string | null | undefined;
+  statusNeedsUser?: boolean | undefined;
   project: ProjectFaviconProject | null;
   projectDisplayName: string | null;
   environmentLabel: string | null;
@@ -278,6 +282,19 @@ function SidebarThreadTooltip({
           ) : null
         }
       >
+        {statusDetail ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <SidebarRunGlyph waiting={statusNeedsUser === true} className="size-3 shrink-0" />
+            <div
+              className={cn(
+                "min-w-0 truncate",
+                statusNeedsUser ? "text-warning-foreground" : "text-foreground/75",
+              )}
+            >
+              {statusDetail}
+            </div>
+          </div>
+        ) : null}
         {projectDisplayName ? (
           <div className="flex min-w-0 items-center gap-2">
             {project ? <ProjectFavicon project={project} className="size-3 shrink-0" /> : null}
@@ -448,8 +465,8 @@ type SortableThreadRowBag = Pick<
   "listeners" | "setNodeRef" | "transform" | "transition" | "isDragging"
 >;
 
-export const draftSurfaceClassName = "bg-warning/4 hover:bg-warning/8";
-export const draftPenClassName = "size-3 shrink-0 text-warning-foreground";
+export const draftSurfaceClassName = "bg-transparent hover:bg-sidebar-row-hover";
+export const draftPenClassName = "size-3.5 shrink-0 text-sidebar-muted-foreground";
 
 // useSortable memoizes on its `disabled` object, so a fresh one per render
 // re-renders every row and marker on each sidebar update.
@@ -539,8 +556,8 @@ const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
 
 type SidebarThreadRowProps = {
   thread: SidebarThreadSummary;
-  // "working" is the two-line row of the Working group; every other row is one line.
   variant: "working" | "line";
+  isReviewRow?: boolean | undefined;
   navigationParent?: string | undefined;
   variantAction: SidebarSweepAction;
   settlementSupported: boolean;
@@ -783,9 +800,14 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     ? getTriggerDisplayModelName(selectedModel, providerEntry?.driverKind)
     : thread.modelSelection.model;
 
+  const needsUser =
+    status === "approval" || status === "input" || status === "request" || planReady;
+  const isRunning = status === "preparing" || status === "working";
   const detailsTooltip = (
     <SidebarThreadTooltip
       thread={checkoutThread}
+      statusDetail={variant === "working" || isRunning || needsUser ? workingLine : null}
+      statusNeedsUser={needsUser}
       onOpenIssue={() => {
         if (!props.isRouteThread) onThreadActivate(threadRef);
       }}
@@ -914,10 +936,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const snoozeMenuOpen = snoozeMenuOpenRaw && showSnoozeButton;
   const jumpHintLabel = snoozeMenuOpen ? null : props.jumpLabel;
 
-  const needsUser =
-    status === "approval" || status === "input" || status === "request" || planReady;
-  const isRunning = status === "preparing" || status === "working";
   const isSettledRow = variantAction === "unsettle";
+  const isSnoozedRow = variantAction === "unsnooze";
   const rowSurfaceClassName = cn(
     "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
     props.isActive
@@ -986,11 +1006,17 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         variant === "working" || props.isActive ? "font-medium" : "font-normal",
         isRegeneratingTitle
           ? "relative text-muted-foreground"
-          : variant === "working" || props.isActive || isUnread || isWoke || needsUser
-            ? "text-foreground"
-            : isSettledRow
-              ? "text-secondary-label group-hover/sidebar-row:text-foreground"
-              : "text-sidebar-foreground/85 group-hover/sidebar-row:text-foreground",
+          : isSettledRow
+            ? props.isActive
+              ? "text-foreground"
+              : "text-secondary-label group-hover/sidebar-row:text-foreground"
+            : isSnoozedRow
+              ? props.isActive
+                ? "text-foreground"
+                : "text-sidebar-foreground/70 group-hover/sidebar-row:text-foreground"
+              : variant === "working" || props.isActive || isUnread || isWoke || needsUser
+                ? "text-foreground"
+                : "text-sidebar-foreground/85 group-hover/sidebar-row:text-foreground",
       )}
       dir={textDirection(thread.title)}
     >
@@ -1049,32 +1075,37 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     <span className="text-xs">
       <PendingSyncLabel />
     </span>
-  ) : variantAction === "unsnooze" && props.snoozeWakeLabelText !== null ? (
-    <span className="inline-flex items-center gap-1 text-xs text-info-foreground tabular-nums">
+  ) : isSnoozedRow && props.snoozeWakeLabelText !== null ? (
+    <span className="inline-flex items-center gap-1 text-2xs text-secondary-label tabular-nums">
       {/* The clock tells a wake time from an age at a glance. */}
       <AlarmClockIcon aria-hidden className="size-3" />
       {props.snoozeWakeLabelText}
     </span>
   ) : isWoke ? (
     wokeButton
-  ) : variant === "working" ? (
-    <span className="text-2xs text-secondary-label">
-      {/* Rows far outside the scroller leave the shared second tick. */}
-      {isRunning ? (
-        leaseLiveStatus ? (
-          <WorkingDuration
-            environmentId={thread.environmentId}
-            startedAt={resolveWorkingStartedAt(thread)}
-          />
-        ) : null
-      ) : (
-        <RelativeTimeLabel
-          timestamp={thread.pendingUserInputAt ?? resolveThreadActivityTimestamp(thread)}
-        />
-      )}
+  ) : needsUser ? (
+    <span className="inline-flex items-center gap-1.5 text-2xs font-medium text-warning-foreground">
+      <SidebarRunGlyph waiting className="size-3" />
+      {topStatus ? <span>{topStatus.label}</span> : null}
     </span>
-  ) : isRunning || needsUser ? (
-    <SidebarRunGlyph waiting={needsUser} className="size-3.5" />
+  ) : isRunning ? (
+    <span className="inline-flex items-center gap-1.5 text-2xs text-secondary-label tabular-nums">
+      <SidebarRunGlyph waiting={false} className="size-3.5" />
+      {/* Rows far outside the scroller leave the shared second tick. */}
+      {leaseLiveStatus ? (
+        <WorkingDuration
+          environmentId={thread.environmentId}
+          startedAt={resolveWorkingStartedAt(thread)}
+        />
+      ) : null}
+    </span>
+  ) : variant === "working" ? (
+    <span className="inline-flex items-center gap-1.5 text-2xs text-secondary-label tabular-nums">
+      <SidebarRunGlyph waiting={false} className="size-3.5" />
+      <RelativeTimeLabel
+        timestamp={thread.pendingUserInputAt ?? resolveThreadActivityTimestamp(thread)}
+      />
+    </span>
   ) : status === "failed" || status === "limited" ? (
     <CircleAlertIcon
       aria-hidden
@@ -1083,8 +1114,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         status === "failed" ? "text-error-foreground" : "text-warning-foreground",
       )}
     />
-  ) : isUnread ? (
-    <span aria-hidden className="mx-0.5 size-1.5 rounded-full bg-primary" />
+  ) : isUnread && !isSettledRow && !props.isReviewRow ? (
+    <span aria-hidden className="mx-0.5 size-1.5 rounded-full bg-sidebar-foreground/45" />
   ) : (
     <span className="text-2xs text-secondary-label">
       <RelativeTimeLabel
@@ -1151,7 +1182,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     );
   const showSnoozeAction = variantAction === "settle" && showSnoozeButton;
   const hasHoverActions = hoverAction !== null || showSnoozeAction;
-  const trailing = sortable?.isDragging ? (
+  const trailing = isRenaming ? null : sortable?.isDragging ? (
     dragDestination
   ) : (
     <span
@@ -1236,10 +1267,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       {...sortableRootProps}
       {...(fileDropHandlers ?? {})}
       className={cn(
-        "list-none [content-visibility:auto]",
-        variant === "working"
-          ? "[contain-intrinsic-size:auto_--spacing(13)]"
-          : "[contain-intrinsic-size:auto_--spacing(8)]",
+        "list-none [content-visibility:auto] [contain-intrinsic-size:auto_--spacing(8)]",
         sortable?.isDragging && "relative z-20",
       )}
     >
@@ -1249,45 +1277,19 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             <div
               {...rowButtonProps}
               data-testid={variant === "working" ? "sidebar-row-working" : "sidebar-row-slim"}
-              className={cn(
-                rowSurfaceClassName,
-                variant === "working"
-                  ? "grid h-13 grid-cols-[1rem_minmax(0,1fr)_auto] content-center items-center gap-x-2.5 gap-y-0.5 px-2.5"
-                  : "flex h-8 items-center gap-2 px-2.5",
-              )}
+              className={cn(rowSurfaceClassName, "flex h-8 items-center gap-2 px-2.5")}
             />
           }
         >
-          {variant === "working" ? (
-            <>
-              <SidebarRunGlyph waiting={needsUser} className="size-4" />
-              <span className="flex min-w-0 items-center gap-1.5">
-                {draftIndicator}
-                {title}
-              </span>
-              {props.sweepAction !== null ? dragDestination : trailing}
-              <span className="col-span-2 col-start-2 flex min-w-0 items-center gap-1.5 text-xs text-sidebar-muted-foreground">
-                <span className={cn("min-w-0 truncate", needsUser && "text-warning-foreground")}>
-                  {workingLine}
-                </span>
-                {environmentLine ? <span aria-hidden>·</span> : null}
-                {environmentLine}
-              </span>
-            </>
-          ) : (
-            <>
-              {draftIndicator}
-              {title}
-              {environmentLine ? (
-                <span className="max-w-[40%] shrink-0 text-2xs text-secondary-label">
-                  {environmentLine}
-                </span>
-              ) : null}
-              {trailing}
-            </>
-          )}
+          {draftIndicator}
+          {title}
+          {!isRenaming && environmentLine ? (
+            <span className="max-w-[40%] shrink-0 text-2xs text-secondary-label">
+              {environmentLine}
+            </span>
+          ) : null}
+          {props.sweepAction !== null ? dragDestination : trailing}
           {regeneratingStatus}
-          {variant === "line" && props.sweepAction !== null ? dragDestination : null}
         </TooltipTrigger>
         {detailsTooltip}
       </Tooltip>
@@ -1307,7 +1309,7 @@ function SidebarRunGlyph(props: { waiting: boolean; className: string }) {
       fill="none"
       className={cn(
         "shrink-0",
-        props.waiting ? "text-warning-foreground" : "text-primary",
+        props.waiting ? "text-warning-foreground" : "text-sidebar-foreground/65",
         props.className,
       )}
     >
@@ -1344,6 +1346,7 @@ const scrollHighlightedResultIntoView = (node: HTMLLIElement | null) => {
 
 export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {
   isSettled: boolean;
+  showProjectIcon?: boolean | undefined;
   thread: SidebarThreadSummary;
   project: EnvironmentProject | null;
   projectDisplayName: string | null;
@@ -1488,9 +1491,10 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
             />
           }
         >
-          {props.project ? (
+          {(props.showProjectIcon ?? true) && props.project ? (
             <ProjectFavicon
               project={props.project}
+              monochromeFallback
               className={cn(
                 "size-4 shrink-0 transition-opacity",
                 props.isSettled &&

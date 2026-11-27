@@ -138,3 +138,42 @@ it("lists empty drafts by terminal label while their terminal exists, active or 
   await expect.element(rows).toHaveAccessibleName("dev, Unsent draft");
   expect(rows.elements()).toHaveLength(1);
 });
+
+it("omits repeated project context when scoped to a single project", async () => {
+  const initial = useComposerDraftStore.getState();
+  using _store = {
+    [Symbol.dispose]: () => useComposerDraftStore.setState(initial, true),
+  };
+  useComposerDraftStore.setState({
+    draftsByThreadKey: {},
+    draftThreadsByThreadKey: {},
+    logicalProjectDraftThreadKeyByLogicalProjectKey: {},
+  });
+  const environmentId = EnvironmentId.make("draft-scope-environment");
+  const projectId = ProjectId.make("alpha-project");
+  const draftId = DraftId.make("draft-scoped");
+  initial.setProjectDraftThreadId(scopeProjectRef(environmentId, projectId), draftId, {
+    threadId: ThreadId.make("draft-scoped-thread"),
+  });
+  initial.setPrompt(draftId, "Refine sidebar density");
+  const projectDisplayNameByKey = new Map([[`${environmentId}:${projectId}`, "alpha-app"]]);
+  await using screen = await render(
+    <ul>
+      <SidebarDraftBlock
+        draftIds={[draftId]}
+        routeDraftComposer={null}
+        terminalLabels={NO_TERMINAL_LABELS}
+        jumpLabelByDraftId={null}
+        projectByKey={new Map()}
+        projectDisplayNameByKey={projectDisplayNameByKey}
+        showProjectContext={false}
+        routeDraftId={null}
+        onNavigateToDraft={vi.fn()}
+        onDraftContextMenu={vi.fn()}
+      />
+    </ul>,
+  );
+  const row = screen.getByTestId("sidebar-draft-row");
+  await expect.element(row).toHaveTextContent("Refine sidebar density");
+  await expect.element(row).not.toHaveTextContent("alpha-app");
+});

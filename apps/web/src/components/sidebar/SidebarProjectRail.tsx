@@ -5,7 +5,6 @@ import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 
 import { contextMenuSourceOf, openContextMenuFromKeyboard } from "../../contextMenuSource";
 import { cn } from "../../lib/utils";
-import { projectIconColorClassName } from "../../projectIconColors";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
 import type { SidebarRailEntry, SidebarRailStatus } from "../Sidebar.logic";
 import { ProjectFavicon } from "../ProjectFavicon";
@@ -15,7 +14,6 @@ import { SidebarRailUtilities } from "./SidebarChrome";
 function RailTile(props: {
   label: string;
   selected: boolean;
-  colorClassName: string | null;
   status: SidebarRailStatus;
   onClick: () => void;
   onContextMenu?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
@@ -29,7 +27,6 @@ function RailTile(props: {
         ? gt("A thread is working")
         : null;
   const label = statusLabel ? `${props.label} · ${statusLabel}` : props.label;
-  // The ring sits inside the button, around a smaller tile, so the scroll area cannot clip it.
   return (
     <Tooltip>
       <TooltipTrigger
@@ -42,24 +39,19 @@ function RailTile(props: {
             onContextMenu={props.onContextMenu}
             onKeyDown={props.onContextMenu ? openContextMenuFromKeyboard : undefined}
             className={cn(
-              "group/rail-tile grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-              props.colorClassName,
+              "group/rail-tile relative grid h-10 w-full shrink-0 cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
               props.selected &&
-                cn(
-                  "ring-2 ring-inset",
-                  props.colorClassName === null ? "ring-primary" : "ring-current",
-                ),
+                "before:absolute before:top-1/2 before:left-1 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-sidebar-foreground/85",
             )}
           />
         }
       >
         <span
           className={cn(
-            "relative grid size-9 place-items-center rounded-lg transition-opacity",
-            props.colorClassName === null
-              ? "bg-sidebar-row-hover text-sidebar-foreground"
-              : "bg-current/12",
-            props.selected ? "opacity-100" : "opacity-75 group-hover/rail-tile:opacity-100",
+            "relative grid size-9 place-items-center rounded-lg transition-colors",
+            props.selected
+              ? "bg-sidebar-row-active text-sidebar-foreground ring-1 ring-inset ring-sidebar-border/80"
+              : "bg-sidebar-row-hover/65 text-sidebar-muted-foreground group-hover/rail-tile:bg-sidebar-row-hover group-hover/rail-tile:text-sidebar-foreground",
           )}
         >
           {props.children}
@@ -67,8 +59,8 @@ function RailTile(props: {
             <span
               aria-hidden
               className={cn(
-                "absolute -right-1 -bottom-1 size-3 rounded-full border-2 border-sidebar",
-                props.status === "waiting" ? "bg-warning" : "bg-success",
+                "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-sidebar",
+                props.status === "waiting" ? "bg-warning" : "bg-sidebar-foreground/65",
               )}
             />
           ) : null}
@@ -110,7 +102,6 @@ export function SidebarProjectRail(props: {
                 key={entry.key}
                 label={gt("Threads without a project")}
                 selected={selected}
-                colorClassName={null}
                 status={entry.status}
                 onClick={() => props.onSelect(entry.key)}
               >
@@ -118,16 +109,11 @@ export function SidebarProjectRail(props: {
               </RailTile>
             );
           }
-          const color =
-            group.projectIcon?.kind === "monogram" || group.projectIcon?.kind === "lucide"
-              ? group.projectIcon.color
-              : null;
           return (
             <RailTile
               key={entry.key}
               label={group.displayName}
               selected={selected}
-              colorClassName={color === null ? null : projectIconColorClassName(color)}
               status={entry.status}
               onClick={() => props.onSelect(entry.key)}
               onContextMenu={(event) => {
@@ -139,7 +125,7 @@ export function SidebarProjectRail(props: {
                 );
               }}
             >
-              <ProjectFavicon project={group} className="size-5" />
+              <ProjectFavicon project={group} monochromeFallback className="size-5" />
             </RailTile>
           );
         })}
