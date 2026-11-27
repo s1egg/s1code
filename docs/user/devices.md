@@ -7,7 +7,7 @@ yourself. Agents get the same device through `device_*` tools and the
 
 ## Open a device
 
-Open the right panel in a project thread and choose **Device**. On first use,
+In a project thread, choose **Device** from the **…** menu at the top right. On first use,
 the panel walks through three steps: starting the device hub, checking iOS and
 Android support, and choosing whether agents may control devices. Opening the
 panel alone does not download or start anything. If the hub is already
@@ -15,13 +15,12 @@ installed, the setup screen says so and reuses it.
 
 Choose a running device to watch it, or choose **Start** next to a stopped
 device to boot it. The panel shows when you or an agent starts a device.
-Each device opens in its own tab. Use **+ → Device** to open another, and
-double-click a tab name or choose **Rename** from its context menu to rename it.
-Only the visible tab streams video; switching tabs keeps both devices running.
+The device pane shows one device at a time; open another from the device picker and switch with the
+arrow next to the pane's name. Double-click the name or choose **Rename** from the pane's **…**
+menu to rename it. Only the device on screen streams video; switching keeps both devices running.
 Choose **Float device over chat** in the toolbar to keep watching and tapping the
-device in a small window while the right panel shows something else; drag the
-window by its handle, resize it from any edge, and use **Open in right panel**
-to bring it back.
+device in a small window while its pane is hidden; drag the window by its handle, resize it from
+any edge, and use **Open in a pane** to bring it back.
 Turn off **Use devices** in **Settings → Devices** to stop the
 helper processes; simulators and emulators keep running until you power them
 off.
@@ -43,9 +42,9 @@ devices and iOS do not need ffmpeg.
 
 The screen is interactive: click and drag to touch, type while the screen is
 focused, and use the toolbar for Home, Back, and Recents on Android, rotate on
-iOS, and power off. Close the tab to stop watching; the device keeps running
-unless you power it off. Closed tabs stay closed after a reload. To watch the
-device again, choose it from **+ → Device**.
+iOS, and power off. Close it in the pane to stop watching; the device keeps running
+unless you power it off. A closed device stays closed after a reload. To watch the
+device again, choose **Device** from the **…** menu.
 
 Choose **3D view** to inspect supported devices while the live screen stays
 interactive. On iPhone Duo, use the fold and stance controls to change its
@@ -70,8 +69,8 @@ back from the device after a change.
 
 When an agent opens a device, it floats over the chat in web and desktop clients
 connected to the thread, the same way an agent-driven browser does. Turn off
-**Auto-show floating preview** in **Settings → Browser** to open a
-right-panel tab instead. In the mobile app, open the agent's thread and tap the
+**Auto-show floating preview** in **Settings → Browser** to open it in the
+device pane instead. In the mobile app, open the agent's thread and tap the
 device button above the composer to watch the live screen and control it.
 On iOS layouts with an inspector, the device opens beside the thread. Maximize
 it to fill the screen; closing the full-screen view returns to the inspector.

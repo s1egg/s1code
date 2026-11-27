@@ -5,7 +5,7 @@ import {
 import type { PreviewSessionSnapshot, ScopedThreadRef } from "@s1tools/contracts";
 
 import type { BrowserSettingsReadError, OpenPreviewMutation } from "~/browser/openFileInPreview";
-import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
+import { useRightPanelStore } from "~/rightPanelStore";
 
 import { openPreviewSession } from "./openPreviewSession";
 
@@ -31,18 +31,5 @@ export async function addBrowserSurface<E>(input: {
   });
   return mapAtomCommandResult(result, (snapshot) => {
     useRightPanelStore.getState().openBrowser(input.threadRef, snapshot.tabId);
-    if (source) {
-      const panels = useRightPanelStore.getState();
-      const { surfaces } = selectThreadRightPanelState(panels.byThreadKey, input.threadRef);
-      const sourceIndex = surfaces.findIndex(
-        (surface) => surface.kind === "preview" && surface.resourceId === source.tabId,
-      );
-      const duplicate = surfaces.find(
-        (surface) => surface.kind === "preview" && surface.resourceId === snapshot.tabId,
-      );
-      if (sourceIndex >= 0 && duplicate) {
-        panels.moveSurface(input.threadRef, duplicate.id, sourceIndex + 1);
-      }
-    }
   });
 }

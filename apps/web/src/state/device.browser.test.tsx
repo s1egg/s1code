@@ -165,7 +165,6 @@ it("reports a failed first device load and retries it", async () => {
   await using screen = await render(
     <RegistryContext.Provider value={registry}>
       <DevicePanel
-        mode="embedded"
         threadRef={{
           environmentId: EnvironmentId.make("device-load-failure"),
           threadId: ThreadId.make("thread"),

@@ -84,7 +84,8 @@ function setup(mode: "single" | "all") {
   };
   for (const ref of [original, other]) {
     fixture.sessions.set(`${ref.environmentId}/${ref.threadId}/term-1`, "history to preserve");
-    useRightPanelStore.getState().openTerminal(ref, "term-1");
+    useTerminalUiStateStore.getState().ensureTerminal(ref, "term-1");
+    useRightPanelStore.getState().open(ref, "terminal");
   }
   const surface = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, original)
     .surfaces[0]!;

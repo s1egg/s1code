@@ -241,12 +241,19 @@ describe("planNextReopen", () => {
     ownerExists: true,
     sideChatExists: true,
     shellLive: true,
-    panel: { isOpen: false, activeSurfaceId: null, surfaces: [] },
+    panel: { isOpen: false, layout: null, activeSurfaceId: null, surfaces: [], paneSurfaceIds: {} },
   };
   const openDiff: ThreadRightPanelState = {
     isOpen: true,
+    layout: {
+      type: "split",
+      direction: "row",
+      children: [{ type: "chat" }, { type: "pane", pane: "diff" }],
+      sizes: [0.6, 0.4],
+    },
     activeSurfaceId: "diff",
     surfaces: [{ kind: "diff", id: "diff" }],
+    paneSurfaceIds: { diff: "diff" },
   };
 
   it.each([

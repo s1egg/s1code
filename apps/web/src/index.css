@@ -879,7 +879,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(s1-mobil
     outline: none;
   }
 
-  [data-preview-panel-mode="inline"] [data-right-panel-surface-content] [data-surface-subheader] {
+  [data-pane-surface] [data-right-panel-surface-content] [data-surface-subheader] {
     height: calc(var(--spacing) * 7);
     min-height: calc(var(--spacing) * 7);
     margin-bottom: calc(var(--spacing) * 3);
@@ -1059,10 +1059,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(s1-mobil
   background-attachment: fixed;
 }
 
-/* Inline right-panel panes that repaint the page background join the chat's fixed glow, so the
-   chat, its header, and the panel stay one wall at any glow strength. Content inside a scroller
-   (sticky cells, rows) is skipped: a fixed background there repaints on every scroll frame. */
-[data-preview-panel-mode="inline"]
+/* Panes that repaint the page background join the chat's fixed glow, so the chat, its header,
+   and every pane stay one wall at any glow strength. Content inside a scroller (sticky cells,
+   rows) is skipped: a fixed background there repaints on every scroll frame. */
+[data-pane-surface]
   .bg-background:not(
     :is(
         .overflow-auto,

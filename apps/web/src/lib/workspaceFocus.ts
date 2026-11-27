@@ -72,16 +72,6 @@ function isInScrollView(target: HTMLElement) {
 }
 
 /**
- * Whether focus can go back to an element without surprising the user: it is still in a
- * visible workspace area (a closing drawer drops its area) and in view, so no list scrolls.
- */
-export function canReturnFocusTo(element: HTMLElement) {
-  return (
-    workspaceArea(element) !== null && isWorkspaceElementVisible(element) && isInScrollView(element)
-  );
-}
-
-/**
  * Brings a restored control into view, innermost scrolling list first.
  * scrollIntoView would also scroll overflow-hidden layout containers out of place.
  */
@@ -217,7 +207,11 @@ export function createWorkspaceFocusController(doc: Document) {
           areas.find((element) => element.matches("main")) ??
           areas.find((element) => element.dataset.workspaceArea === "conversation") ??
           areas.find((element) => element.dataset.workspaceArea === "panel"))
-        : areas.find((element) => element.dataset.workspaceArea === name);
+        : // Of several panes, the one the user last worked in takes a panel focus request.
+          (areas.find(
+            (element) =>
+              element.dataset.workspaceArea === name && element.dataset.paneFocused === "true",
+          ) ?? areas.find((element) => element.dataset.workspaceArea === name));
     if (!area) return false;
     const surface = area.querySelector("[data-right-panel-surface-content]");
     // A lazy surface's Suspense fallback is empty. Wait for its content instead

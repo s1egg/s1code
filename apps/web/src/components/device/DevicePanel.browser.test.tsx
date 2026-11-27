@@ -137,7 +137,6 @@ let container: HTMLDivElement;
 const devicePanel = (threadRef: ScopedThreadRef, surface = picker) => (
   <DevicePanel
     key="device-panel"
-    mode="embedded"
     threadRef={threadRef}
     surface={surface}
     visible

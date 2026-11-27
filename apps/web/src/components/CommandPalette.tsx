@@ -173,7 +173,7 @@ import {
   useCommandPaletteMount,
   useCommandPaletteStore,
 } from "../commandPaletteStore";
-import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
+import { selectPaneVisible, useRightPanelStore } from "../rightPanelStore";
 import { getLatestThreadForProject, sortThreads } from "@s1tools/client-runtime/state/thread-sort";
 import { effectiveSnoozed } from "@s1tools/client-runtime/state/thread-settled";
 import {
@@ -719,8 +719,8 @@ function OpenCommandPaletteDialog(props: {
     : activeDraftThread
       ? scopeThreadRef(activeDraftThread.environmentId, activeDraftThread.threadId)
       : null;
-  const activeThreadPreviewOpen = useRightPanelStore(
-    (state) => selectActiveRightPanel(state.byThreadKey, previewPanelThreadRef) === "preview",
+  const activeThreadPreviewOpen = useRightPanelStore((state) =>
+    selectPaneVisible(state.byThreadKey, previewPanelThreadRef, "browser"),
   );
   const supportsThreadFind =
     environments.find((environment) => environment.environmentId === activeThread?.environmentId)

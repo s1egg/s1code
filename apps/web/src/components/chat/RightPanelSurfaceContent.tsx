@@ -19,8 +19,8 @@ import type { ShortcutMatchContext } from "../../keybindings";
 import type { SideChatParentPanel } from "../../lib/sideChatPane";
 import { type RightPanelSurface, useRightPanelStore } from "../../rightPanelStore";
 import {
-  PersistentThreadTerminalPanel,
-  type PersistentThreadTerminalPanelProps,
+  PersistentThreadTerminalPane,
+  type PersistentThreadTerminalPaneProps,
 } from "../PersistentThreadTerminals";
 import { IssueDetailPanel } from "../issue/IssueDetailPanel";
 import { pullRequestPanelContext } from "../pullRequest/pullRequestDetail.logic";
@@ -38,10 +38,7 @@ const DevicePanel = lazy(() =>
 );
 const FilePreviewPanel = lazy(() => import("../files/FilePreviewPanel"));
 
-type RightPanelTerminalProps = Omit<
-  PersistentThreadTerminalPanelProps,
-  "visible" | "threadRef" | "surface"
->;
+type RightPanelTerminalProps = Omit<PersistentThreadTerminalPaneProps, "visible" | "threadRef">;
 
 interface RightPanelPullRequestProps {
   readonly capabilityKnown: boolean;
@@ -64,8 +61,9 @@ interface RightPanelFileProps {
 }
 
 export function RightPanelSurfaceContent(props: {
-  readonly surface: RightPanelSurface | null;
-  readonly activeSurfaceId: string | null;
+  readonly surface: RightPanelSurface;
+  /** The pane is the one the user last worked in, so it takes its keyboard shortcuts. */
+  readonly focused: boolean;
   readonly threadRef: ScopedThreadRef;
   readonly environmentId: EnvironmentId;
   readonly visible: boolean;
@@ -89,13 +87,11 @@ export function RightPanelSurfaceContent(props: {
 }) {
   const { surface, threadRef, visible, onCloseSurface } = props;
   const gt = useGT();
-  if (surface === null) return null;
   switch (surface.kind) {
     case "preview":
       return (
         <Suspense fallback={null}>
           <PreviewPanel
-            mode="embedded"
             threadRef={threadRef}
             tabId={surface.resourceId}
             configuredUrls={props.configuredPreviewUrls}
@@ -106,12 +102,7 @@ export function RightPanelSurfaceContent(props: {
       );
     case "terminal":
       return (
-        <PersistentThreadTerminalPanel
-          {...props.terminal}
-          visible={visible}
-          threadRef={threadRef}
-          surface={surface}
-        />
+        <PersistentThreadTerminalPane {...props.terminal} visible={visible} threadRef={threadRef} />
       );
     case "diff":
       return (
@@ -139,7 +130,7 @@ export function RightPanelSurfaceContent(props: {
       return (
         <PullRequestDetailPanel
           getShortcutContext={props.getShortcutContext}
-          shortcutsEnabled={visible && props.activeSurfaceId === surface.id}
+          shortcutsEnabled={visible && props.focused}
           key={`${scopedThreadKey(threadRef)}:${surface.id}`}
           environmentId={
             (surface.environmentId as EnvironmentId | undefined) ?? props.environmentId
@@ -249,14 +240,13 @@ export function RightPanelSurfaceContent(props: {
           key={surface.id}
           panelRef={threadRef}
           surface={surface}
-          visible={visible && props.activeSurfaceId === surface.id}
+          visible={visible}
         />
       );
     case "device":
       return (
         <Suspense fallback={null}>
           <DevicePanel
-            mode="embedded"
             threadRef={threadRef}
             key={surface.id}
             surface={surface}

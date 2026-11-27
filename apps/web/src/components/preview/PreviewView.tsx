@@ -515,7 +515,7 @@ export function PreviewView({
       return;
     }
     usePreviewMiniPlayerStore.getState().open(threadRef, browserMiniPlayerSource(tabId));
-    useRightPanelStore.getState().close(threadRef);
+    useRightPanelStore.getState().hidePane(threadRef, "browser");
   };
 
   const desktopCall = (op: ((tabId: string) => Promise<void>) | undefined) => () => {

@@ -33,7 +33,7 @@ import stylesheet from "~/index.css?inline";
 import { environmentContextRecord } from "~/lib/composerContextRecords";
 import { startWorkspaceFocus } from "~/lib/workspaceFocus";
 import { usePromptStashStore } from "~/promptStashStore";
-import { useRightPanelStore } from "~/rightPanelStore";
+import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
 import { getRouter } from "~/router";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { environmentThreadDetails } from "~/state/threads";
@@ -1012,7 +1012,7 @@ it("a mounted thread view lets go of the thread structures it has replaced", asy
   expect(kept).toEqual([]);
 });
 
-it("a shortcut conditioned on rightPanelOpen sees the thread's open right panel", async () => {
+it("a shortcut conditioned on rightPanelOpen sees the thread's open panes", async () => {
   await page.viewport(1280, 800);
   const thread = threadWithHistory("thread-panel-shortcut", 1);
   using _environment = installFakeEnvironment([thread], {
@@ -1036,17 +1036,16 @@ it("a shortcut conditioned on rightPanelOpen sees the thread's open right panel"
     router: false,
   });
   const composer = page.getByTestId("composer-editor");
-  const toggle = page.getByRole("button", { name: "Toggle right panel", exact: true });
-  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
-  await toggle.click();
-  await page.getByRole("button", { name: /^Files/ }).click();
+  const files = page.getByRole("button", { name: "Files", exact: true });
+  await expect.element(files).toHaveAttribute("aria-pressed", "false");
+  await files.click();
   await composer.click();
   await userEvent.keyboard("{Control>}t{/Control}");
-  await expect.element(page.getByRole("menuitem", { name: /Files/ })).toBeVisible();
-  await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect.element(page.getByRole("menuitem", { name: "Close all panes" })).toBeVisible();
+  await expect.element(files).toHaveAttribute("aria-pressed", "true");
 });
 
-it("thread details dock beside the chat, toggle with their shortcut, and open as a popover beside the right panel", async () => {
+it("thread details dock beside the chat, toggle with their shortcut, and open as a popover beside a pane", async () => {
   const style = document.createElement("style");
   style.textContent = stylesheet;
   document.head.append(style);
@@ -1081,13 +1080,13 @@ it("thread details dock beside the chat, toggle with their shortcut, and open as
   await userEvent.keyboard("{ControlOrMeta>}{Shift>}b{/Shift}{/ControlOrMeta}");
   await expect.element(details).toBeVisible();
 
-  await page.getByRole("button", { name: "Toggle right panel", exact: true }).click();
+  await page.getByRole("button", { name: "Files", exact: true }).click();
   await expect.element(details).not.toBeInTheDocument();
   await toggle.click();
   await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
 });
 
-it("selecting a side-chat tab focuses that side chat's composer", async () => {
+it("switching the side chat pane to another side chat focuses its composer", async () => {
   const parent = threadWithHistory("focus-parent", 1);
   // The shell loaded by the file's first test stays; a family read serves side chats added later.
   const sideChat = (name: string) => ({
@@ -1121,7 +1120,8 @@ it("selecting a side-chat tab focuses that side chat's composer", async () => {
   await userEvent.click(mainEditor);
   await userEvent.keyboard("main draft");
 
-  await userEvent.click(screen.getByRole("button", { name: otherSide.title, exact: true }));
+  await userEvent.click(screen.getByRole("button", { name: "Switch item" }));
+  await userEvent.click(page.getByRole("menuitemradio", { name: otherSide.title }));
   const otherEditor = screen.getByRole("textbox", {
     name: `Message ${otherSide.title}`,
     exact: true,
@@ -1129,8 +1129,10 @@ it("selecting a side-chat tab focuses that side chat's composer", async () => {
   await expect.element(otherEditor).toHaveFocus();
   await userEvent.keyboard("other draft");
   await expect.element(otherEditor).toHaveTextContent("other draft");
+  await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 
-  await userEvent.click(screen.getByRole("button", { name: side.title, exact: true }));
+  await userEvent.click(screen.getByRole("button", { name: "Switch item" }));
+  await userEvent.click(page.getByRole("menuitemradio", { name: side.title }));
   await expect.element(sideEditor).toHaveFocus();
   await expect.element(mainEditor).toHaveTextContent("main draft");
 });
@@ -1159,7 +1161,7 @@ it("a subagent tab shows its read-only bar under no header of its own", async ()
     router: false,
   });
   const pane = screen.getByTestId("side-thread-pane");
-  // No header of its own: the tab names it, and only a side chat has actions to put in one.
+  // No header of its own: the pane's chip names it, and only a side chat has actions to put in one.
   await expect.element(pane.getByRole("heading", { name: subagent.title })).not.toBeInTheDocument();
   await expect.element(pane.getByText("Runs on its own")).toBeVisible();
   await expect.element(pane.getByRole("button", { name: "Add to chat" })).not.toBeInTheDocument();
@@ -1210,15 +1212,19 @@ it("/side sends the draft's attachments and context, and keeps them when it does
     await userEvent.keyboard("{Enter}");
     await expect.element(image).not.toBeInTheDocument();
   };
-  // The tab opens once the start finished; until then `/side` refuses another side chat.
-  const sideChatTabs = page.getByRole("button", { name: "Side chat", exact: true });
+  // The side chat opens in its pane once the start finished; until then `/side` refuses another.
+  const openSideChats = () =>
+    selectThreadRightPanelState(
+      useRightPanelStore.getState().byThreadKey,
+      scopeThreadRef(ENVIRONMENT_ID, thread.id),
+    ).surfaces.filter((surface) => surface.kind === "thread").length;
   const sentMessage = async (fields: Record<string, unknown>, openTabs: number) => {
     await vi.waitFor(() =>
       expect(dispatchedCommands()).toContainEqual(
         expect.objectContaining({ type: "message.dispatch", ...fields }),
       ),
     );
-    await expect.element(sideChatTabs).toHaveLength(openTabs);
+    await vi.waitFor(() => expect(openSideChats()).toBe(openTabs));
   };
 
   await sendImageToSideChat();
