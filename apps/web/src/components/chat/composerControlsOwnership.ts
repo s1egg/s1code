@@ -1,7 +1,6 @@
 /**
  * Where the permissions chip shows, whether the mode block overflows, and which control answers
- * the composer.mode shortcut. The model picker's footer always holds Permissions, so the chip
- * only shows while the mode differs from the default. The rule: composer.mode has one target.
+ * the composer.mode shortcut. The model picker answers it when the compact layout hides the chip.
  */
 export function resolveComposerControlsOwnership(input: {
   /** Permissions hide while the mode is the default, or while the new-thread strip names it. */

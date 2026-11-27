@@ -4,13 +4,15 @@ import { cn } from "~/lib/utils";
 
 function Shell({
   contextRow = false,
+  separateControls = false,
   className,
   ...props
-}: ComponentProps<"div"> & { contextRow?: boolean }) {
+}: ComponentProps<"div"> & { contextRow?: boolean; separateControls?: boolean }) {
   return (
     <div
       data-slot="composer-shell"
       data-context-row={contextRow || undefined}
+      data-separate-controls={separateControls || undefined}
       className={cn(
         "@container/composer-surface group/composer-surface relative isolate mx-auto w-full max-w-(--chat-content-max-width)",
         "[--chat-composer-drawer-inset:1.375rem] [--chat-composer-glass-surface:var(--card)] [--chat-composer-outline:rgb(0_0_0/8%)]",
@@ -21,8 +23,7 @@ function Shell({
         "before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-(--chat-composer-glass-surface)/(--glass-opacity) before:backdrop-blur-(--glass-blur) before:backdrop-saturate-(--glass-saturation)",
         "not-supports-[((backdrop-filter:blur(1px))_or_(-webkit-backdrop-filter:blur(1px)))]:before:bg-(--chat-composer-glass-surface)",
         "has-data-[composer-banner-surface=attached]:before:hidden",
-        // With a context row below, the card paints its own glass (see Host) so the row stays bare.
-        "data-context-row:before:hidden",
+        "data-context-row:before:hidden data-separate-controls:before:hidden",
         className,
       )}
       {...props}
@@ -41,6 +42,7 @@ function Host({ className, ...props }: ComponentProps<"div">) {
         "relative z-10 w-full rounded-2xl shadow-composer after:z-1 dark:shadow-composer-dark",
         "group-data-context-row/composer-surface:before:pointer-events-none group-data-context-row/composer-surface:before:absolute group-data-context-row/composer-surface:before:inset-0 group-data-context-row/composer-surface:before:-z-1 group-data-context-row/composer-surface:before:rounded-2xl group-data-context-row/composer-surface:before:bg-(--chat-composer-glass-surface)/(--glass-opacity) group-data-context-row/composer-surface:before:backdrop-blur-(--glass-blur) group-data-context-row/composer-surface:before:backdrop-saturate-(--glass-saturation)",
         outlineClasses,
+        "group-data-separate-controls/composer-surface:shadow-none group-data-separate-controls/composer-surface:before:hidden group-data-separate-controls/composer-surface:after:hidden dark:group-data-separate-controls/composer-surface:shadow-none",
         "group-has-data-[composer-banner-surface=attached]/composer-surface:shadow-none dark:group-has-data-[composer-banner-surface=attached]/composer-surface:shadow-none group-has-data-[composer-banner-surface=attached]/composer-surface:before:hidden group-has-data-[composer-banner-surface=attached]/composer-surface:after:hidden",
         className,
       )}
@@ -56,6 +58,7 @@ function Main({ className, ...props }: ComponentProps<"div">) {
       className={cn(
         "group relative z-10 rounded-2xl p-px",
         outlineClasses,
+        "group-data-separate-controls/composer-surface:rounded-3xl group-data-separate-controls/composer-surface:bg-(--chat-composer-glass-surface)/(--glass-opacity) group-data-separate-controls/composer-surface:backdrop-blur-(--glass-blur) group-data-separate-controls/composer-surface:backdrop-saturate-(--glass-saturation) group-data-separate-controls/composer-surface:shadow-composer group-data-separate-controls/composer-surface:after:block dark:group-data-separate-controls/composer-surface:shadow-composer-dark",
         "after:z-20 after:hidden group-has-data-[composer-banner-surface=attached]/composer-surface:after:block",
         "group-has-data-[composer-banner-surface=attached]/composer-surface:bg-(--chat-composer-glass-surface)/(--glass-opacity) group-has-data-[composer-banner-surface=attached]/composer-surface:backdrop-blur-(--glass-blur) group-has-data-[composer-banner-surface=attached]/composer-surface:backdrop-saturate-(--glass-saturation)",
         "group-has-data-[composer-banner-surface=attached]/composer-surface:shadow-composer dark:group-has-data-[composer-banner-surface=attached]/composer-surface:shadow-none",

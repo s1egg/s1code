@@ -44,11 +44,13 @@ export function ComposerControlIcon({
   icon: Icon,
   className,
   opticalSize = "default",
+  compact = false,
   size = "sm",
 }: {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   className?: string | undefined;
   opticalSize?: "default" | "large";
+  compact?: boolean | undefined;
   size?: ComposerControlSize;
 }) {
   return (
@@ -59,6 +61,7 @@ export function ComposerControlIcon({
         size === "xs" ? "size-3" : opticalSize === "large" ? "size-4.5" : "size-4",
         className,
       )}
+      data-composer-control-compact-icon={compact || undefined}
       data-composer-control-icon
     />
   );

@@ -36,6 +36,7 @@ type NullableContextWindowUsage = {
 };
 
 export type ContextWindowSnapshot = NullableContextWindowUsage & {
+  readonly contextBreakdown?: OrchestrationV2ProviderTurnTokenUsage["contextBreakdown"];
   readonly remainingTokens: number | null;
   readonly usedPercentage: number | null;
   readonly remainingPercentage: number | null;
@@ -165,6 +166,7 @@ export function deriveLatestContextWindowSnapshot(
     const remainingPercentage = usedPercentage !== null ? Math.max(0, 100 - usedPercentage) : null;
     return {
       usedTokens,
+      ...(liveUsage.contextBreakdown ? { contextBreakdown: liveUsage.contextBreakdown } : {}),
       totalProcessedTokens: null,
       maxTokens,
       remainingTokens,

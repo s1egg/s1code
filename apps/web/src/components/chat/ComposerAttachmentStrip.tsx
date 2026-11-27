@@ -7,7 +7,7 @@ import type {
 } from "@s1tools/contracts";
 import { formatAttachmentSize } from "@s1tools/client-runtime/state/attachments";
 import { T, useGT, useMessages } from "gt-react";
-import { CircleAlertIcon, ImageIcon, PaperclipIcon, PlayIcon, XIcon } from "lucide-react";
+import { CircleAlertIcon, ImageIcon, PlayIcon, XIcon } from "lucide-react";
 import { type ComponentProps, type Ref, useLayoutEffect, useRef } from "react";
 
 import {
@@ -759,31 +759,5 @@ export function ComposerAttachInput({
         });
       }}
     />
-  );
-}
-
-export function ComposerAttachButton({ onOpenPicker }: { readonly onOpenPicker: () => void }) {
-  const gt = useGT();
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={onOpenPicker}
-            aria-label={gt("Attach files")}
-          />
-        }
-      >
-        {/* The clip's weight sits in its upper loop; 1px down reads as centered on the row. */}
-        <PaperclipIcon className="translate-y-px" />
-      </TooltipTrigger>
-      <TooltipPopup>
-        <T>Attach files</T>
-      </TooltipPopup>
-    </Tooltip>
   );
 }

@@ -317,9 +317,6 @@ import { ProviderSubagentBar } from "./chat/ProviderSubagentBar";
 import { getTriggerDisplayModelName } from "./chat/providerIconUtils";
 import { resolveScrollToEndClearance } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
-import { ComposerContextUsage } from "./chat/ComposerContextUsage";
-import { ComposerRunStatus } from "./chat/ComposerRunStatus";
-import { activeRunTaskProgress } from "./chat/composerRunStatus.logic";
 import { useSideChat } from "./chat/useSideChat";
 import { sideThreadComposer, sideThreadKindOf } from "@s1tools/client-runtime/side-thread";
 import { useOpenSurfaceInMainView } from "../hooks/useOpenSurfaceInMainView";
@@ -1925,13 +1922,8 @@ export default function ChatView(props: ChatViewProps) {
       isGitRepo,
       showEnvironmentIndicator: showComposerEnvironmentIndicator,
     });
-  // Sits under the branch strip when that shows, rather than squeezing into it.
   const showComposerContextUsage =
-    !isMobileViewport &&
-    !embedded &&
-    !isDraftHeroState &&
-    isServerThread &&
-    activeContextWindow !== null;
+    !isMobileViewport && !embedded && !isDraftHeroState && isServerThread;
   const terminalShortcutLabelOptions = {
     context: {
       terminalFocus: true,
@@ -1991,25 +1983,6 @@ export default function ChatView(props: ChatViewProps) {
     useComposerFocus(composerRef);
   const canInterruptRunningThread =
     canOperateThread && deriveCanInterruptRunningThread(activeThread !== undefined, activeRuntime);
-  // Approvals and questions own the space above the composer; banners hide it from inside the stack.
-  const showComposerRunStatus =
-    isServerThread &&
-    !isDraftHeroState &&
-    !showProviderSubagentBar &&
-    ((isWorking && activeRuntime?.status !== "waiting") || phase === "connecting") &&
-    activePendingApproval === null &&
-    activePendingUserInput === null &&
-    activeThreadShell?.hasPendingUserInput !== true;
-  const composerRunStatusLabel = isPreparingWorktree
-    ? gt("Setting up worktree…")
-    : isCompacting
-      ? gt("Compacting…")
-      : providerStartingRun?.providerStartingLabelMsg
-        ? messages(providerStartingRun.providerStartingLabelMsg)
-        : gt("Working…", { $context: "status above the composer while the agent runs" });
-  const composerRunInterruptShortcutLabel = canInterruptRunningThread
-    ? shortcutLabelForCommand(keybindings, "thread.stop")
-    : null;
   const onInterrupt = async () => {
     if (
       !activeThread ||
@@ -3848,21 +3821,10 @@ export default function ChatView(props: ChatViewProps) {
                     }
                   >
                     <ChildThreadApprovals threadRef={activeThreadRef} />
-                    {showComposerRunStatus ? (
-                      <ComposerRunStatus
-                        label={composerRunStatusLabel}
-                        startedAt={activeWorkStartedAt}
-                        environmentId={environmentId}
-                        interruptShortcutLabel={composerRunInterruptShortcutLabel}
-                        tasks={activeRunTaskProgress(
-                          serverProjection?.plans,
-                          activeRuntime?.activeRunId,
-                        )}
-                      />
-                    ) : null}
                     <div className="relative">
                       <ComposerSurface.Shell
-                        contextRow={showComposerContextStrip || showComposerContextUsage}
+                        contextRow={showComposerContextStrip}
+                        separateControls={composerMounted && !isMobileViewport}
                       >
                         <ComposerSurface.Host
                           inert={queuedRunEdit.isSaving}
@@ -4008,7 +3970,10 @@ export default function ChatView(props: ChatViewProps) {
                                 }
                                 onComposerOverlayHeightChange={publishComposerOverlayHeightStable}
                                 permissionsShownInStrip={
-                                  showComposerContextStrip && !isServerThread
+                                  isMobileViewport && showComposerContextStrip && !isServerThread
+                                }
+                                contextUsage={
+                                  showComposerContextUsage ? activeContextWindow : undefined
                                 }
                                 promptRef={promptRef}
                                 composerImagesRef={composerImagesRef}
@@ -4105,7 +4070,7 @@ export default function ChatView(props: ChatViewProps) {
                                       : undefined
                                   }
                                   availableEnvironments={logicalProjectEnvironments}
-                                  {...(isServerThread
+                                  {...(isServerThread || !isMobileViewport
                                     ? {}
                                     : {
                                         trailing: (
@@ -4124,17 +4089,6 @@ export default function ChatView(props: ChatViewProps) {
                                 />
                               </div>
                             )}
-                            {showComposerContextUsage && activeContextWindow ? (
-                              <div className="pointer-events-auto">
-                                <ComposerContextUsage
-                                  stacked={showComposerContextStrip}
-                                  usage={activeContextWindow}
-                                  onCompact={
-                                    compactDisabled ? null : onComposerCompactContextStable
-                                  }
-                                />
-                              </div>
-                            ) : null}
                           </div>
                         </div>
                       </ComposerSurface.Shell>

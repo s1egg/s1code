@@ -12,8 +12,7 @@ import {
   ChevronLeftIcon,
   Minimize2Icon,
   PlayIcon,
-  CornerUpRightIcon,
-  ListPlusIcon,
+  CornerDownLeftIcon,
 } from "lucide-react";
 import { useEnvironmentIdentificationMode } from "~/hooks/useSettings";
 import type { MessageResolver } from "~/i18n/messages";
@@ -21,6 +20,7 @@ import { formatContextWindowTokens } from "~/lib/contextWindow";
 import { cn, isMacPlatform } from "~/lib/utils";
 import { useShortcutModifierState } from "../../shortcutModifierState";
 import { StageBackdropButtonArt, useSidebarStageBackdropVariant } from "../SidebarStageBackdrop";
+import { ComposerControl } from "./ComposerControl";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -41,6 +41,7 @@ interface ComposerPrimaryActionsProps {
   /** Footer controls (dictation) that always sit right before the primary button. */
   children?: ReactNode;
   compact: boolean;
+  inline?: boolean;
   canOperateThread: boolean;
   pendingAction: PendingActionState | null;
   isRunning: boolean;
@@ -141,14 +142,14 @@ function useStopPhase(input: {
 function StopGenerationButton({
   stopPhase,
   canOperateThread,
-  insidePendingAction,
+  compact,
   preserveComposerFocusOnPointerDown,
   onStopRequested,
   onInterrupt,
 }: {
   stopPhase: StopPhase;
   canOperateThread: boolean;
-  insidePendingAction: boolean;
+  compact: boolean;
   preserveComposerFocusOnPointerDown: boolean;
   onStopRequested: () => void;
   onInterrupt: () => void;
@@ -159,11 +160,11 @@ function StopGenerationButton({
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
+          <ComposerControl
             type="button"
             className={cn(
-              "flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-destructive-fill text-white shadow-xs shadow-destructive/24 inset-shadow-control-highlight transition-colors duration-150 hover:bg-destructive-fill/90 active:inset-shadow-control-pressed active:shadow-none disabled:cursor-default disabled:opacity-64 disabled:hover:bg-destructive-fill [&_svg]:pointer-events-none",
-              insidePendingAction ? "size-8 sm:size-7" : "size-8 sm:h-8 sm:w-8",
+              "px-0 hover:bg-transparent hover:text-foreground/80",
+              compact ? "size-8 sm:size-7" : "size-8",
             )}
             onPointerDown={preserveComposerFocusOnPointerDown ? preventPointerFocus : undefined}
             disabled={!canOperateThread || isStopDisabled}
@@ -176,9 +177,7 @@ function StopGenerationButton({
           />
         }
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-          <rect x="2" y="2" width="8" height="8" rx="1.5" />
-        </svg>
+        <span aria-hidden="true" className="pointer-events-none size-3 rounded-xs bg-current" />
       </TooltipTrigger>
       <TooltipPopup>
         {stopPhase === "pending"
@@ -224,7 +223,7 @@ export function CollapsedComposerStopAction({
       <StopGenerationButton
         stopPhase={stopPhase}
         canOperateThread={canOperateThread}
-        insidePendingAction={false}
+        compact={false}
         preserveComposerFocusOnPointerDown
         onStopRequested={() => setStopPhase("pending")}
         onInterrupt={onInterrupt}
@@ -236,6 +235,7 @@ export function CollapsedComposerStopAction({
 export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   children,
   compact,
+  inline = false,
   canOperateThread,
   pendingAction,
   isRunning,
@@ -288,7 +288,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       key="interrupt"
       stopPhase={stopPhase}
       canOperateThread={canOperateThread}
-      insidePendingAction={insidePendingAction}
+      compact={inline || insidePendingAction}
       preserveComposerFocusOnPointerDown={preserveComposerFocusOnPointerDown}
       onStopRequested={() => setStopPhase("pending")}
       onInterrupt={onInterrupt}
@@ -437,15 +437,23 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         : submitLabel);
 
   const isBusyOrHeld = isSendBusy || isSendHeld;
+  if (inline && !hasSendableContent && !showResume && !isBusyOrHeld && !isEditingQueuedMessage) {
+    return children;
+  }
+  const Action = inline ? ComposerControl : "button";
   const sendButton = (
-    <button
+    <Action
       type={showResume ? "button" : "submit"}
-      className={cn(
-        "relative isolate flex h-9 w-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 enabled:cursor-pointer enabled:inset-shadow-control-highlight hover:scale-105 active:inset-shadow-control-pressed active:shadow-none disabled:pointer-events-none disabled:shadow-none disabled:hover:scale-100 sm:h-8 sm:w-8 [&_svg]:pointer-events-none",
-        stageBackdropVariant
-          ? "bg-transparent text-white enabled:shadow-black/24 enabled:hover:brightness-110 disabled:opacity-64"
-          : "bg-message-action text-message-action-foreground enabled:shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground",
-      )}
+      className={
+        inline
+          ? "size-7 px-0"
+          : cn(
+              "relative isolate flex h-9 w-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 enabled:cursor-pointer enabled:inset-shadow-control-highlight hover:scale-105 active:inset-shadow-control-pressed active:shadow-none disabled:pointer-events-none disabled:shadow-none disabled:hover:scale-100 sm:h-8 sm:w-8 [&_svg]:pointer-events-none",
+              stageBackdropVariant
+                ? "bg-transparent text-white enabled:shadow-black/24 enabled:hover:brightness-110 disabled:opacity-64"
+                : "bg-message-action text-message-action-foreground enabled:shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground",
+            )
+      }
       {...pointerFocusProps}
       onClick={(event) => {
         if (stopPhase === "landed") {
@@ -464,7 +472,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
       aria-label={submitStatus ?? submitLabel}
       aria-busy={isBusyOrHeld || undefined}
     >
-      {stageBackdropVariant ? (
+      {!inline && stageBackdropVariant ? (
         <span className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
           <StageBackdropButtonArt variant={stageBackdropVariant} />
         </span>
@@ -475,10 +483,8 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         <PlayIcon className="size-4 fill-current" aria-hidden="true" />
       ) : isEditingQueuedMessage ? (
         <CheckIcon className="size-4" aria-hidden="true" />
-      ) : isRunning && isQueuing ? (
-        <ListPlusIcon className="size-4" aria-hidden="true" />
-      ) : isRunning ? (
-        <CornerUpRightIcon className="size-4" aria-hidden="true" />
+      ) : inline ? (
+        <CornerDownLeftIcon className="size-4.5 text-current" aria-hidden="true" />
       ) : (
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path
@@ -490,7 +496,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
           />
         </svg>
       )}
-    </button>
+    </Action>
   );
 
   const submit = (

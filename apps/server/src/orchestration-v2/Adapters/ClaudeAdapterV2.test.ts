@@ -10779,6 +10779,73 @@ describe("ClaudeAdapterV2 background wake turns", () => {
     ),
   );
 
+  it.effect("publishes Claude Code's structured context command report", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeWakeHarness;
+      yield* harness.runtime.startTurn(
+        makeClaudeTestTurnInput({
+          threadId: harness.threadId,
+          providerThread: harness.providerThread,
+          now: yield* DateTime.now,
+          attemptId: RunAttemptId.make("attempt-context-report"),
+          text: "/context",
+          attachments: [],
+        }),
+      );
+      const categories = [
+        { name: "Messages", tokens: 1_500, kind: "used" },
+        { name: "MCP tools (deferred)", tokens: 500, kind: "deferred" },
+      ];
+      const uuid = "00000000-0000-4000-8000-000000000663";
+      yield* Queue.offer(
+        harness.sdkMessages,
+        claudeSdkFrame({
+          type: "assistant",
+          message: {
+            model: "<synthetic>",
+            id: uuid,
+            type: "message",
+            role: "assistant",
+            content: [{ type: "text", text: "Context usage" }],
+          },
+          context_usage: {
+            model: "claude-opus-4-6",
+            total_tokens: 1_500,
+            raw_max_tokens: 200_000,
+            percentage: 1,
+            categories,
+            mcp_tools: [],
+            memory_files: [],
+            agents: [],
+          },
+          parent_tool_use_id: null,
+          uuid,
+          session_id: WAKE_NATIVE_SESSION,
+        }),
+      );
+      yield* Queue.offer(harness.sdkMessages, makeResultFrame({ uuid, result: "Context usage" }));
+      yield* Queue.take(harness.terminalReceipts);
+      const usage = harness.events.flatMap((event) =>
+        event.type === "provider_turn.updated" && event.providerTurn.tokenUsage
+          ? [decodeProviderTurnTokenUsage(event.providerTurn.tokenUsage)]
+          : [],
+      );
+      assert.lengthOf(usage, 1);
+      assert.equal(usage[0]?.usedTokens, 1_500);
+      assert.equal(usage[0]?.maxTokens, 200_000);
+      assert.deepEqual(usage[0]?.contextBreakdown, categories);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          IdAllocator.layer,
+          McpProviderSessions.layer,
+          NodeServices.layer,
+          NodeCrypto.layer,
+        ),
+      ),
+    ),
+  );
+
   const usageStreamFrame = (event: unknown, parentToolUseId: string | null = null) =>
     claudeSdkFrame({
       type: "stream_event",

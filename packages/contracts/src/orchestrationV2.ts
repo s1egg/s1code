@@ -256,6 +256,15 @@ export type OrchestrationV2ContextTransferResolution =
   typeof OrchestrationV2ContextTransferResolution.Type;
 
 export const OrchestrationV2ProviderTurnTokenUsage = Schema.Struct({
+  contextBreakdown: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        name: TrimmedNonEmptyString,
+        tokens: NonNegativeInt,
+        kind: Schema.Literals(["used", "free", "buffer", "deferred"]),
+      }),
+    ),
+  ),
   usedTokens: NonNegativeInt,
   maxTokens: Schema.optional(Schema.NullOr(NonNegativeInt)),
   inputTokens: Schema.optional(NonNegativeInt),

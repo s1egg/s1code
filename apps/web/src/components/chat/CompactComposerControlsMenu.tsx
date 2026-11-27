@@ -12,6 +12,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
   runtimeMode: RuntimeMode;
   runtimeModeOptions: ReadonlyArray<RuntimeModeOption>;
   showPermissions: boolean;
+  permissionsList?: boolean;
   size?: "sm" | "xs";
   /** Close the portaled popup when its trigger hides. */
   hidden?: boolean;
@@ -45,6 +46,7 @@ export const CompactComposerControlsMenu = memo(function CompactComposerControls
       <MenuPopup align="start" {...composerFloatingLayerProps}>
         {props.showPermissions ? (
           <ComposerPermissionsSection
+            list={props.permissionsList}
             runtimeMode={props.runtimeMode}
             runtimeModeOptions={props.runtimeModeOptions}
             onRuntimeModeChange={props.onRuntimeModeChange}

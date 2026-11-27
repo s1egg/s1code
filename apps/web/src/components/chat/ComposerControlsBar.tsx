@@ -32,11 +32,6 @@ import {
 import type { useComposerProviderModel } from "./useComposerProviderModel";
 import { resolveComposerControlsOwnership } from "./composerControlsOwnership";
 
-/**
- * The composer footer controls: the model picker (which also holds effort, speed and
- * permissions), mode controls and the overflow menu for blocks that do not fit. Rendered in the
- * expanded footer or the resting controls host.
- */
 // Model and effort share one trigger; it stays filled while its popup is open.
 const MODEL_TRIGGER_STATES = "data-popup-open:bg-accent data-popup-open:text-foreground";
 
@@ -62,6 +57,7 @@ export function ComposerControlsBar(props: {
   compatibleRuntimeModeOptions: ReadonlyArray<RuntimeModeOption>;
   handleRuntimeModeChange: (mode: RuntimeMode) => void;
   composerControlsCollapsed: boolean;
+  separateControls: boolean;
   composerControlsHidden: boolean;
   restingHiddenBlockCount: number;
   iconOnlyBlockCount: number;
@@ -141,7 +137,8 @@ export function ComposerControlsBar(props: {
     overflowShowsPermissions,
     pickerOwnsModeShortcut,
   } = resolveComposerControlsOwnership({
-    matchesDefault: accessMatchesDefault || props.permissionsShownInStrip,
+    matchesDefault:
+      !props.separateControls && (accessMatchesDefault || props.permissionsShownInStrip),
     collapsed: composerControlsCollapsed,
     measuredHiddenBlockCount,
   });
@@ -177,6 +174,7 @@ export function ComposerControlsBar(props: {
               hidden={composerControlsHidden || restingHiddenBlockCount > 0}
               accessDisplay={accessDisplay}
               emphasized={!accessMatchesDefault}
+              list={props.separateControls}
               onRuntimeModeChange={handleRuntimeModeChange}
             />
           ),
@@ -228,9 +226,15 @@ export function ComposerControlsBar(props: {
       footer={
         <ComposerPickerFooter
           traits={traitsInput}
-          runtimeMode={compatibleRuntimeMode}
-          runtimeModeOptions={compatibleRuntimeModeOptions}
-          onRuntimeModeChange={handleRuntimeModeChange}
+          permissions={
+            props.separateControls
+              ? undefined
+              : {
+                  runtimeMode: compatibleRuntimeMode,
+                  runtimeModeOptions: compatibleRuntimeModeOptions,
+                  onRuntimeModeChange: handleRuntimeModeChange,
+                }
+          }
         />
       }
       terminalOpen={terminalOpen}
@@ -287,6 +291,7 @@ export function ComposerControlsBar(props: {
         hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
         // Permissions join the overflow only when their normal home is in it.
         showPermissions={overflowShowsPermissions}
+        permissionsList={props.separateControls}
         onRuntimeModeChange={handleRuntimeModeChange}
       />
     </div>
@@ -308,8 +313,8 @@ export function ComposerControlsBar(props: {
     </ComposerControl>
   ) : (
     <>
-      {composerControlsCollapsed ? composerModelPicker : null}
-      {composerControlsCollapsed || !showModeBlock ? (
+      {composerControlsCollapsed || props.separateControls ? composerModelPicker : null}
+      {composerControlsCollapsed || props.separateControls || !showModeBlock ? (
         <>
           {restingBlocks}
           {overflowMenu}
@@ -321,7 +326,7 @@ export function ComposerControlsBar(props: {
           {overflowMenu}
         </div>
       )}
-      {composerControlsCollapsed ? null : composerModelPicker}
+      {composerControlsCollapsed || props.separateControls ? null : composerModelPicker}
     </>
   );
 }

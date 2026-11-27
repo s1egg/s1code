@@ -12,6 +12,7 @@ import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
 import { AppRoot } from "~/AppRoot";
+import "~/index.css";
 // The route loads ChatView lazily, and its first transform (React Compiler over ~4k lines)
 // takes 6-11s; importing it here keeps that out of the test's timeout.
 import "~/components/ChatView";
@@ -68,7 +69,12 @@ function coldClaudeThread(threadId = "thread-claude") {
     handoffIds: [],
     forkedFrom: null,
     pendingBackgroundTasks: [],
-    contextUsage: { usedTokens: 250_000, maxTokens: 1_000_000 },
+    contextUsage: {
+      usedTokens: 250_000,
+      maxTokens: 1_000_000,
+      inputTokens: 240_000,
+      outputTokens: 10_000,
+    },
     nativeMetadata: null,
     goal: null,
     createdAt: at,
@@ -77,7 +83,14 @@ function coldClaudeThread(threadId = "thread-claude") {
   return { ...thread, providerThreads: [providerThread] };
 }
 
+async function desktopViewport() {
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  await page.viewport(1280, 800);
+  return { [Symbol.asyncDispose]: () => page.viewport(viewport.width, viewport.height) };
+}
+
 it("sends a Codex follow-up on a cold Claude thread without compacting first", async () => {
+  await using _viewport = await desktopViewport();
   const thread = coldClaudeThread();
   using _environment = installFakeEnvironment([thread], {
     acceptCommands: true,
@@ -98,6 +111,29 @@ it("sends a Codex follow-up on a cold Claude thread without compacting first", a
   await expect.element(page.getByText(`Answer 2 for ${thread.id}.`)).toBeVisible();
   const compactAndSend = page.getByRole("button", { name: "Compact and send" });
   await expect.element(compactAndSend).toBeVisible();
+
+  const context = page.getByRole("button", { name: "Context: 250k / 1m (25%)" });
+  await userEvent.hover(context);
+  await expect.element(page.getByRole("tooltip")).toHaveTextContent("Context: 250k / 1m (25%)");
+  await context.click();
+  const breakdown = page.getByRole("button", { name: /^Context window/ });
+  await expect.element(breakdown).toHaveAttribute("aria-expanded", "false");
+  const inputTokens = page.getByText("Input tokens", { exact: true });
+  await expect.element(inputTokens).not.toBeVisible();
+  await breakdown.click();
+  await expect.element(breakdown).toHaveAttribute("aria-expanded", "true");
+  await expect.element(inputTokens).toBeVisible();
+  await expect.element(page.getByText("240k", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByText("Cached input tokens", { exact: true }))
+    .not.toBeInTheDocument();
+  await expect.element(page.getByText("750k", { exact: true })).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+
+  await page.getByRole("button", { name: /^Permissions:/ }).click();
+  const activeMode = page.getByRole("menuitemradio", { checked: true });
+  await expect.element(activeMode).toBeVisible();
+  await userEvent.keyboard("{Escape}");
 
   await page.getByRole("button", { name: "Claude Opus 4.6", exact: true }).click();
   // The picker lists only the active provider's models until you search.
@@ -125,12 +161,7 @@ it("sends a Codex follow-up on a cold Claude thread without compacting first", a
 });
 
 it("drops the compact offer on a cold Claude thread while /clear is armed", async () => {
-  // At phone width, dismissing the fresh-session notice collapses the composer and hides the chip.
-  const viewport = { width: window.innerWidth, height: window.innerHeight };
-  await page.viewport(1280, 800);
-  await using _viewport = {
-    [Symbol.asyncDispose]: () => page.viewport(viewport.width, viewport.height),
-  };
+  await using _viewport = await desktopViewport();
   // The first test's model pick stays on thread-claude's draft, so this one uses its own thread.
   const thread = coldClaudeThread("thread-claude-cleared");
   using _environment = installFakeEnvironment([thread], { providers: [CLAUDE_PROVIDER] });
@@ -159,7 +190,33 @@ it("drops the compact offer on a cold Claude thread while /clear is armed", asyn
   await expect.element(page.getByText("Your next message starts a fresh session")).toBeVisible();
   await expect.element(chip).not.toBeInTheDocument();
   await expect.element(compactAndSend).not.toBeInTheDocument();
-  await expect.element(page.getByRole("button", { name: "Submit message" })).toBeVisible();
+  const submit = page.getByRole("button", { name: "Submit message" });
+  await expect.element(submit).not.toBeInTheDocument();
+
+  const add = page.getByRole("button", { name: "Add to message" });
+  const placeholder = page.getByText("Type / for commands", { exact: true });
+  const center = (element: Element) => {
+    const { top, height } = element.getBoundingClientRect();
+    return top + height / 2;
+  };
+  await expect.element(placeholder).toBeVisible();
+  expect(Math.abs(center(placeholder.element()) - center(add.element()))).toBeLessThan(1);
+
+  await add.click();
+  await page.getByRole("menuitem", { name: "Slash commands" }).click();
+  await expect.element(editor).toHaveTextContent("/");
+  await userEvent.keyboard("{Escape}{Backspace}");
+
+  await userEvent.type(editor, "Draft{Shift>}{Enter}{/Shift}".repeat(20) + "Last line");
+  await expect.element(submit).toBeEnabled();
+  const input = editor.element();
+  const style = getComputedStyle(input);
+  const visibleTextHeight =
+    input.clientHeight -
+    Number.parseFloat(style.paddingTop) -
+    Number.parseFloat(style.paddingBottom);
+  expect(visibleTextHeight / Number.parseFloat(style.lineHeight)).toBeCloseTo(16, 0);
+  expect(input.scrollHeight).toBeGreaterThan(input.clientHeight);
 
   await page.getByRole("button", { name: "Keep the current session" }).click();
   await expect.element(chip).toBeVisible();

@@ -718,22 +718,40 @@ function PermissionsMenu(props: {
   );
 }
 
-/** The model picker's footer: speed stays one click away, permissions sit one menu deeper. */
 export function ComposerPickerFooter(props: {
   traits: TraitsSelectionInput | null;
-  runtimeMode: RuntimeMode;
-  runtimeModeOptions: ReadonlyArray<RuntimeModeOption>;
-  onRuntimeModeChange: (mode: RuntimeMode) => void;
+  permissions?:
+    | {
+        runtimeMode: RuntimeMode;
+        runtimeModeOptions: ReadonlyArray<RuntimeModeOption>;
+        onRuntimeModeChange: (mode: RuntimeMode) => void;
+      }
+    | undefined;
 }) {
+  const messages = useMessages();
+  const visibility = props.traits
+    ? getTraitsSectionVisibility({ ...props.traits, resolve: messages })
+    : null;
+  const controls =
+    visibility && splitSpeed(visibility.selectDescriptors, visibility.booleanDescriptors);
+  if (
+    !props.permissions &&
+    (!controls || (!controls.speedSelect && !controls.fastToggle && !controls.ultracodeToggle))
+  )
+    return null;
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-border/70 bg-muted/40 px-3 py-2">
-      {props.traits ? <SpeedControl traits={props.traits} /> : null}
+    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/70 bg-muted/40 px-3 py-2">
+      {props.permissions ? (
+        <div className="me-auto">
+          <PermissionsMenu
+            runtimeMode={props.permissions.runtimeMode}
+            options={props.permissions.runtimeModeOptions}
+            onChange={props.permissions.onRuntimeModeChange}
+          />
+        </div>
+      ) : null}
       {props.traits ? <UltracodeControl traits={props.traits} /> : null}
-      <PermissionsMenu
-        runtimeMode={props.runtimeMode}
-        options={props.runtimeModeOptions}
-        onChange={props.onRuntimeModeChange}
-      />
+      {props.traits ? <SpeedControl traits={props.traits} /> : null}
     </div>
   );
 }

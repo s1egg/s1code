@@ -60,6 +60,7 @@ import {
   type SpawnOptions as ClaudeSpawnOptions,
   type SpawnedProcess as ClaudeSpawnedProcess,
   type SDKAssistantMessage,
+  type SDKContextUsage,
   type SDKAPIRetryMessage,
   type SDKMessage,
   type SDKRateLimitInfo,
@@ -6786,18 +6787,37 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           context: ActiveClaudeTurnContext,
           usage: ClaudeMessageUsage | number,
           requestStarted = false,
+          report?: SDKContextUsage,
         ) {
           const now = yield* DateTime.now;
           // Only message_start marks the request start; an assistant snapshot
           // arrives after generation, so it leaves the cache expiry unknown.
           if (requestStarted && context.streamUsage !== null) context.streamUsage.requestedAt = now;
-          const maxTokens = claudeContextWindow(context.input.modelSelection);
+          const maxTokens =
+            optionalClaudeUsageTokenCount(report?.raw_max_tokens) ??
+            claudeContextWindow(context.input.modelSelection);
           const tokenUsage =
             typeof usage === "number"
               ? {
                   usedTokens: usage,
                   maxTokens,
                   ...claudeAutoCompactThreshold(context.autoCompactWindow, maxTokens),
+                  ...(report
+                    ? {
+                        contextBreakdown: report.categories
+                          .filter(
+                            (category) =>
+                              Number.isFinite(category.tokens) &&
+                              category.tokens > 0 &&
+                              category.name.trim().length > 0,
+                          )
+                          .map(({ name, tokens, kind }) => ({
+                            name: name.trim(),
+                            tokens: Math.round(tokens),
+                            kind,
+                          })),
+                      }
+                    : {}),
                   updatedAt: DateTime.formatIso(now),
                 }
               : claudeProviderTurnTokenUsage(
@@ -11832,8 +11852,17 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               const now = yield* DateTime.now;
               yield* completeProviderRetry(context, now);
             }
-            // CLI-generated <synthetic> frames report zero usage, not context usage.
+            const report =
+              message.parent_tool_use_id === null && message.agent_id === undefined
+                ? message.context_usage
+                : undefined;
+            const reportedTokens = optionalClaudeUsageTokenCount(report?.total_tokens);
+            if (report && reportedTokens !== undefined) {
+              yield* emitContextUsage(context, reportedTokens, false, report);
+            }
+            // The message counters on synthetic CLI replies do not measure the context.
             if (
+              !report &&
               message.parent_tool_use_id === null &&
               message.message.usage != null &&
               message.message.model !== "<synthetic>"

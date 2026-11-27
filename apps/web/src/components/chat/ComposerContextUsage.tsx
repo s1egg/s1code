@@ -1,133 +1,196 @@
 import type { ContextWindowSnapshot } from "@s1tools/client-runtime/state/context-window";
-import { useGT, useLocale, useMessages } from "gt-react";
+import { useGT, useLocale } from "gt-react";
+import { ChevronDownIcon } from "lucide-react";
+import { useId, useState } from "react";
 
 import { formatContextWindowTokens } from "../../lib/contextWindow";
 import { cn } from "../../lib/utils";
-import { InlineButton } from "../ui/button";
+import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { formatContextWindowCompactionMessage } from "./compaction.logic";
-import { ComposerSurface } from "./ComposerSurface";
+import { ComposerControl } from "./ComposerControl";
+import { useComposerMenuProps } from "./composerEventScope";
+import { useComposerMenuState } from "./useComposerMenuState";
 
-/** The thread's context use under the composer, so people see when to compact before the agent does. */
 export function ComposerContextUsage({
   usage,
-  onCompact,
-  stacked = false,
+  hidden,
 }: {
-  readonly usage: ContextWindowSnapshot;
-  /** Under the branch strip, which already holds the gap below the card. */
-  readonly stacked?: boolean;
-  /** Null when manual compaction is unavailable right now. */
-  readonly onCompact: (() => void) | null;
+  readonly usage: ContextWindowSnapshot | null;
+  readonly hidden: boolean;
 }) {
   const gt = useGT();
-  const m = useMessages();
   const locale = useLocale();
-  const maxTokens = usage.maxTokens != null && usage.maxTokens > 0 ? usage.maxTokens : null;
-  const used =
-    maxTokens !== null && usage.usedPercentage !== null
-      ? Math.round(Math.max(0, Math.min(100, usage.usedPercentage)))
-      : null;
+  const floatingProps = useComposerMenuProps();
+  const [open, setOpen] = useComposerMenuState(hidden);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const breakdownId = useId();
+  const title = gt("Context window");
+  const noUsage = gt("No context usage reported yet");
+  const maxTokens = usage?.maxTokens != null && usage.maxTokens > 0 ? usage.maxTokens : null;
+  const used = maxTokens === null ? null : (usage?.usedPercentage ?? null);
   const threshold =
-    usage.compactsAutomatically === false ? null : (usage.autoCompactThreshold ?? null);
+    usage?.compactsAutomatically === false ? null : (usage?.autoCompactThreshold ?? null);
   const tick =
     maxTokens !== null && threshold !== null && threshold > 0 && threshold < maxTokens
       ? (threshold / maxTokens) * 100
       : null;
-  const usedTokens = formatContextWindowTokens(usage.usedTokens);
+  const usedTokens = formatContextWindowTokens(usage?.usedTokens ?? null);
   const tokens =
-    maxTokens !== null ? `${usedTokens} / ${formatContextWindowTokens(maxTokens)}` : usedTokens;
-  const tone = used === null ? null : used >= 90 ? "error" : used >= 80 ? "warning" : null;
+    maxTokens === null ? usedTokens : `${usedTokens} / ${formatContextWindowTokens(maxTokens)}`;
+  const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 });
+  const summary = used === null ? tokens : `${tokens} (${percent.format(used / 100)})`;
+  const label =
+    usage === null
+      ? noUsage
+      : used === null
+        ? gt("Context: {usedTokens} tokens used", { usedTokens })
+        : gt("Context: {summary}", { summary });
+  const tone =
+    used !== null && used >= 90 ? "error" : used !== null && used >= 80 ? "warning" : "primary";
+  const usageFill =
+    tone === "error" ? "bg-error" : tone === "warning" ? "bg-warning" : "bg-primary";
+  const fallbackRows = [
+    { label: gt("Used tokens"), value: usage?.usedTokens, percentage: used, swatch: usageFill },
+    { label: gt("Input tokens"), value: usage?.inputTokens, swatch: "bg-blue-500" },
+    { label: gt("Cached input tokens"), value: usage?.cachedInputTokens, swatch: "bg-teal-500" },
+    { label: gt("Output tokens"), value: usage?.outputTokens, swatch: "bg-orange-500" },
+    { label: gt("Reasoning tokens"), value: usage?.reasoningOutputTokens, swatch: "bg-pink-500" },
+    {
+      label: gt("Free space", { $context: "unused context window capacity" }),
+      swatch: "bg-muted-foreground/20",
+      value: usage?.remainingTokens,
+      percentage: usage?.remainingPercentage,
+    },
+  ];
+  const rows = usage?.contextBreakdown?.length
+    ? usage?.contextBreakdown.map((category, index) => ({
+        label: category.name,
+        value: category.tokens,
+        swatch:
+          category.kind === "used"
+            ? (["bg-blue-500", "bg-orange-500", "bg-teal-500", "bg-pink-500", "bg-amber-500"][
+                index % 5
+              ] ?? usageFill)
+            : "bg-muted-foreground/20",
+        percentage:
+          category.kind !== "deferred" && maxTokens !== null
+            ? (category.tokens / maxTokens) * 100
+            : null,
+      }))
+    : fallbackRows;
   return (
-    <ComposerSurface.ContextStrip
-      className={cn("text-xs max-sm:hidden", stacked ? "h-7 pt-0.5" : "h-8")}
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setShowBreakdown(false);
+        setOpen(next);
+      }}
     >
       <Tooltip>
-        <TooltipTrigger
-          render={
-            <div
-              tabIndex={0}
-              aria-label={
-                used !== null
-                  ? gt("Context: {used}% used", { used })
-                  : gt("Context: {usedTokens} tokens used", { usedTokens })
-              }
-              className="flex min-w-0 cursor-default items-center gap-2.5 rounded-md px-1.5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-            />
-          }
-        >
-          {used !== null ? (
+        <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
+          <PopoverTrigger
+            render={
+              <ComposerControl
+                aria-label={label}
+                className="size-7 px-0 data-popup-open:bg-accent"
+              />
+            }
+          >
             <span
-              aria-hidden
-              className="relative h-[3px] w-28 shrink-0 rounded-full bg-muted-foreground/20"
-            >
-              {used > 0 ? (
-                <span
-                  className={cn(
-                    "absolute inset-y-0 left-0 rounded-full",
-                    tone === "error"
-                      ? "bg-error"
-                      : tone === "warning"
-                        ? "bg-warning"
-                        : "bg-primary",
-                  )}
-                  style={{ width: `max(${used}%, 4px)` }}
-                />
-              ) : null}
-              {tick !== null ? (
-                <span
-                  className="absolute -top-[3px] h-[9px] w-px -translate-x-1/2 bg-muted-foreground"
-                  style={{ left: `${tick}%` }}
-                />
-              ) : null}
-            </span>
-          ) : null}
-          <span aria-hidden className="truncate tabular-nums">
-            {gt("Context", { $context: "context window row label" })}{" "}
-            {used !== null ? (
-              <span
-                className={cn(
-                  "font-medium",
-                  tone === "error"
-                    ? "text-error-foreground"
-                    : tone === "warning"
-                      ? "text-warning-foreground"
-                      : "text-foreground/80",
-                )}
-              >
-                {used}%
-              </span>
-            ) : null}
-            {used !== null ? " · " : null}
-            {tokens}
-          </span>
+              aria-hidden="true"
+              className={cn(
+                "size-3.5 rounded-full [mask-image:radial-gradient(closest-side,transparent_calc(100%-2px),black_calc(100%-1.5px))]",
+                tone === "error"
+                  ? "text-error"
+                  : tone === "warning"
+                    ? "text-warning"
+                    : "text-primary",
+              )}
+              style={{
+                backgroundImage: `conic-gradient(currentColor ${used ?? 0}%, color-mix(in srgb, var(--muted-foreground) 30%, transparent) 0)`,
+              }}
+            />
+          </PopoverTrigger>
         </TooltipTrigger>
-        <TooltipPopup side="top">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-foreground">
-              {maxTokens !== null
-                ? gt("{used} of {max} tokens", {
-                    used: usage.usedTokens.toLocaleString(locale),
-                    max: maxTokens.toLocaleString(locale),
-                  })
-                : gt("Context: {usedTokens} tokens used", {
-                    usedTokens: usage.usedTokens.toLocaleString(locale),
-                  })}
-            </span>
-            {usage.compactsAutomatically === true || (threshold !== null && threshold > 0) ? (
-              <span className="text-muted-foreground">
-                {formatContextWindowCompactionMessage(threshold, m)}
-              </span>
-            ) : null}
-          </div>
-        </TooltipPopup>
+        {!open ? (
+          <TooltipPopup role="tooltip" side="top">
+            {label}
+          </TooltipPopup>
+        ) : null}
       </Tooltip>
-      <span className="flex-1" />
-      {onCompact ? (
-        <InlineButton tone="muted" onClick={onCompact}>
-          {gt("Compact now")}
-        </InlineButton>
-      ) : null}
-    </ComposerSurface.ContextStrip>
+      <PopoverPopup
+        side="top"
+        align="end"
+        animateScale={false}
+        className="w-90 max-w-[calc(100vw-2rem)]"
+        {...floatingProps}
+      >
+        <div className="grid gap-2.5 text-sm">
+          <PopoverTitle className="sr-only">{title}</PopoverTitle>
+          {usage === null ? (
+            <div className="grid gap-1">
+              <span className="text-foreground">{title}</span>
+              <span className="text-muted-foreground">{noUsage}</span>
+            </div>
+          ) : (
+            <ComposerControl
+              size="sm"
+              className="h-auto min-w-0 justify-between px-0 py-0.5 font-normal text-muted-foreground hover:bg-transparent hover:text-muted-foreground [&:active:not([aria-haspopup])]:scale-100"
+              aria-expanded={showBreakdown}
+              aria-controls={breakdownId}
+              onClick={() => setShowBreakdown(!showBreakdown)}
+            >
+              <span className="min-w-0 truncate">{title}</span>
+              <span className="flex shrink-0 items-center gap-2.5 tabular-nums">
+                {summary}
+                <ChevronDownIcon
+                  aria-hidden="true"
+                  className={cn("size-3.5", !showBreakdown && "-rotate-90 rtl:rotate-90")}
+                />
+              </span>
+            </ComposerControl>
+          )}
+          {used !== null ? (
+            <div
+              aria-hidden="true"
+              className="relative h-1 w-full rounded-full bg-muted-foreground/20"
+            >
+              <div className={cn("h-full rounded-full", usageFill)} style={{ width: `${used}%` }} />
+              {tick !== null ? (
+                <div
+                  className="absolute -top-0.5 h-2 w-px bg-muted-foreground"
+                  style={{ insetInlineStart: `${tick}%` }}
+                />
+              ) : null}
+            </div>
+          ) : null}
+          <dl
+            id={breakdownId}
+            hidden={!showBreakdown}
+            className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1"
+          >
+            {rows.map(({ label: rowLabel, swatch, value, percentage }) =>
+              value == null ? null : (
+                <div key={rowLabel} className="contents">
+                  <dt className="flex min-w-0 items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className={cn("size-2.5 shrink-0 rounded-xs", swatch)}
+                    />
+                    <span>{rowLabel}</span>
+                  </dt>
+                  <dd className="text-end text-muted-foreground tabular-nums">
+                    {formatContextWindowTokens(value)}
+                  </dd>
+                  <dd className="text-end tabular-nums">
+                    {percentage == null ? null : percent.format(percentage / 100)}
+                  </dd>
+                </div>
+              ),
+            )}
+          </dl>
+        </div>
+      </PopoverPopup>
+    </Popover>
   );
 }

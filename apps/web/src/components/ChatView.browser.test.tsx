@@ -575,15 +575,21 @@ it("a file picked after the phone composer collapses still attaches", async () =
   const editor = page.getByTestId("composer-editor");
   await expect.element(page.getByText(`Answer 0 for ${thread.id}.`)).toBeVisible();
   await userEvent.click(editor);
-  await expect.element(page.getByRole("button", { name: "Attach files" })).toBeVisible();
+  const add = page.getByRole("button", { name: "Add to message" });
+  await expect.element(add).toBeVisible();
   const input = document.querySelector<HTMLInputElement>(
     'form[data-chat-composer-form] input[type="file"]',
   );
   expect(input).not.toBeNull();
+  using picker = vi.spyOn(input!, "click").mockImplementation(() => {});
+  await add.click();
+  await page.getByRole("menuitem", { name: "Add files or photos" }).click();
+  expect(picker).toHaveBeenCalledOnce();
+  await userEvent.click(editor);
 
   // Opening the native picker blurs the editor, which collapses the phone composer.
   (editor.element() as HTMLElement).blur();
-  await expect.element(page.getByRole("button", { name: "Attach files" })).not.toBeInTheDocument();
+  await expect.element(add).not.toBeInTheDocument();
   const files = new DataTransfer();
   files.items.add(new File([PNG], "picked.png", { type: "image/png" }));
   input!.files = files.files;
