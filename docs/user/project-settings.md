@@ -56,13 +56,14 @@ Projects → Repositories**; see [Projects with several repositories](multi-repo
 ## Pin and archive projects
 
 Pinned projects come first in the project pickers: the project picker on a new thread, the
-new-thread list, the command palette, the sidebar project filter, and mobile. In the boring sidebar, pinned projects get the top
-folders, even with no active threads. Pin or unpin a project from its row in any of those lists,
-or press the thread pin shortcut (`mod+shift+p` by default) on the highlighted row. **Pin
-project** in the command palette and **Settings → Projects** work too. A list keeps its order
-while it is open, so a new pin moves up the next time you open it.
+new-thread list, the command palette, the sidebar's project rail, and mobile. Pin or unpin a
+project from its row in any of those lists, or press the thread pin shortcut (`mod+shift+p` by
+default) on the highlighted row. On web and desktop, right-click a project in the rail to pin
+it. **Pin project** in the command palette and **Settings → Projects** work too. A list keeps its
+order while it is open, so a new pin moves up the next time you open it.
 
-Archive a project you are done with in **Settings → Projects**. It leaves the project pickers.
+Archive a project you are done with in **Settings → Projects**. It leaves the project pickers,
+and leaves the sidebar's rail once none of its threads, settled ones included, or drafts remain.
 Its threads, settings, and files stay as they are, and archived projects still show in the
 Settings project list, marked **Archived**. Choose one there and select **Unarchive** to bring it
 back. On mobile, both are in **Settings → Projects → Organize**.

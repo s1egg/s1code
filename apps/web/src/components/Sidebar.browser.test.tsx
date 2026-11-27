@@ -66,7 +66,8 @@ vi.mock("../commandPaletteBus", () => ({
 }));
 vi.mock("./sidebar/SidebarChrome", () => ({
   SidebarChromeHeader: () => null,
-  SidebarChromeFooter: () => null,
+  SidebarNotices: () => null,
+  SidebarRailUtilities: () => null,
 }));
 
 function project(id: string): Project {
@@ -83,31 +84,32 @@ function project(id: string): Project {
   };
 }
 
+// Disposing restores the real hook, so later tests do not inherit these configs.
+function mockServerConfigs(...environmentIds: EnvironmentId[]): Disposable {
+  vi.mocked(useServerConfigs).mockReturnValue(
+    new Map(
+      environmentIds.map((environmentId) => [
+        environmentId,
+        {
+          scratchWorkspaceRoot: null,
+          shellThreadFamilies: false,
+        } as unknown as EnvironmentServerConfig,
+      ]),
+    ),
+  );
+  return { [Symbol.dispose]: () => vi.mocked(useServerConfigs).mockReset() };
+}
+
 describe("sidebar header new thread", () => {
-  it.each([
-    { mode: "normal", count: 2, shift: false, picker: true },
-    { mode: "boring", count: 2, shift: false, picker: true },
-    { mode: "boring", count: 2, shift: true, picker: false },
-    { mode: "boring", count: 1, shift: false, picker: false },
-  ] as const)("$mode sidebar, $count projects, shift=$shift: picker=$picker", async (scenario) => {
-    using stack = new DisposableStack();
-    const previousSettings = getClientSettings();
-    stack.defer(() => __setClientSettingsForTests(previousSettings));
-    __setClientSettingsForTests({
-      ...DEFAULT_CLIENT_SETTINGS,
-      boringSidebarEnabled: scenario.mode === "boring",
-    });
-    const projects = [project("active"), project("idle")].slice(0, scenario.count);
-    const currentProjectRef = {
-      environmentId: projects[0]!.environmentId,
-      projectId: projects[0]!.id,
-    };
+  it("starts in the project selected in the rail without asking", async () => {
+    const projects = [project("active"), project("idle")];
     const startThread = vi.fn().mockResolvedValue(null);
     vi.mocked(useProjects).mockReturnValue(projects);
+    using _configs = mockServerConfigs(EnvironmentId.make("local"));
     vi.mocked(useHandleNewThread).mockReturnValue({
       activeDraftThread: null,
       activeThread: null,
-      defaultProjectRef: currentProjectRef,
+      defaultProjectRef: null,
       defaultProjectFallbackReady: true,
       handleNewThread: startThread,
       routeDraftId: null,
@@ -120,27 +122,48 @@ describe("sidebar header new thread", () => {
       </SidebarProvider>,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "New thread", exact: true }), {
-      modifiers: scenario.shift ? ["Shift"] : [],
-    });
+    await userEvent.click(screen.getByRole("button", { name: "idle" }));
+    await userEvent.click(screen.getByRole("button", { name: "New thread in idle" }));
 
-    if (scenario.picker) {
-      expect(openCommandPalette).toHaveBeenCalledExactlyOnceWith({ open: "new-thread-in" });
-      expect(startThread).not.toHaveBeenCalled();
-    } else {
-      expect(openCommandPalette).not.toHaveBeenCalled();
-      expect(startThread).toHaveBeenCalledExactlyOnceWith(currentProjectRef);
-    }
+    expect(openCommandPalette).not.toHaveBeenCalled();
+    expect(startThread).toHaveBeenCalledExactlyOnceWith({
+      environmentId: projects[1]!.environmentId,
+      projectId: projects[1]!.id,
+    });
+  });
+
+  it("asks for a project until the environment config says whether it is scratch", async () => {
+    // On a cold start the scratch project's shell arrives first and reads as ordinary.
+    const scratch = { ...project("scratch"), workspaceRoot: "/scratch/1" };
+    const startThread = vi.fn().mockResolvedValue(null);
+    vi.mocked(useProjects).mockReturnValue([scratch]);
+    using _configs = mockServerConfigs();
+    vi.mocked(useHandleNewThread).mockReturnValue({
+      activeDraftThread: null,
+      activeThread: null,
+      defaultProjectRef: null,
+      defaultProjectFallbackReady: true,
+      handleNewThread: startThread,
+      routeDraftId: null,
+      routeThreadRef: null,
+    });
+    vi.mocked(openCommandPalette).mockClear();
+    await using screen = await render(
+      <SidebarProvider>
+        <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
+      </SidebarProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "New thread in scratch" }));
+
+    expect(openCommandPalette).toHaveBeenCalledExactlyOnceWith({ open: "new-thread-in" });
+    expect(startThread).not.toHaveBeenCalled();
   });
 });
 
-// regression: #41549 a grouped project's folder New thread went to the primary copy
-describe("sidebar project folder new thread", () => {
+// regression: #41549 a grouped project's New thread went to the primary copy
+describe("sidebar grouped project new thread", () => {
   it("starts in the copy of the viewed thread, as the new-thread shortcut does", async () => {
-    using stack = new DisposableStack();
-    const previousSettings = getClientSettings();
-    stack.defer(() => __setClientSettingsForTests(previousSettings));
-    __setClientSettingsForTests({ ...DEFAULT_CLIENT_SETTINGS, boringSidebarEnabled: true });
     const primary = EnvironmentId.make("local");
     const dev1 = EnvironmentId.make("dev1");
     const repositoryIdentity = {
@@ -161,6 +184,7 @@ describe("sidebar project folder new thread", () => {
     vi.mocked(usePrimaryEnvironmentId).mockReturnValue(primary);
     vi.mocked(useConnectedEnvironmentIds).mockReturnValue([primary, dev1]);
     vi.mocked(useProjects).mockReturnValue([primaryCopy, dev1Copy]);
+    using _configs = mockServerConfigs(primary, dev1);
     const dev1Thread = makeThreadFixture({
       environmentId: dev1,
       id: ThreadId.make("dev1-thread"),
@@ -252,6 +276,52 @@ describe("sidebar numbered jumps", () => {
     await vi.waitFor(() =>
       expect(screen.router!.state.location.pathname).toBe(`/draft/${draftId}`),
     );
+  });
+});
+
+describe("sidebar jumps while searching", () => {
+  it("walks the search results, not the rows search hides", async () => {
+    using stack = new DisposableStack();
+    const previousSettings = getClientSettings();
+    stack.defer(() => __setClientSettingsForTests(previousSettings));
+    __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS);
+    using _platform = vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+    const web = project("web");
+    vi.mocked(useProjects).mockReturnValue([web]);
+    const open = { ...threadShell(web.id, 0), title: "Alpha release notes" };
+    const match = { ...threadShell(web.id, 1), title: "Beta invoice export" };
+    vi.mocked(useQuietThreadShells).mockReturnValue([open, match]);
+    const threadRef = scopeThreadRef(open.environmentId, open.id);
+    vi.mocked(useThreadRouteTarget).mockReturnValue({ kind: "server", threadRef });
+    vi.mocked(useHandleNewThread).mockReturnValue({
+      activeDraftThread: null,
+      activeThread: null,
+      defaultProjectRef: null,
+      defaultProjectFallbackReady: true,
+      handleNewThread: vi.fn(),
+      routeDraftId: null,
+      routeThreadRef: threadRef,
+    });
+
+    await using screen = await render(
+      <SidebarProvider>
+        <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
+      </SidebarProvider>,
+    );
+    const search = screen.getByRole("combobox", { name: "Search threads" });
+    const matchPath = `/${match.environmentId}/${match.id}`;
+    await userEvent.fill(search, "invoice");
+    await expect.element(screen.getByRole("option", { name: /Beta invoice export/ })).toBeVisible();
+    // Search filters out the open thread, so previous enters the results instead of stopping.
+    await userEvent.keyboard("{Control>}{Shift>}{BracketLeft}{/Shift}{/Control}");
+    await vi.waitFor(() => expect(screen.router!.state.location.pathname).toBe(matchPath));
+
+    await screen.router!.navigate({ to: "/" });
+    await userEvent.fill(search, "invoice");
+    await expect.element(screen.getByRole("option", { name: /Beta invoice export/ })).toBeVisible();
+    // The open thread lists first without search; with it, the only result is the first row.
+    await userEvent.keyboard("{Control>}1{/Control}");
+    await vi.waitFor(() => expect(screen.router!.state.location.pathname).toBe(matchPath));
   });
 });
 
@@ -477,6 +547,12 @@ describe("sidebar thread menu", () => {
     await userEvent.click(row, { button: "right" });
     await vi.waitFor(() => expect(show).toHaveBeenCalledTimes(2));
     expect(show.mock.lastCall?.[2]).toBe("mouse");
+
+    // A project tile opens its menu from the keyboard too, as Chromium on macOS needs.
+    screen.getByRole("button", { name: "active" }).element().focus();
+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+    await vi.waitFor(() => expect(show).toHaveBeenCalledTimes(3));
+    expect(show.mock.lastCall?.[2]).toBe("keyboard");
   });
 });
 

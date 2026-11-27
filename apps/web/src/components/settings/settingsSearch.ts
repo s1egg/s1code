@@ -508,27 +508,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("usage quota rate limit reset recover continue")],
   },
   {
-    id: "working-shelf",
-    title: msg("Working section"),
-    to: "/settings/general",
-    searchTerms: [msg("hide fold running monitoring threads inbox sidebar shelf")],
-  },
-  {
-    id: "boring-sidebar",
-    title: msg("Boring sidebar (group by project)"),
-    to: "/settings/labs",
-    searchTerms: [msg("beta folders project tree classic sidebar")],
-  },
-  {
-    id: "boring-sidebar-multiline",
-    title: msg("Two-line folder rows"),
-    to: "/settings/labs",
-    // Shown inside the boring sidebar row only while it is on, so search lands on the parent.
-    targetId: "boring-sidebar",
-    searchTerms: [msg("beta boring sidebar folder rows multiline branch pull request details")],
-  },
-
-  {
     id: "tool-call-visibility",
     title: msg("Tool calls in chat"),
     to: "/settings/chat",

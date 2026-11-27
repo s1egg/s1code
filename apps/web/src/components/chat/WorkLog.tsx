@@ -7,6 +7,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
+import { ChevronDownIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const GroupedRows = createContext(false);
@@ -61,7 +62,7 @@ function WorkLogLine({ icon, label, trailing, wrapLabel, ...lineProps }: RowCont
     <div
       {...lineProps}
       className={cn(
-        "flex min-h-6 min-w-0 gap-1.5 text-sm leading-relaxed select-none [&_*]:select-none",
+        "flex min-h-6 min-w-0 gap-1.5 text-xs leading-relaxed select-none [&_*]:select-none",
         wrapLabel ? "items-start" : "items-center",
         lineProps.role === "button" && focusRingClassName,
       )}
@@ -98,18 +99,42 @@ function useRowClassName(interactive: boolean, focusable = interactive) {
   );
 }
 
-export function WorkLogButton({
+/** A collapsed tool group: a quiet pill that discloses its steps. The timestamp sits outside the pill
+ * so revealing it on hover never resizes the pill. */
+export function WorkLogCapsule({
   icon,
   label,
   trailing,
-  wrapLabel = false,
+  expanded,
   ...buttonProps
-}: RowContent & Omit<ComponentProps<"button">, "className" | "style" | "children">) {
-  const className = useRowClassName(true);
+}: Omit<RowContent, "wrapLabel"> & { expanded: boolean } & Omit<
+    ComponentProps<"button">,
+    "className" | "style" | "children" | "aria-expanded"
+  >) {
   return (
-    <button {...buttonProps} type="button" className={className}>
-      <WorkLogLine icon={icon} label={label} trailing={trailing} wrapLabel={wrapLabel} />
-    </button>
+    <div className="group/timeline-row relative flex min-h-6 w-full min-w-0 items-center gap-2 py-0.5">
+      <button
+        {...buttonProps}
+        type="button"
+        aria-expanded={expanded}
+        className="inline-flex h-6 min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-full ps-0.5 pe-2 text-xs text-muted-foreground inset-ring inset-ring-border transition-colors select-none hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
+      >
+        {icon ? (
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted">
+            {icon}
+          </span>
+        ) : null}
+        <span className="min-w-0 truncate">{label}</span>
+        <ChevronDownIcon
+          aria-hidden
+          className={cn(
+            "size-3 shrink-0 opacity-70 transition-transform duration-200 motion-reduce:transition-none",
+            !expanded && "-rotate-90",
+          )}
+        />
+      </button>
+      {trailing}
+    </div>
   );
 }
 

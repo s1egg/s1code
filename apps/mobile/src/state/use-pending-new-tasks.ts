@@ -1,3 +1,5 @@
+import { appAtomRegistry } from "./atom-registry";
+import { threadOutboxManager } from "./thread-outbox";
 import { useAtomValue } from "@effect/atom-react";
 import { AuthOrchestrationOperateScope } from "@s1tools/contracts";
 import { Atom } from "effect/reactivity";
@@ -48,24 +50,25 @@ const threadOutboxSendGateAtom = Atom.make((get): ThreadOutboxSendGate => {
   };
 }).pipe(Atom.withLabel("mobile:pending-new-tasks:send-gate"));
 
+const pendingTaskInputsAtom = Atom.make((get) => {
+  const hiddenKeys = get(environmentThreadShells.hiddenThreadKeysAtom);
+  const queuedMessages = flattenQueuedThreadMessages(
+    get(threadOutboxManager.queuedMessagesByThreadKeyAtom),
+  ).filter((message) => !hiddenKeys.has(threadKey(message)));
+  return {
+    queuedMessages,
+    drafts: get(newTaskComposerDraftsAtom),
+    sendGate: get(threadOutboxSendGateAtom),
+  };
+}).pipe(Atom.withLabel("mobile:pending-task-inputs"));
+
+export function readPendingNewTasks(): ReadonlyArray<PendingNewTask> {
+  return buildPendingNewTasks(appAtomRegistry.get(pendingTaskInputsAtom));
+}
+
 export function usePendingNewTasks(): ReadonlyArray<PendingNewTask> {
   const resolve = useMessages();
-  const queuedMessagesByThreadKey = useThreadOutboxMessages();
-  const drafts = useAtomValue(newTaskComposerDraftsAtom);
-  const hiddenKeys = useAtomValue(environmentThreadShells.hiddenThreadKeysAtom);
-  const sendGate = useAtomValue(threadOutboxSendGateAtom);
-  // A delivered creation can stay queued after its thread is live and hidden.
-  const queuedMessages = flattenQueuedThreadMessages(queuedMessagesByThreadKey).filter(
-    (message) => !hiddenKeys.has(threadKey(message)),
-  );
-  return buildPendingNewTasks(
-    {
-      queuedMessages,
-      drafts,
-      sendGate,
-    },
-    resolve,
-  );
+  return buildPendingNewTasks(useAtomValue(pendingTaskInputsAtom), resolve);
 }
 
 /** The list's threads, with creations the outbox is sending placed as working. */

@@ -107,6 +107,7 @@ describe("declining approvals before sending", () => {
       ],
       turnItems: [],
     });
+    expect(pending.approvals[0]?.options).toEqual([]);
     expect(await sendApprovalFeedback(pending.approvals[0]!, "  Safer please.  ", respond)).toBe(
       true,
     );

@@ -1,4 +1,4 @@
-import { WEB_ONLY_THEMES } from "@s1tools/shared/themePalettes";
+import { S1_PAIRED_THEMES } from "@s1tools/shared/themePalettes";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import indexHtml from "../index.html?raw";
@@ -190,16 +190,18 @@ describe("index.html boot script", () => {
       prefersDark: true,
     },
     {
-      name: "built-in dark-only Midnight stays dark on a light OS",
+      name: "Midnight follows a light OS to its Mist half",
       storage: { [THEME_STORAGE_KEY]: "s1-midnight", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
       prefersDark: false,
     },
     {
-      name: "built-in dark-only Midnight stays dark under an explicit light mode",
-      storage: {
-        [THEME_STORAGE_KEY]: "s1-midnight",
-        [THEME_APPEARANCE_MODE_STORAGE_KEY]: "light",
-      },
+      name: "Midnight without a stored mode keeps its dark base on a light OS",
+      storage: { [THEME_STORAGE_KEY]: "s1-midnight" },
+      prefersDark: false,
+    },
+    {
+      name: "Midnight with follow-system off keeps its dark base on a light OS",
+      storage: { [THEME_STORAGE_KEY]: "s1-midnight", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "false" },
       prefersDark: false,
     },
     {
@@ -347,21 +349,35 @@ describe("index.html boot script", () => {
     }
   });
 
-  it("keeps every dark-only built-in boot splash in sync with the real palettes", () => {
-    for (const theme of WEB_ONLY_THEMES) {
+  it("keeps a stored dark S1 pick dark and lets follow-system switch it to its light half", () => {
+    const stored = { [THEME_STORAGE_KEY]: "s1-midnight" };
+    expect(runBootScript({ storage: stored, prefersDark: false }).isDark).toBe(true);
+    const following = { ...stored, [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" };
+    expect(runBootScript({ storage: following, prefersDark: false }).isDark).toBe(false);
+    expect(runBootScript({ storage: following, prefersDark: true }).isDark).toBe(true);
+  });
+
+  it("keeps every paired S1 built-in boot splash in sync with the real palettes", () => {
+    for (const theme of S1_PAIRED_THEMES) {
       expect(theme.appearance).toBe("dark");
-      expect(getThemeColorsForMode(theme, "light")).toBeNull();
-      const boot = runBootScript({
-        storage: { [THEME_STORAGE_KEY]: theme.id },
-        prefersDark: false,
-      });
-      expect(boot.themeId).toBe(theme.id);
-      expect(boot.isDark).toBe(true);
-      expect(boot.bootVariables["--boot-background"]).toBe(theme.colors.canvas);
-      expect(boot.bootVariables["--boot-foreground"]).toBe(theme.colors.text);
-      expect(boot.bootVariables["--boot-accent"]).toBe(theme.colors.accent);
-      expect(boot.backgroundColor).toBe(theme.colors.chrome);
-      expect(boot.metaContent).toBe(theme.colors.chrome);
+      for (const mode of ["light", "dark"] as const) {
+        const colors = getThemeColorsForMode(theme, mode);
+        expect(colors).not.toBeNull();
+        const boot = runBootScript({
+          storage: {
+            [THEME_STORAGE_KEY]: theme.id,
+            [THEME_APPEARANCE_MODE_STORAGE_KEY]: mode,
+          },
+          prefersDark: mode === "dark",
+        });
+        expect(boot.themeId).toBe(theme.id);
+        expect(boot.isDark).toBe(mode === "dark");
+        expect(boot.bootVariables["--boot-background"]).toBe(colors!.canvas);
+        expect(boot.bootVariables["--boot-foreground"]).toBe(colors!.text);
+        expect(boot.bootVariables["--boot-accent"]).toBe(colors!.accent);
+        expect(boot.backgroundColor).toBe(colors!.chrome);
+        expect(boot.metaContent).toBe(colors!.chrome);
+      }
     }
   });
 

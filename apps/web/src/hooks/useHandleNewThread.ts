@@ -20,6 +20,7 @@ import {
   type DraftThreadState,
   useComposerDraftStore,
 } from "../composerDraftStore";
+import { openCommandPalette } from "../commandPaletteBus";
 import { newDraftId, newThreadId } from "../lib/utils";
 import { orderItemsByPreferredIds } from "../components/Sidebar.logic";
 import {
@@ -146,6 +147,15 @@ export function createNewThreadHandler(router: AnyRouter) {
     },
   ): Promise<{ draftId: DraftId; threadId: ThreadId } | null> => {
     const projects = readProjects();
+    const project = projects.find(
+      (candidate) =>
+        candidate.id === projectRef.projectId &&
+        candidate.environmentId === projectRef.environmentId,
+    );
+    if (project?.archivedAt != null) {
+      openCommandPalette({ open: "new-thread-in" });
+      return Promise.resolve(null);
+    }
     const projectGroupingSettings = selectProjectGroupingSettings(getClientSettings());
     // Read at call time; status pushes replace the config map and would recreate every sidebar handler.
     const environmentServerConfigs = appAtomRegistry.get(environmentServerConfigsAtom);
@@ -195,11 +205,6 @@ export function createNewThreadHandler(router: AnyRouter) {
       carrySourceShell?.interactionMode ??
       carrySourceDraft?.interactionMode ??
       null;
-    const project = projects.find(
-      (candidate) =>
-        candidate.id === projectRef.projectId &&
-        candidate.environmentId === projectRef.environmentId,
-    );
     const projectSettings = resolveProjectSettings(
       targetServerSettings,
       project?.id ?? null,

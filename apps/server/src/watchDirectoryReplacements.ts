@@ -35,7 +35,7 @@ export const watchDirectoryReplacements = <R>(
     }),
   );
 
-const watchDirectoryEntry = (path: string, ready: Deferred.Deferred<void>) => {
+const watchDirectoryEntry = (path: string, ready: Deferred.Deferred<void>, renameOnly = false) => {
   const directory = NodePath.dirname(path);
   const name = NodePath.basename(path);
   const watchError = (cause: unknown) =>
@@ -52,7 +52,8 @@ const watchDirectoryEntry = (path: string, ready: Deferred.Deferred<void>) => {
       Effect.acquireRelease(
         Effect.try({
           try: () => {
-            const watcher = NodeFS.watch(directory, (_, filename) => {
+            const watcher = NodeFS.watch(directory, (event, filename) => {
+              if (renameOnly && event !== "rename") return;
               if (filename === name || filename === null) Queue.offerUnsafe(events, undefined);
             });
             watcher.on("error", (error) =>
@@ -192,13 +193,23 @@ export const watchDirectoryPath = (
               ),
               Effect.map((target) => {
                 if (target === entry || target === NodePath.dirname(target)) return watchContents;
-                return watchDirectoryReplacements(
-                  (ready) => watchDirectoryEntry(NodePath.dirname(target), ready),
+                const parent = NodePath.dirname(target);
+                const descendants = watchDirectoryReplacements(
+                  (ready) => watchDirectoryEntry(parent, ready),
                   watchDirectoryReplacements(
                     (ready) => watchDirectoryEntry(target, ready),
                     watchContents,
                   ),
                 );
+                // A watch attached inside a renamed directory follows its inode on macOS.
+                // Observe its entry from outside to refresh even if the next stat is still pending.
+                const grandparent = NodePath.dirname(parent);
+                return grandparent === parent || grandparent === NodePath.dirname(grandparent)
+                  ? descendants
+                  : watchDirectoryReplacements(
+                      (ready) => watchDirectoryEntry(grandparent, ready, true),
+                      descendants,
+                    );
               }),
             ),
           ),

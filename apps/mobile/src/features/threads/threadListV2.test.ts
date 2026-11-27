@@ -1754,16 +1754,18 @@ describe("Working section beta", () => {
   const ids = (layout: ReturnType<typeof buildThreadListV2Items>) =>
     layout.items.map((item) => item.thread.id);
 
-  it("folds unpinned working threads into a collapsed shelf", () => {
+  it("folds unpinned working threads into a collapsed shelf that keeps threads waiting on the user", () => {
     const layout = build();
     expect(ids(layout)).toEqual([
       "pinned-working",
-      "finished-late",
       "asks-approval",
+      "finished-late",
       "finished-early",
     ]);
-    expect(layout.workingCount).toBe(1);
-    expect(layout.workingShelfHeaderIndex).toBe(4);
+    expect(layout.workingCount).toBe(2);
+    expect(layout.pinnedHeaderIndex).toBe(0);
+    expect(layout.workingShelfHeaderIndex).toBe(1);
+    expect(layout.earlierHeaderIndex).toBe(2);
 
     const off = build({ workingShelfEnabled: false });
     expect(ids(off)).toContain("working");
@@ -1803,7 +1805,7 @@ describe("Working section beta", () => {
       inboxReturnAt: (thread) =>
         thread.id === "finished-early" ? Date.parse("2026-06-01T04:00:00.000Z") : undefined,
     });
-    expect(ids(layout).slice(1)).toEqual(["finished-early", "finished-late", "asks-approval"]);
+    expect(ids(layout).slice(2)).toEqual(["finished-early", "finished-late"]);
   });
 
   it("places the shelf after queued tasks and before snoozed and settled threads", () => {
@@ -1854,14 +1856,69 @@ describe("Working section beta", () => {
       ),
     ).toEqual([
       "queued",
-      "active",
       "v2-working-shelf",
       "working",
+      "active",
       "v2-snoozed-shelf",
       "snoozed",
       "v2-settled-shelf",
       "settled",
     ]);
+  });
+  it("lists Pinned, Working, To review and Earlier with labels, like the web sidebar", () => {
+    const unseen = {
+      ...finishedAt("unseen", "2026-06-01T03:00:00.000Z"),
+      lastVisitedAt: "2026-06-01T02:00:00.000Z",
+    };
+    const seen = {
+      ...finishedAt("seen", "2026-06-01T01:00:00.000Z"),
+      lastVisitedAt: "2026-06-01T02:00:00.000Z",
+    };
+    const layout = build({
+      threads: [...threads, unseen, seen],
+      workingShelfExpanded: true,
+    });
+    const items = buildThreadListV2ListItems({
+      items: layout.items,
+      pendingTasks: [],
+      pinnedCount: layout.pinnedCount,
+      pinnedHeaderIndex: layout.pinnedHeaderIndex,
+      reviewCount: layout.reviewCount,
+      reviewHeaderIndex: layout.reviewHeaderIndex,
+      earlierCount: layout.earlierCount,
+      earlierHeaderIndex: layout.earlierHeaderIndex,
+      workingCount: layout.workingCount,
+      workingShelfExpanded: true,
+      workingShelfHeaderIndex: layout.workingShelfHeaderIndex,
+    });
+    expect(
+      items.map((item) =>
+        item.type === "v2-thread"
+          ? item.item.thread.id
+          : item.type === "v2-group-label"
+            ? `label:${item.group}:${item.count}`
+            : item.type,
+      ),
+    ).toEqual([
+      "label:pinned:1",
+      "pinned-working",
+      "v2-working-shelf",
+      "asks-approval",
+      "working",
+      "label:review:1",
+      "unseen",
+      "label:earlier:3",
+      "finished-late",
+      "finished-early",
+      "seen",
+    ]);
+  });
+
+  it("keeps one unlabeled block when the Working layout is off", () => {
+    const layout = build({ workingShelfEnabled: false });
+    expect(layout.pinnedHeaderIndex).toBeNull();
+    expect(layout.reviewHeaderIndex).toBeNull();
+    expect(layout.earlierHeaderIndex).toBeNull();
   });
 });
 

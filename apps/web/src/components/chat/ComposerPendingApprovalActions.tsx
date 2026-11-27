@@ -3,6 +3,7 @@ import {
   type ProviderApprovalOption,
   type RuntimeRequestId,
 } from "@s1tools/contracts";
+import { standardApprovalLabel } from "@s1tools/client-runtime/state/thread-requests";
 import { msg, useGT, useMessages } from "gt-react";
 import { memo } from "react";
 import { EllipsisIcon, TriangleAlertIcon } from "lucide-react";
@@ -24,21 +25,26 @@ interface ComposerPendingApprovalActionsProps {
   ) => Promise<unknown>;
 }
 
+// Mobile's PendingApprovalCard offers the same three, minus cancel.
 const DEFAULT_APPROVAL_OPTIONS = [
-  {
-    decision: "cancel",
-    label: msg("Cancel", { $context: "verb, response to an approval request" }),
-  },
+  { decision: "accept", label: msg("Allow once") },
+  { decision: "acceptForSession", label: msg("Allow session") },
   {
     decision: "decline",
     label: msg("Decline", { $context: "verb, response to an approval request" }),
   },
-  { decision: "acceptForSession", label: msg("Always allow this session") },
   {
-    decision: "accept",
-    label: msg("Approve", { $context: "verb, response to an approval request" }),
+    decision: "cancel",
+    label: msg("Cancel", { $context: "verb, response to an approval request" }),
   },
 ] satisfies ReadonlyArray<ProviderApprovalOption>;
+
+// Buttons, in this order. Cancel, acceptAlways, and any future decision go in the menu.
+const VISIBLE_DECISIONS: ReadonlyArray<ProviderApprovalDecision> = [
+  "accept",
+  "acceptForSession",
+  "decline",
+];
 
 export const ComposerPendingApprovalActions = memo(function ComposerPendingApprovalActions({
   presentation = "composer",
@@ -51,14 +57,17 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
 }: ComposerPendingApprovalActionsProps) {
   const gt = useGT();
   const m = useMessages();
-  // Provider options carry server-authored labels; only the built-in defaults are translated.
-  const optionLabel = (label: string) => (options === DEFAULT_APPROVAL_OPTIONS ? m(label) : label);
-  const primaryOptions = options.filter(
-    (option) => option.decision === "decline" || option.decision === "accept",
+  const optionLabel = (option: ProviderApprovalOption) => {
+    const standard =
+      options === DEFAULT_APPROVAL_OPTIONS
+        ? option.label
+        : standardApprovalLabel(option, DEFAULT_APPROVAL_OPTIONS);
+    return standard === undefined ? option.label : m(standard);
+  };
+  const primaryOptions = VISIBLE_DECISIONS.flatMap((decision) =>
+    options.filter((option) => option.decision === decision),
   );
-  const moreOptions = options.filter(
-    (option) => option.decision !== "decline" && option.decision !== "accept",
-  );
+  const moreOptions = options.filter((option) => !VISIBLE_DECISIONS.includes(option.decision));
 
   return (
     <>
@@ -76,7 +85,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
           <>
             {option.warning ? <TriangleAlertIcon className="size-3 shrink-0" /> : null}
             <span className={presentation === "inline" ? "whitespace-normal" : "max-w-40 truncate"}>
-              {optionLabel(option.label)}
+              {optionLabel(option)}
             </span>
           </>
         );
@@ -85,7 +94,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
             <InlineButton
               key={option.decision}
               {...buttonProps}
-              tone={option.decision === "accept" ? "default" : "muted"}
+              tone={option.decision === "decline" ? "muted" : "default"}
             >
               {content}
             </InlineButton>
@@ -94,7 +103,13 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
               key={option.decision}
               {...buttonProps}
               size="xs"
-              variant={option.decision === "accept" ? "default" : "outline"}
+              variant={
+                option.decision === "accept"
+                  ? "default"
+                  : option.decision === "decline"
+                    ? "ghost"
+                    : "outline"
+              }
             >
               {content}
             </Button>
@@ -140,7 +155,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
                 >
                   {option.warning ? <TriangleAlertIcon className="size-3 text-warning" /> : null}
                   <span className="min-w-0 whitespace-normal wrap-break-word">
-                    {optionLabel(option.label)}
+                    {optionLabel(option)}
                   </span>
                 </MenuItem>
               );

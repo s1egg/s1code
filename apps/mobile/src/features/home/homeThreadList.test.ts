@@ -5,7 +5,7 @@ import type {
 import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@s1tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildHomeProjectScopes, findHomeProjectScope } from "./homeThreadList";
+import { buildHomeProjectScopes } from "./homeThreadList";
 import { makeThreadShellFixture } from "../../test-fixtures";
 import { buildThreadListV2Items } from "../threads/threadListV2";
 
@@ -216,10 +216,5 @@ describe("home project scopes", () => {
     const targetScope = scopes.find((scope) => scope.title === "Target");
     expect(scopes.map((scope) => scope.title)).toEqual(["Colliding", "Target"]);
     expect(targetScope?.key).toBe("environment-local:/workspaces/target");
-
-    expect(findHomeProjectScope(scopes, "environment-local:/workspaces/target")).toBe(targetScope);
-    expect(findHomeProjectScope(scopes, "environment-local:project-target")).toBe(targetScope);
-    expect(findHomeProjectScope(scopes, "environment-local:missing")).toBeNull();
-    expect(findHomeProjectScope(scopes, null)).toBeNull();
   });
 });

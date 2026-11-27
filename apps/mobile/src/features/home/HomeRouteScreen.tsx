@@ -5,10 +5,9 @@ import { NativePrimaryColumnContext } from "../../native/v5-workspace-context";
 import { useNavigation } from "@react-navigation/native";
 import { useMemo, useState } from "react";
 import { Platform } from "react-native";
-import { useGT, useMessages } from "gt-react-native";
+import { useGT } from "gt-react-native";
 
 import type { EnvironmentThreadShell } from "@s1tools/client-runtime/state/shell";
-import { pickableProjectGroups } from "@s1tools/client-runtime/state/project-grouping";
 
 import { useProjects } from "../../state/entities";
 import { steadyNavigationThreadShellsAtom } from "../../state/threads";
@@ -27,11 +26,7 @@ import {
   useAtomValueWhileVisible,
   useHomeRouteVisible,
 } from "./home-route-visibility";
-import {
-  buildHomeProjectScopes,
-  resolveHomeProjectFilterScope,
-  sortHomeProjectScopes,
-} from "./homeThreadList";
+import { useHomeProjectSelection } from "./useHomeProjectSelection";
 import { usePendingTaskListActions } from "./usePendingTaskListActions";
 import { useThreadListActions } from "./useThreadListActions";
 import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
@@ -40,11 +35,10 @@ import { useSelectWorkspaceTab } from "../layout/workspace/useSelectWorkspaceTab
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";
 import { WorkspaceListEmptyDetail } from "../layout/workspace/WorkspaceListEmptyDetail";
 import { WorkspaceListHeader } from "../layout/workspace/WorkspaceListHeader";
-import { buildHomeListFilterMenuItems, homeListFilterEnvironments } from "./home-list-filter-menu";
+import { homeListFilterEnvironments } from "./home-list-filter-menu";
 
 export function HomeRouteScreen() {
   const gt = useGT();
-  const m = useMessages();
   const nativePrimaryColumn = use(NativePrimaryColumnContext);
   const { layout, setPrimarySidebarSearchQuery, startNewTask } = useAdaptiveWorkspaceLayout();
   const { primarySidebarSearchQuery } = useWorkspacePaneState();
@@ -120,35 +114,14 @@ export function HomeRouteScreen() {
     setSelectedProjectKey,
   } = useHomeListOptions(availableEnvironmentIds);
   const selectedEnvironmentId = listOptions.selectedEnvironmentId;
-  const projectScopes = useMemo(
-    () =>
-      buildHomeProjectScopes(
-        {
-          projects,
-          environmentId: selectedEnvironmentId,
-          projectGroupingMode: listOptions.projectGroupingMode,
-        },
-        m,
-      ),
-    [listOptions.projectGroupingMode, projects, selectedEnvironmentId, m],
-  );
-  const projectFilterOptions = useMemo(
-    () =>
-      pickableProjectGroups(
-        sortHomeProjectScopes({
-          scopes: projectScopes,
-          threads,
-          pendingTasks: [],
-          projectSortOrder: "updated_at",
-        }),
-      ).map((scope) => ({
-        key: scope.key,
-        label: scope.title,
-      })),
-    [projectScopes, threads],
-  );
-  const selectedProjectKey =
-    resolveHomeProjectFilterScope(projectScopes, projects, listOptions)?.key ?? null;
+  const { choices: projectChoices, selected: selectedProjectChoice } = useHomeProjectSelection({
+    threads,
+    pendingTasks,
+    environmentId: selectedEnvironmentId,
+    projectGroupingMode: listOptions.projectGroupingMode,
+    selectedProjectKey: listOptions.selectedProjectKey,
+  });
+  const openScopeSheet = () => navigation.navigate("HomeListScope");
 
   if (layout.usesSplitView && !nativePrimaryColumn) {
     return (
@@ -172,20 +145,7 @@ export function HomeRouteScreen() {
             placeholder: gt("Search", { $context: "search field placeholder" }),
             accessibilityLabel: gt("Search threads"),
           }}
-          filter={{
-            customized: selectedEnvironmentId !== null || selectedProjectKey !== null,
-            items: buildHomeListFilterMenuItems(
-              {
-                environments,
-                projects: projectFilterOptions,
-                selectedEnvironmentId,
-                selectedProjectKey,
-                onEnvironmentChange: setSelectedEnvironmentId,
-                onProjectChange: setSelectedProjectKey,
-              },
-              m,
-            ),
-          }}
+          filter={{ customized: selectedEnvironmentId !== null, onPress: openScopeSheet }}
         />
 
         <HomeScreen
@@ -206,6 +166,9 @@ export function HomeRouteScreen() {
           onRegenerateThreadTitle={regenerateThreadTitle}
           onEnvironmentChange={setSelectedEnvironmentId}
           onProjectChange={setSelectedProjectKey}
+          // Android's bar opens the sheet; iOS has no filter in its bar, so the strip carries one.
+          onOpenScopeSheet={Platform.OS === "ios" ? openScopeSheet : undefined}
+          onAddProject={() => navigation.navigate("AddProject")}
           onOpenSettings={() => selectTab("settings")}
           onSearchQueryChange={setSearchQuery}
           onSelectThread={handleSelectThread}
@@ -230,7 +193,8 @@ export function HomeRouteScreen() {
           savedConnectionsById={savedConnectionsById}
           searchQuery={searchQuery}
           selectedEnvironmentId={selectedEnvironmentId}
-          selectedProjectKey={selectedProjectKey}
+          projectChoices={projectChoices}
+          selectedProjectChoice={selectedProjectChoice}
           threads={threads}
           visible={visible}
         />

@@ -182,7 +182,7 @@ export function SidebarUpdateCapsule({
           {restartSeconds !== null ? m(msg("{seconds}s", { seconds: restartSeconds })) : icon}
         </span>
       </div>
-      <PopoverPopup side="top" align="end" padding="compact" width="sm">
+      <PopoverPopup side="right" align="end" padding="compact" width="sm">
         <div className="flex flex-col gap-1 text-xs">
           {run.localVersion !== null ? (
             <div className="flex items-center justify-between gap-3">

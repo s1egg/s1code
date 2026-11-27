@@ -22,11 +22,6 @@ import {
   type ThemeAppearance,
   type ThemeDefinition,
   type ThemeHalves,
-  S1_CHAT_THEME,
-  EMBER_THEME,
-  GROVE_THEME,
-  IRIS_THEME,
-  OCEAN_THEME,
 } from "../../themePalette";
 import {
   AlertDialog,
@@ -54,16 +49,7 @@ import {
 } from "./ThemePreviewCircles";
 import { ThemeWireframe } from "./ThemeWireframe";
 import { T, useGT } from "gt-react";
-import { WEB_ONLY_THEMES } from "@s1tools/shared/themePalettes";
-
-const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
-  S1_CHAT_THEME,
-  GROVE_THEME,
-  OCEAN_THEME,
-  EMBER_THEME,
-  IRIS_THEME,
-  ...WEB_ONLY_THEMES,
-];
+import { BUILT_IN_THEMES } from "@s1tools/shared/themePalettes";
 
 function collectionVariantLabels(themes: ReadonlyArray<ThemeDefinition>): ReadonlyArray<string> {
   if (themes.length === 0) return [];
@@ -152,12 +138,12 @@ function ThemeLibraryCard({
         render={
           <div
             className={cn(
-              "cursor-pointer overflow-hidden rounded-xl border border-border/70 bg-card/60 transition-colors hover:bg-accent/10",
-              isActive && "bg-accent/30",
+              "cursor-pointer overflow-hidden rounded-2xl border border-border/70 bg-card/40 transition-colors hover:bg-foreground/[0.04] dark:border-border dark:bg-foreground/[0.03]",
+              isActive &&
+                "bg-foreground/[0.04] shadow-lg shadow-ring/15 ring-2 ring-ring/80 ring-inset",
             )}
             data-theme-library-card={theme.id}
             onClick={onUse}
-            style={isActive ? { boxShadow: "inset 0 0 0 1px var(--ring)" } : undefined}
           >
             <div className="relative">
               {variantNavigation ? (
@@ -749,10 +735,10 @@ export function ThemeLibrary({
             aria-pressed={isActive}
             className={cn(
               // The accent ring marks the picked tile; focus is a neutral ring set inside it with a gap.
-              "flex cursor-pointer flex-col items-stretch gap-1.5 rounded-xl border p-2 outline-none transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-7 focus-visible:outline-foreground/60",
+              "flex cursor-pointer flex-col items-stretch gap-1.5 rounded-2xl border p-2 outline-none transition-colors focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-7 focus-visible:outline-foreground/60",
               isActive
-                ? "border-transparent bg-accent/30 ring-2 ring-inset ring-ring"
-                : "border-border/70 bg-card/60 hover:bg-accent/10",
+                ? "border-transparent bg-foreground/[0.04] shadow-lg shadow-ring/15 ring-2 ring-ring/80 ring-inset"
+                : "border-border/70 bg-card/40 hover:bg-foreground/[0.04] dark:border-border dark:bg-foreground/[0.03]",
             )}
             key={mode}
             onClick={() => setMode(mode)}
@@ -811,7 +797,7 @@ export function ThemeLibrary({
             theme={standardTheme}
           />
         ))}
-        {MAINTAINER_THEMES.map((maintainerTheme) => {
+        {BUILT_IN_THEMES.map((maintainerTheme) => {
           const card = getThemeCardDefinition(maintainerTheme);
           return (
             <ThemeLibraryCard
@@ -902,12 +888,12 @@ export function ThemeLibrary({
 
   return (
     <div className="space-y-3">
-      <h3 className="flex min-h-7 items-center px-3 text-base font-semibold text-foreground sm:px-4">
+      <h3 className="flex min-h-7 items-end px-1 text-xs font-semibold text-muted-foreground">
         {setting("color-scheme").title}
       </h3>
       {renderModeTiles()}
-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-3 px-3 pt-5 sm:px-4">
-        <h3 className="text-base font-semibold text-foreground">{setting("theme").title}</h3>
+      <div className="flex min-h-8 flex-wrap items-end justify-between gap-3 px-1 pt-5">
+        <h3 className="text-xs font-semibold text-muted-foreground">{setting("theme").title}</h3>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             size="xs"

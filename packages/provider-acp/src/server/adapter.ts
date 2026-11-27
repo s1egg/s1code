@@ -1665,12 +1665,30 @@ function isAcpPlanModeId(id: string): boolean {
   return name === "plan" || name === "architect";
 }
 
+// Generic ACP scopes are once or always. Only a dedicated flavor can promise a session grant.
+function genericPermissionOptions(
+  request: EffectAcpSchema.RequestPermissionRequest,
+): ProviderApprovalOption[] {
+  const choices: ProviderApprovalOption[] = [];
+  for (const [kind, decision, fallbackLabel] of [
+    ["allow_once", "accept", "Allow once"],
+    ["allow_always", "acceptAlways", "Always allow"],
+    ["reject_once", "decline", "Decline"],
+  ] as const) {
+    const option = request.options.find((candidate) => candidate.kind === kind);
+    if (option) choices.push({ decision, label: option.name.trim() || fallbackLabel });
+  }
+  choices.push({ decision: "cancel", label: "Cancel" });
+  return choices;
+}
+
 function selectPermissionOptionId(
   request: EffectAcpSchema.RequestPermissionRequest,
   decision: Exclude<ProviderApprovalDecision, "cancel">,
 ): string | undefined {
   const optionIdOfKind = (kind: EffectAcpSchema.PermissionOption["kind"]) =>
     request.options.find((option) => option.kind === kind)?.optionId;
+  if (decision === "acceptAlways") return optionIdOfKind("allow_always");
   if (decision === "acceptForSession") {
     // Agents may offer only allow_once, and answering "cancelled" would stop the turn the user approved.
     return optionIdOfKind("allow_always") ?? optionIdOfKind("allow_once");
@@ -6610,12 +6628,12 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         const beginApprovalRequest = Effect.fnUntraced(function* (
           context: ActiveAcpTurn,
           params: EffectAcpSchema.RequestPermissionRequest,
+          approvalOptions: ReadonlyArray<ProviderApprovalOption>,
           generation: number,
           transportRequestId: string,
         ) {
           yield* closeTextStreams(context);
           const parsed = parsePermissionRequest(params);
-          const approvalOptions = flavor.approvalOptions?.(params);
           const nativeRequestId = params.toolCall.toolCallId;
           const requestId = yield* idAllocator.allocate.runtimeRequest({
             driver,
@@ -6690,7 +6708,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             requestId,
             requestKind,
             ...(parsed.detail === undefined ? {} : { prompt: parsed.detail }),
-            ...(approvalOptions === undefined ? {} : { options: approvalOptions }),
+            options: approvalOptions,
           };
           yield* Ref.update(pendingRuntimeRequests, (current) => {
             const updated = new Map(current);
@@ -6724,6 +6742,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             turnItem,
           });
           return {
+            approvalOptions,
             context,
             decision,
             nativeResponseAcknowledgement,
@@ -7683,6 +7702,8 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                     pending: yield* beginApprovalRequest(
                       yield* activeContext,
                       params,
+                      flavor.approvalOptions?.(params) ??
+                        genericPermissionOptions(answerableParams),
                       handlerGeneration,
                       transportRequestId,
                     ),
@@ -7730,32 +7751,35 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                   ).pipe(Effect.asVoid),
                 ),
               );
-              // A card that never offered "this session" (Kiro's, whose
-              // allow_always saves a workspace rule) cannot be answered with
-              // it by a stale client or a hand-made respond call.
-              const offeredOptions = flavor.approvalOptions?.(params);
-              const decision =
-                answered === "acceptForSession" &&
-                offeredOptions !== undefined &&
-                !offeredOptions.some((option) => option.decision === "acceptForSession")
+              const offered = admitted.value.pending.approvalOptions;
+              // Older clients can answer "this session" without inspecting the choices.
+              // Downgrade only to a one-time approval that was actually offered.
+              const decision = offered.some((option) => option.decision === answered)
+                ? answered
+                : answered === "acceptForSession" &&
+                    offered.some((option) => option.decision === "accept")
                   ? "accept"
-                  : answered;
-              if (decision === "accept" || decision === "acceptForSession") {
+                  : "cancel";
+              const optionId =
+                decision === "cancel"
+                  ? undefined
+                  : selectPermissionOptionId(answerableParams, decision);
+              if (
+                optionId !== undefined &&
+                (decision === "accept" ||
+                  decision === "acceptForSession" ||
+                  decision === "acceptAlways")
+              ) {
                 clientPolicyGrants.recordApproval({
                   toolKind: parsedPermission.kind,
                   scope: decision === "acceptForSession" ? "session" : "turn",
                   turnKey: String(context.providerTurnId),
                 });
               }
-              const response = (() => {
-                if (decision === "cancel") {
-                  return { outcome: { outcome: "cancelled" } } as const;
-                }
-                const optionId = selectPermissionOptionId(answerableParams, decision);
-                return optionId === undefined
+              const response =
+                optionId === undefined
                   ? ({ outcome: { outcome: "cancelled" } } as const)
                   : ({ outcome: { outcome: "selected", optionId } } as const);
-              })();
               const checked = yield* runRuntimeCallbackAtGeneration(
                 handlerGeneration,
                 Effect.succeed(response),

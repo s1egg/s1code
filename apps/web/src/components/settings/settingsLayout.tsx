@@ -236,17 +236,17 @@ export function SettingsSection({
       {...sectionProps}
       ref={targetRef}
       tabIndex={sectionProps.id ? -1 : sectionProps.tabIndex}
-      className={cn(!hideTitle && "space-y-2.5", className)}
+      className={cn(!hideTitle && "space-y-2", className)}
     >
       {hideTitle ? (
         <h2 className="sr-only">{title}</h2>
       ) : (
         <div
           data-settings-scroll-target
-          className="flex min-h-7 flex-wrap items-start justify-between gap-x-4 gap-y-1 px-3 sm:px-4"
+          className="flex min-h-7 flex-wrap items-end justify-between gap-x-4 gap-y-1 ps-1 pe-1"
         >
           <div className="flex min-w-0 items-center gap-1">
-            <h2 className="flex min-h-7 items-center gap-2 text-base font-semibold text-foreground">
+            <h2 className="flex min-h-7 items-center gap-1.5 text-xs font-semibold text-muted-foreground [&_svg:not([class*='size-'])]:size-3.5">
               {icon}
               {title}
             </h2>
@@ -531,12 +531,12 @@ export function SettingsRow({
       data-slot="settings-row"
       className={cn(
         "group/settings-row @container/settings-row rounded-xl px-3 sm:px-4 aria-disabled:opacity-64 aria-disabled:[&_*]:text-muted-foreground",
-        children ? "pt-3 pb-1" : "py-3",
+        children ? "pt-2.5 pb-1" : "flex min-h-13 flex-col justify-center py-2.5",
         className,
       )}
     >
       <div className="flex flex-col gap-3 @min-[32rem]/settings-row:grid @min-[32rem]/settings-row:grid-cols-[minmax(0,1fr)_auto] @min-[32rem]/settings-row:items-center @min-[32rem]/settings-row:gap-8">
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex min-h-5 items-center gap-1.5">
             <h3 className="text-sm font-medium text-foreground">{title}</h3>
             {renderedInheritance ? (

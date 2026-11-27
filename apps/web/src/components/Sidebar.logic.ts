@@ -2,6 +2,8 @@ import type { EnvironmentServerConfig } from "@s1tools/client-runtime/connection
 import { scopeThreadRef, scopedThreadKey } from "@s1tools/client-runtime/environment";
 import { resolveThreadWorkingStartedAt } from "@s1tools/client-runtime/state/models";
 import { isShownUnderParent } from "@s1tools/client-runtime/state/threads";
+import { threadHasReadyPlan } from "@s1tools/client-runtime/state/thread-inbox";
+import { SCRATCH_PROJECT_SCOPE_KEY } from "@s1tools/client-runtime/state/project-grouping";
 import { backgroundWorkHoldsCompletion } from "@s1tools/shared/orchestrationV2PendingBackgroundWork";
 import { threadPullRequestSearchTerms } from "@s1tools/shared/threadPullRequests";
 import * as React from "react";
@@ -40,13 +42,12 @@ import {
   type ThreadSortInput,
 } from "@s1tools/client-runtime/state/thread-sort";
 import type { SidebarThreadSummary, Thread } from "../types";
+import { resolveSidebarProjectScopeKey } from "../sidebarProjectGrouping";
 import { normalizeSearchText } from "../lib/utils";
-import { isLatestRunSettled } from "../session-logic";
 import { THREAD_STATUS_TEXT } from "@s1tools/client-runtime/state/thread-activity-announcement";
 import { observeIntersection } from "../lib/observeIntersection";
 import { deadlineAfter, deadlineStore, type ClockStore } from "@s1tools/client-runtime/clock";
 import { useDeadlinePassed } from "../hooks/useDeadline";
-import { legacyProjectCwdPreferenceKey } from "../uiStateStore";
 import { isElectron } from "../env";
 import { shouldShowThreadJumpHintsForModifiers } from "../keybindings";
 import { isTerminalFocused, subscribeToTerminalFocusChanges } from "../lib/terminalFocus";
@@ -196,9 +197,10 @@ export function useRetainedValue<T>(key: string | null, value: T | null): T | nu
 export const animateSidebarLayoutChanges: AnimateLayoutChanges = (args) =>
   args.isSorting ? defaultAnimateLayoutChanges(args) : false;
 
-// Snoozed rows cannot accept drops without a wake time. Working rows only drag out as chat context.
+// Snoozed rows cannot accept drops without a wake time. Working and To review rows follow
+// run state, so they only drag out: to Pinned, to Settled, or to the composer as context.
 
-export type SidebarSection = "pinned" | "active" | "working" | "snoozed" | "settled";
+export type SidebarSection = "pinned" | "working" | "review" | "active" | "snoozed" | "settled";
 
 export function resolveSidebarThreadSection(input: {
   readonly snoozed: boolean;
@@ -213,14 +215,17 @@ export function resolveSidebarThreadSection(input: {
 
 const SIDEBAR_MARKER_PREFIX = "sidebar-marker-";
 
+// The list runs Pinned, Working, To review, Earlier (the drop target for active threads,
+// opened by "pinned-divider"), Snoozed, Settled.
 export type SidebarListMarker =
   | "pinned-header"
-  | "active-placeholder"
-  | "settled-placeholder"
-  | "pinned-divider"
   | "working-header"
+  | "review-header"
+  | "pinned-divider"
+  | "active-placeholder"
   | "snoozed-header"
-  | "settled-header";
+  | "settled-header"
+  | "settled-placeholder";
 
 export function sidebarMarkerId(marker: SidebarListMarker): string {
   return `${SIDEBAR_MARKER_PREFIX}${marker}`;
@@ -234,15 +239,22 @@ export function sidebarListItemId(item: SidebarListItem): string {
   return item.kind === "thread" ? item.key : sidebarMarkerId(item.marker);
 }
 
+const SECTION_OPENED_BY_MARKER: Partial<Record<SidebarListMarker, SidebarSection>> = {
+  "working-header": "working",
+  "review-header": "review",
+  "pinned-divider": "active",
+  "snoozed-header": "snoozed",
+  "settled-header": "settled",
+};
+
+function nextSidebarSection(section: SidebarSection, item: SidebarListItem): SidebarSection {
+  return item.kind === "marker" ? (SECTION_OPENED_BY_MARKER[item.marker] ?? section) : section;
+}
+
 function sectionAtSidebarSlot(items: readonly SidebarListItem[], index: number): SidebarSection {
   let section: SidebarSection = "pinned";
   for (let i = 0; i < index && i < items.length; i += 1) {
-    const item = items[i]!;
-    if (item.kind !== "marker") continue;
-    if (item.marker === "pinned-divider") section = "active";
-    else if (item.marker === "working-header") section = "working";
-    else if (item.marker === "snoozed-header") section = "snoozed";
-    else if (item.marker === "settled-header") section = "settled";
+    section = nextSidebarSection(section, items[i]!);
   }
   return section;
 }
@@ -264,21 +276,15 @@ export function resolveSidebarDropTarget(
   const moved = items.filter((_, index) => index !== activeIndex);
   moved.splice(overIndex, 0, items[activeIndex]!);
   const section = sectionAtSidebarSlot(moved, overIndex);
-  if (section === "working" || section === "snoozed") return null;
+  if (section !== "pinned" && section !== "active" && section !== "settled") return null;
   const pinnedOrder: string[] = [];
   const activeOrder: string[] = [];
   let currentSection: SidebarSection = "pinned";
   for (const item of moved) {
-    if (item.kind === "marker") {
-      if (item.marker === "pinned-divider") currentSection = "active";
-      else if (
-        item.marker === "working-header" ||
-        item.marker === "snoozed-header" ||
-        item.marker === "settled-header"
-      )
-        break;
-    } else if (currentSection === "pinned") pinnedOrder.push(item.key);
-    else activeOrder.push(item.key);
+    currentSection = nextSidebarSection(currentSection, item);
+    if (item.kind !== "thread") continue;
+    if (currentSection === "pinned") pinnedOrder.push(item.key);
+    else if (currentSection === "active") activeOrder.push(item.key);
   }
   return { section, pinnedOrder, activeOrder };
 }
@@ -309,10 +315,12 @@ type SidebarThreadDropPlan =
 export type SidebarDropVerb = "pin" | "unpin" | "settle" | "unsettle" | "wake";
 
 export function resolveSidebarDropVerb(
-  from: SidebarSection,
+  rawFrom: SidebarSection,
   to: SidebarSection | null,
 ): SidebarDropVerb | null {
-  if (to === null || to === from || to === "working" || to === "snoozed") return null;
+  const from = rawFrom === "review" ? "active" : rawFrom;
+  if (to === null || to === from || to === "working" || to === "review" || to === "snoozed")
+    return null;
   if (to === "pinned") return "pin";
   if (to === "settled") return "settle";
   if (from === "pinned") return "unpin";
@@ -384,10 +392,10 @@ export function planSidebarThreadDrop(input: {
   readonly activeReorderableKeys?: ReadonlySet<string>;
   readonly activeTimeOrdered?: boolean;
 }): SidebarThreadDropPlan {
+  const { activeKey, activePinned = input.activeSection === "pinned" } = input;
+  // A To review row is an active thread; only its run state lists it apart.
+  const activeSection = input.activeSection === "review" ? "active" : input.activeSection;
   const {
-    activeKey,
-    activeSection,
-    activePinned = activeSection === "pinned",
     activeSettled = activeSection === "settled",
     target,
     pinnedOrder,
@@ -790,6 +798,16 @@ export function hasUnseenCompletion(thread: ThreadStatusInput): boolean {
   return completedAt > lastVisitedAt;
 }
 
+/** To review: a run finished, or a snooze woke, since the user last opened the thread. */
+export function isSidebarThreadUnseen(thread: ThreadStatusInput, wokeAt: string | null): boolean {
+  if (hasUnseenCompletion(thread)) return true;
+  if (wokeAt === null) return false;
+  const wokeAtMs = Date.parse(wokeAt);
+  if (Number.isNaN(wokeAtMs)) return false;
+  const visitedMs = thread.lastVisitedAt ? Date.parse(thread.lastVisitedAt) : Number.NaN;
+  return Number.isNaN(visitedMs) || visitedMs < wokeAtMs;
+}
+
 // Suppress trailing double-click navigation; keyboard and synthetic clicks use detail 0.
 export function isTrailingDoubleClick(detail: number): boolean {
   return detail > 1;
@@ -819,35 +837,6 @@ export function shouldCreateNewThreadInCurrentProject(
   projectGroupCount: number,
 ): boolean {
   return shiftKey || openProjectGroupCount === 1 || projectGroupCount === 0;
-}
-
-/**
- * A sidebar filtered to one project already says where the next thread belongs,
- * so New skips the picker there. A project grouped across environments keeps the
- * viewed thread's environment when that thread belongs to the group.
- */
-export function resolveScopedNewThreadProjectRef<
-  TRef extends { readonly environmentId: string; readonly projectId: string },
->(input: {
-  shiftKey: boolean;
-  scopedProjectGroups: readonly {
-    readonly environmentId: string;
-    readonly id: string;
-    readonly memberProjectRefs: readonly TRef[];
-  }[];
-  viewed: { readonly environmentId: string; readonly projectId: string } | null | undefined;
-}): TRef | null {
-  const [group, ...otherGroups] = input.scopedProjectGroups;
-  if (input.shiftKey || !group || otherGroups.length > 0) return null;
-  const memberAt = (environmentId: string, projectId: string) =>
-    group.memberProjectRefs.find(
-      (ref) => ref.environmentId === environmentId && ref.projectId === projectId,
-    );
-  return (
-    (input.viewed && memberAt(input.viewed.environmentId, input.viewed.projectId)) ??
-    memberAt(group.environmentId, group.id) ??
-    null
-  );
 }
 
 export function orderItemsByPreferredIds<TItem, TId>(input: {
@@ -900,13 +889,10 @@ export function resolveAdjacentThreadId<T>(input: {
     return null;
   }
 
-  if (currentThreadId === null) {
-    return direction === "previous" ? (threadIds.at(-1) ?? null) : (threadIds[0] ?? null);
-  }
-
-  const currentIndex = threadIds.indexOf(currentThreadId);
+  // An open thread the list leaves out, such as one search filters away, is no position in it.
+  const currentIndex = currentThreadId === null ? -1 : threadIds.indexOf(currentThreadId);
   if (currentIndex === -1) {
-    return null;
+    return direction === "previous" ? (threadIds.at(-1) ?? null) : (threadIds[0] ?? null);
   }
 
   if (direction === "previous") {
@@ -926,30 +912,6 @@ export type SidebarThreadStatus =
   | "failed"
   | "limited"
   | "ready";
-
-export function shouldRecedeSidebarThread(input: {
-  status: SidebarThreadStatus;
-  isUnread: boolean;
-  isWoke: boolean;
-  isActive: boolean;
-  isSelected: boolean;
-}): boolean {
-  if (
-    input.isActive ||
-    input.isSelected ||
-    input.status === "input" ||
-    input.status === "request"
-  ) {
-    return false;
-  }
-  if (input.status === "preparing" || input.status === "working" || input.status === "waiting") {
-    return true;
-  }
-  if (input.status === "ready" || input.status === "approval") {
-    return !input.isUnread && !input.isWoke;
-  }
-  return false;
-}
 
 type SidebarThreadStatusInput = Pick<
   SidebarThreadSummary,
@@ -1025,82 +987,6 @@ export function resolveWindowTitleThreadStatus(
   }
 }
 
-/**
- * The dot on a closed boring-sidebar folder: the most urgent state among its
- * hidden threads. Waiting threads stay quiet, like their rows.
- */
-export function resolveSidebarFolderDot(
-  threads: ReadonlyArray<ThreadStatusInput & SidebarThreadStatusInput>,
-): "attention" | "failed" | "unread" | "working" | null {
-  const statuses = new Set(threads.map(resolveSidebarRowStatus));
-  if (
-    statuses.has("input") ||
-    statuses.has("approval") ||
-    statuses.has("request") ||
-    statuses.has("limited")
-  ) {
-    return "attention";
-  }
-  if (statuses.has("failed")) return "failed";
-  // Rows show Done only for ready threads, so the dot follows the same rule.
-  const hasUnread = threads.some(
-    (thread) => resolveSidebarRowStatus(thread) === "ready" && hasUnseenCompletion(thread),
-  );
-  if (hasUnread) return "unread";
-  if (statuses.has("working") || statuses.has("preparing")) return "working";
-  return null;
-}
-
-/**
- * Keys the old per-project sidebar saved folder open state under, most
- * specific first, for `resolveProjectExpanded`. Boring folders read and write
- * the same keys, so a legacy user's closed folders stay closed after regrouping.
- */
-export function sidebarFolderExpansionKeys(group: {
-  readonly projectKey: string;
-  readonly memberProjects: ReadonlyArray<{
-    readonly physicalProjectKey: string;
-    readonly workspaceRoot: string;
-  }>;
-}): string[] {
-  return [
-    group.projectKey,
-    ...group.memberProjects.map((member) => member.physicalProjectKey),
-    ...group.memberProjects.map((member) => legacyProjectCwdPreferenceKey(member.workspaceRoot)),
-  ];
-}
-
-/**
- * Boring sidebar folders. Folders follow `groups` order and threads keep their
- * input order. A project with no threads gets a folder only when `keepEmpty` says so.
- * A thread whose project is in no group has no folder and is left out.
- */
-export function groupSidebarThreadsByProject<
-  TGroup extends {
-    readonly memberProjectRefs: ReadonlyArray<{
-      readonly environmentId: EnvironmentId;
-      readonly projectId: string;
-    }>;
-  },
-  TThread extends Pick<SidebarThreadSummary, "environmentId" | "projectId">,
->(
-  groups: readonly TGroup[],
-  threads: readonly TThread[],
-  keepEmpty: (group: TGroup) => boolean,
-): Array<{ group: TGroup; threads: TThread[] }> {
-  const folders = groups.map((group) => ({ group, threads: [] as TThread[] }));
-  const folderByProject = new Map<string, (typeof folders)[number]>();
-  for (const folder of folders) {
-    for (const ref of folder.group.memberProjectRefs) {
-      folderByProject.set(`${ref.environmentId}:${ref.projectId}`, folder);
-    }
-  }
-  for (const thread of threads) {
-    folderByProject.get(`${thread.environmentId}:${thread.projectId}`)?.threads.push(thread);
-  }
-  return folders.filter((folder) => folder.threads.length > 0 || keepEmpty(folder.group));
-}
-
 export type SidebarV2TopStatusKind =
   | "approval"
   | "done"
@@ -1123,7 +1009,6 @@ export function firstValidTimestampMs(
   return 0;
 }
 
-export { sortActiveThreadsByOrderKey as sortThreadsForSidebar } from "@s1tools/client-runtime/state/thread-sort";
 export {
   sortInboxThreadsByReturn,
   sortWorkingThreadsBySend,
@@ -1183,45 +1068,206 @@ export function pullRequestMatchesSearchQuery(
   return normalizedQuery.split(" ").every((token) => haystack.includes(token));
 }
 
-export const ADD_PROJECT_SCOPE_ITEM_VALUE = "add-project";
+type SidebarReadyPlanInput = Pick<
+  SidebarThreadSummary,
+  "hasActionableProposedPlan" | "hasPendingUserInput" | "interactionMode" | "latestRun" | "runtime"
+>;
 
-export function filterSidebarProjectScopeItems<TItem extends { readonly value: string }>(input: {
-  items: readonly TItem[];
-  query: string;
-  matches: (item: TItem, query: string) => boolean;
-}): readonly TItem[] {
-  const query = input.query.trim();
-  if (query.length === 0) return input.items;
-  return input.items.filter(
-    (item) =>
-      item.value !== "all" &&
-      item.value !== ADD_PROJECT_SCOPE_ITEM_VALUE &&
-      input.matches(item, query),
+/** A finished plan waiting on the user's decision; a failed run reads as its failure instead. */
+export function sidebarThreadHasReadyPlan(thread: SidebarReadyPlanInput): boolean {
+  return (
+    threadHasReadyPlan(thread) &&
+    thread.latestRun?.status !== "failed" &&
+    thread.runtime?.status !== "failed"
   );
 }
 
-interface SidebarProjectScopeMenuState {
-  readonly open: boolean;
-  readonly query: string;
+/** A thread waiting on the user: an approval, a question, a guest's message, or a ready plan. */
+export function sidebarThreadNeedsUser(
+  thread: Pick<
+    SidebarThreadSummary,
+    | "hasActionableProposedPlan"
+    | "hasPendingApprovals"
+    | "hasPendingUserInput"
+    | "pendingSubagentRequest"
+    | "pendingGuestMessageCount"
+    | "interactionMode"
+    | "latestRun"
+    | "runtime"
+  >,
+): boolean {
+  return (
+    thread.hasPendingApprovals ||
+    thread.hasPendingUserInput ||
+    thread.pendingSubagentRequest != null ||
+    (thread.pendingGuestMessageCount ?? 0) > 0 ||
+    sidebarThreadHasReadyPlan(thread)
+  );
 }
 
-type SidebarProjectScopeMenuAction =
-  | { readonly type: "query-changed"; readonly query: string }
-  | { readonly type: "open-changed"; readonly open: boolean }
-  | { readonly type: "project-settings-opened" };
+/**
+ * Where an unpinned, awake, unsettled thread lists: Working while it runs or waits on the
+ * user, To review once it finished with results the user has not opened, else Earlier.
+ */
+export function resolveSidebarInboxGroup(input: {
+  readonly working: boolean;
+  readonly needsUser: boolean;
+  readonly unseen: boolean;
+}): "working" | "review" | "active" {
+  if (input.working || input.needsUser) return "working";
+  return input.unseen ? "review" : "active";
+}
 
-export function reduceSidebarProjectScopeMenuState(
-  state: SidebarProjectScopeMenuState,
-  action: SidebarProjectScopeMenuAction,
-): SidebarProjectScopeMenuState {
-  switch (action.type) {
-    case "query-changed":
-      return { ...state, query: action.query };
-    case "open-changed":
-      return { open: action.open, query: "" };
-    case "project-settings-opened":
-      return { open: false, query: "" };
+/** The rail entry for threads with no project: scratch projects, and projects no group holds. */
+export const SIDEBAR_UNASSIGNED_RAIL_KEY = "sidebar-rail:unassigned";
+
+export type SidebarRailStatus = "waiting" | "running" | null;
+
+export interface SidebarRailEntry<TGroup> {
+  readonly key: string;
+  /** Null for the entry that holds threads without a project. */
+  readonly group: TGroup | null;
+  /** `environmentId:projectId` of every project the entry lists threads for. */
+  readonly projectKeys: ReadonlySet<string>;
+  readonly status: SidebarRailStatus;
+}
+
+/**
+ * The project rail. Open projects keep their order. An archived project follows them while it
+ * holds anything: a thread in any section, a draft, or older settled history. Threads without a
+ * project, in a scratch project or one no group holds, share one last entry while it holds any.
+ * Only threads outside the Settled shelf badge an entry.
+ */
+export function buildSidebarRailEntries<
+  TGroup extends {
+    readonly projectKey: string;
+    readonly archived: boolean;
+    readonly isScratch?: boolean | undefined;
+    readonly memberProjectRefs: ReadonlyArray<{
+      readonly environmentId: string;
+      readonly projectId: string;
+    }>;
+  },
+  TThread extends { readonly environmentId: string; readonly projectId: string },
+>(input: {
+  readonly groups: readonly TGroup[];
+  readonly threads: readonly TThread[];
+  /** Whether the thread lists outside the Settled shelf. */
+  readonly isListed: (thread: TThread) => boolean;
+  readonly statusOf: (thread: TThread) => SidebarRailStatus;
+  /** `environmentId:projectId` of projects holding drafts, unloaded settled threads, or the route. */
+  readonly heldProjectKeys: Iterable<string>;
+}): SidebarRailEntry<TGroup>[] {
+  const keyOfGroup = new Map<string, string>();
+  const groupKeys = new Map<string, Set<string>>();
+  const unassignedKeys = new Set<string>();
+  const projectGroups = input.groups.filter((group) => !group.isScratch);
+  for (const group of input.groups) {
+    const keys = group.memberProjectRefs.map((ref) => `${ref.environmentId}:${ref.projectId}`);
+    if (group.isScratch) {
+      for (const key of keys) unassignedKeys.add(key);
+      continue;
+    }
+    groupKeys.set(group.projectKey, new Set(keys));
+    for (const key of keys) keyOfGroup.set(key, group.projectKey);
   }
+  const entryKeyOf = (projectKey: string) => {
+    const entryKey = keyOfGroup.get(projectKey);
+    if (entryKey !== undefined) return entryKey;
+    unassignedKeys.add(projectKey);
+    return SIDEBAR_UNASSIGNED_RAIL_KEY;
+  };
+  const statusByEntry = new Map<string, SidebarRailStatus>();
+  const heldEntries = new Set<string>();
+  for (const projectKey of input.heldProjectKeys) heldEntries.add(entryKeyOf(projectKey));
+  for (const thread of input.threads) {
+    const entryKey = entryKeyOf(`${thread.environmentId}:${thread.projectId}`);
+    heldEntries.add(entryKey);
+    if (!input.isListed(thread)) continue;
+    const status = input.statusOf(thread);
+    if (status === "waiting" || (status === "running" && !statusByEntry.has(entryKey))) {
+      statusByEntry.set(entryKey, status);
+    }
+  }
+  const entryOf = (group: TGroup): SidebarRailEntry<TGroup> => ({
+    key: group.projectKey,
+    group,
+    projectKeys: groupKeys.get(group.projectKey)!,
+    status: statusByEntry.get(group.projectKey) ?? null,
+  });
+  return [
+    ...projectGroups.filter((group) => !group.archived).map(entryOf),
+    ...projectGroups
+      .filter((group) => group.archived && heldEntries.has(group.projectKey))
+      .map(entryOf),
+    ...(heldEntries.has(SIDEBAR_UNASSIGNED_RAIL_KEY)
+      ? [
+          {
+            key: SIDEBAR_UNASSIGNED_RAIL_KEY,
+            group: null,
+            projectKeys: unassignedKeys,
+            status: statusByEntry.get(SIDEBAR_UNASSIGNED_RAIL_KEY) ?? null,
+          },
+        ]
+      : []),
+  ];
+}
+
+/**
+ * The entry that lists a project. Null until the project's environment has loaded its
+ * projects: before that the project reads as one no group holds, which is only a guess.
+ */
+export function findSidebarRailEntryKey(
+  entries: ReadonlyArray<Pick<SidebarRailEntry<unknown>, "key" | "projectKeys">>,
+  projectRef: { readonly environmentId: string; readonly projectId: string } | null,
+  projectsLoaded: boolean,
+): string | null {
+  if (projectRef === null || !projectsLoaded) return null;
+  const projectKey = `${projectRef.environmentId}:${projectRef.projectId}`;
+  return entries.find((entry) => entry.projectKeys.has(projectKey))?.key ?? null;
+}
+
+/** The project ids an entry scopes thread search to, including projects with no loaded rows. */
+export function sidebarRailEntryProjectIds(
+  entry: Pick<SidebarRailEntry<unknown>, "projectKeys">,
+  environmentIds: ReadonlyArray<string>,
+): string[] {
+  const projectIds = new Set<string>();
+  for (const projectKey of entry.projectKeys) {
+    const environmentId = environmentIds.find((id) => projectKey.startsWith(`${id}:`));
+    if (environmentId !== undefined) projectIds.add(projectKey.slice(environmentId.length + 1));
+  }
+  return [...projectIds];
+}
+
+/**
+ * The stored selection's rail entry. The folder sidebar stored "No project" as the scratch
+ * group's key; the entry for threads without a project holds it now.
+ */
+export function resolveStoredSidebarRailKey(
+  input: Parameters<typeof resolveSidebarProjectScopeKey>[0],
+): string | null {
+  if (input.key === SIDEBAR_UNASSIGNED_RAIL_KEY || input.key === SCRATCH_PROJECT_SCOPE_KEY) {
+    return SIDEBAR_UNASSIGNED_RAIL_KEY;
+  }
+  const key = resolveSidebarProjectScopeKey(input);
+  return key === SCRATCH_PROJECT_SCOPE_KEY ? SIDEBAR_UNASSIGNED_RAIL_KEY : key;
+}
+
+/**
+ * Exactly one rail entry is selected: the stored one while it is on the rail, else the open
+ * thread's, else the first.
+ */
+export function resolveSidebarRailSelection(input: {
+  readonly entries: ReadonlyArray<{ readonly key: string }>;
+  readonly storedKey: string | null;
+  readonly routeKey: string | null;
+}): string | null {
+  const onRail = (key: string | null) =>
+    key !== null && input.entries.some((entry) => entry.key === key);
+  if (onRail(input.storedKey)) return input.storedKey;
+  if (onRail(input.routeKey)) return input.routeKey;
+  return input.entries[0]?.key ?? null;
 }
 
 export function resolveWorkingStartedAt(
@@ -1307,12 +1353,7 @@ export function resolveThreadStatusPill(input: {
 
   if (backgroundWorkHoldsCompletion(thread.pendingBackgroundTasks ?? [])) return waiting;
 
-  const hasPlanReadyPrompt =
-    !thread.hasPendingUserInput &&
-    thread.interactionMode === "plan" &&
-    isLatestRunSettled(thread.latestRun, thread.runtime) &&
-    thread.hasActionableProposedPlan;
-  if (hasPlanReadyPrompt) {
+  if (sidebarThreadHasReadyPlan(thread)) {
     return {
       label: msg("Plan Ready"),
       colorClass: "text-violet-600 dark:text-violet-300/90",

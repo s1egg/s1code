@@ -591,7 +591,7 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
       }
       label={
         <div className="min-w-0 flex-1 overflow-hidden">
-          <p className="flex min-w-0 w-full items-baseline gap-1.5 text-sm leading-relaxed">
+          <p className="flex min-w-0 w-full items-baseline gap-1.5 text-xs leading-relaxed">
             <span
               ref={labelRef}
               className={cn(

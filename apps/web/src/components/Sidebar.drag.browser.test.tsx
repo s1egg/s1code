@@ -34,13 +34,13 @@ vi.mock(import("~/rpc/requestLatencyState"), async (original) => ({
   trackRpcRequestSent: () => {},
 }));
 
-it("shows the titled preview inside and outside search results from a collapsed folder", async () => {
+it("shows the titled preview inside and outside search results from a collapsed shelf", async () => {
   await page.viewport(1400, 900);
-  const [first, second] = [threadWithHistory("visible", 1), threadWithHistory("search-target", 1)];
+  const first = threadWithHistory("visible", 1);
+  const second = { ...threadWithHistory("search-target", 1), settled: true as const };
   using _environment = installFakeEnvironment([first, second]);
   __setClientSettingsForTests({
     ...DEFAULT_CLIENT_SETTINGS,
-    boringSidebarEnabled: true,
     onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
   });
   const router = getRouter(
@@ -51,15 +51,10 @@ it("shows the titled preview inside and outside search results from a collapsed 
     // AppRoot brings its own router.
     router: false,
   });
-  const folder = page.getByRole("button", { name: /^render/ });
-  await expect.element(folder).toHaveAttribute("aria-expanded", "true");
-  // A removed row fades out as a clone without its test id, so match the live row only.
-  const secondRow = page.getByTestId("sidebar-row-folder").filter({ hasText: second.title });
-  await expect.element(secondRow).toBeInTheDocument();
-  // The shift guard drops pointer presses on a row that appeared under 500ms ago; keys pass.
-  folder.element().focus();
-  await userEvent.keyboard("{Enter}");
-  await expect.element(secondRow).not.toBeInTheDocument();
+  // The collapsed Settled shelf renders no row for the target; only search lists it.
+  const rows = page.getByTestId("sidebar-row-slim");
+  await expect.element(rows.filter({ hasText: first.title })).toBeInTheDocument();
+  await expect.element(rows.filter({ hasText: second.title })).not.toBeInTheDocument();
   await userEvent.fill(page.getByRole("combobox", { name: "Search threads" }), "search-target");
   const result = page.getByRole("option", { name: /Thread search-target/ });
   await expect.element(result).toBeVisible();
@@ -128,6 +123,7 @@ it("keeps focus in the search box when a click picks a search result", async () 
           searchQuery="invoice"
           onHighlight={() => {}}
           onSelect={onSelect}
+          onOpenIssue={() => {}}
           onContextMenu={() => {}}
           onFileDropThreads={() => {}}
         />

@@ -18,7 +18,6 @@ import {
   S1_CODE_DARK_THEME_COLORS,
   RESERVED_THEME_IDS,
   THEME_COLOR_ROLES,
-  WEB_ONLY_THEMES,
   type ThemeAppearance,
   type ThemeColorRole,
   type ThemeColors,
@@ -733,6 +732,7 @@ export function contextChipAccentWithHueOf(
 const CONTEXT_CHIP_CONTRAST = 5;
 const CONTEXT_CHIP_MESSAGE_VARIABLE = "--context-chip-message";
 const CONTEXT_CHIP_INVALID_VARIABLE = "--context-chip-invalid";
+const FILLED_MESSAGE_CONTRAST = 3;
 
 export function contextChipVariables(colors: ThemeColors): Readonly<Record<string, string>> {
   // CSS paints surfaces from their unrounded OKLCH, so measure them unrounded.
@@ -745,9 +745,14 @@ export function contextChipVariables(colors: ThemeColors): Readonly<Record<strin
       : canvas;
   };
   const isDark = (color: ThemeRgbColor) => themeRelativeLuminance(color) < 0.179;
-  const messageMatchesCanvas = isDark(onCanvas(colors.messageSurface)) === isDark(canvas);
+  const message = onCanvas(colors.messageSurface);
+  // A bubble filled with a strong color (the accent) can stay on the canvas's side of the
+  // black/white midpoint, so contrast catches it too. Filled bubbles color chips with their text.
+  const messageMatchesCanvas =
+    isDark(message) === isDark(canvas) &&
+    themeContrastRatio(message, canvas) < FILLED_MESSAGE_CONTRAST;
   const surfaces = [canvas, onCanvas(colors.surface), onCanvas(colors.surfaceRaised)];
-  if (messageMatchesCanvas) surfaces.push(onCanvas(colors.messageSurface));
+  if (messageMatchesCanvas) surfaces.push(message);
   const contrastOnSurfaces = (color: ThemeRgbColor) =>
     Math.min(...surfaces.map((surface) => themeContrastRatio(color, surface)));
   const blackContrast = contrastOnSurfaces(THEME_BLACK_FOREGROUND);
@@ -774,6 +779,9 @@ export function contextChipVariables(colors: ThemeColors): Readonly<Record<strin
 
 function applyContextChipVariables(root: HTMLElement, colors: ThemeColors): void {
   const variables = contextChipVariables(colors);
+  // index.css recolors muted text and links inside filled bubbles.
+  if (CONTEXT_CHIP_MESSAGE_VARIABLE in variables) root.dataset.messageBubble = "filled";
+  else delete root.dataset.messageBubble;
   root.style.removeProperty(CONTEXT_CHIP_MESSAGE_VARIABLE);
   root.style.removeProperty(CONTEXT_CHIP_INVALID_VARIABLE);
   for (const [variable, value] of Object.entries(variables)) {
@@ -1227,15 +1235,10 @@ export function updateThemeColorFamily(
   }
 }
 
-const BUILT_IN_THEME_DEFINITIONS: ReadonlyArray<ThemeDefinition> = [
-  ...BUILT_IN_THEMES,
-  ...WEB_ONLY_THEMES,
-];
-
 export function getThemeDefinition(theme: ThemePreference): ThemeDefinition | null {
   const themeId = themeIdFromPreference(theme);
   return (
-    BUILT_IN_THEME_DEFINITIONS.find((definition) => definition.id === themeId) ??
+    BUILT_IN_THEMES.find((definition) => definition.id === themeId) ??
     getCustomThemes().find((definition) => definition.id === themeId) ??
     getEnvironmentThemes().find((definition) => definition.id === themeId) ??
     null
@@ -1244,10 +1247,7 @@ export function getThemeDefinition(theme: ThemePreference): ThemeDefinition | nu
 
 export function themeAllowsSidebarArtwork(theme: ThemePreference): boolean {
   const themeId = themeIdFromPreference(theme);
-  return (
-    BUILT_IN_THEME_DEFINITIONS.find((definition) => definition.id === themeId)?.sidebarArtwork ===
-    true
-  );
+  return BUILT_IN_THEMES.find((definition) => definition.id === themeId)?.sidebarArtwork === true;
 }
 
 /** Every selection path must check single-appearance themes to keep mix and appearance tiles in sync. */
@@ -1379,7 +1379,7 @@ export function installCustomTheme(theme: ThemeDefinition): ThemeDefinition {
   }
   const library = getWritableCustomThemeLibrary();
   if (
-    BUILT_IN_THEME_DEFINITIONS.some((existing) => existing.id === theme.id) ||
+    BUILT_IN_THEMES.some((existing) => existing.id === theme.id) ||
     library.storedThemes.some((storedTheme) => storedThemeHasId(storedTheme, theme.id))
   ) {
     throw new Error(
@@ -1448,7 +1448,7 @@ export function replaceCustomThemeCollection(
       m(msg("Your installed themes changed while this package was downloading. Try again.")),
     );
   }
-  const occupiedIds = new Set(BUILT_IN_THEME_DEFINITIONS.map((theme) => theme.id));
+  const occupiedIds = new Set(BUILT_IN_THEMES.map((theme) => theme.id));
   for (const storedTheme of library.storedThemes) {
     if (
       !storedThemeHasCollectionId(storedTheme, collectionId) &&

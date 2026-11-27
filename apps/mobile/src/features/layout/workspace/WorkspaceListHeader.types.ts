@@ -1,5 +1,3 @@
-import type { AppBarMenuItem } from "../../../components/ui/AppBar.types";
-
 /** The header of the workspace thread list, on Home and in the sidebar column. */
 export interface WorkspaceListHeaderProps {
   /** Spoken for the brand title, such as "S1 Code, Threads". */
@@ -12,9 +10,10 @@ export interface WorkspaceListHeaderProps {
     readonly placeholder: string;
     readonly accessibilityLabel: string;
   };
+  /** Opens the environment and project sheet. */
   readonly filter: {
     readonly customized: boolean;
-    readonly items: ReadonlyArray<AppBarMenuItem>;
+    readonly onPress: () => void;
   };
   /** iOS: a settings button. Android reaches Settings from the workspace navigation. */
   readonly onOpenSettings?: () => void;

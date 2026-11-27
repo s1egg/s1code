@@ -236,7 +236,7 @@ vi.mock("../state/entities", () => {
     defaultModelSelection: null,
   };
   return {
-    readProjects: () => [project],
+    readProjects: vi.fn(() => [project]),
     readThreadShell: () => null,
     readThreadShells: () => [],
     useProjects: () => [],
@@ -261,11 +261,29 @@ vi.mock("../uiStateStore", () => ({
 }));
 vi.mock("./useSettings", () => ({ getClientSettings: () => ({}) }));
 
+import { readProjects } from "../state/entities";
+import { openCommandPalette } from "../commandPaletteBus";
+
+vi.mock("../commandPaletteBus", () => ({ openCommandPalette: vi.fn() }));
+
 import {
   readPendingWorkspaceDefault,
   resolveDefaultProjectRef,
   useNewThreadHandler,
 } from "./useHandleNewThread";
+
+it("offers project selection if the chosen copy was archived before the draft opens", async () => {
+  testState.reset(null);
+  const project = readProjects()[0]!;
+  vi.mocked(readProjects).mockReturnValueOnce([{ ...project, archivedAt: "2026-03-01T00:00:00Z" }]);
+  const result = await useNewThreadHandler()({
+    environmentId: project.environmentId,
+    projectId: project.id,
+  });
+  expect(result).toBeNull();
+  expect(openCommandPalette).toHaveBeenCalledWith({ open: "new-thread-in" });
+  expect(testState.router.navigate).not.toHaveBeenCalled();
+});
 
 describe.each([
   ["new", null],

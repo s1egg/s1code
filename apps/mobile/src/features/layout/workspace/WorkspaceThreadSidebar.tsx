@@ -59,6 +59,8 @@ export function WorkspaceThreadSidebar() {
       selectedThreadKey={selectedThread}
       onOpenSettings={() => openWorkspaceTab("settings")}
       onOpenEnvironmentSettings={() => openSettings(navigation, "SettingsEnvironments")}
+      onOpenScopeSheet={() => navigation.navigate("HomeListScope")}
+      onAddProject={() => navigation.navigate("AddProject")}
       onNewThreadInProject={(project: EnvironmentProject) =>
         selectThreadRoute({
           draft: {

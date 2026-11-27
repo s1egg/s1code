@@ -7,9 +7,7 @@ import {
   type MergedIssueList,
 } from "@s1tools/client-runtime/state/issues";
 import { useAtomValue } from "@effect/atom-react";
-import { selectEnvironmentQueryData } from "@s1tools/client-runtime/state/runtime";
-import type { EnvironmentId, IssueState, ThreadIssueLink } from "@s1tools/contracts";
-import { Atom } from "effect/reactivity";
+import type { EnvironmentId, ThreadIssueLink } from "@s1tools/contracts";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 import { appAtomRegistry } from "../rpc/atomRegistry";
@@ -39,40 +37,6 @@ export function useLinkedIssueDetail(
       ? issueEnvironment.detail({ environmentId, input: linkedIssueRef(link) }, mountScope)
       : null,
   ).data;
-}
-
-const emptySidebarIssueState = Atom.make<IssueState | null>(null);
-
-export function useSidebarLinkedIssueState(
-  environmentId: EnvironmentId,
-  links: ReadonlyArray<ThreadIssueLink> | undefined,
-) {
-  const configs = useServerConfigs();
-  const aggregate =
-    links?.length && configs.get(environmentId)?.environment.capabilities.issues === true
-      ? Atom.make((get): IssueState | null => {
-          const states = links.map(
-            (link) =>
-              selectEnvironmentQueryData(
-                get(
-                  issueEnvironment.detail(
-                    { environmentId, input: linkedIssueRef(link) },
-                    "sidebar",
-                  ),
-                ),
-              )?.state,
-          );
-          const open = states.find((state) => state?.category === "open");
-          if (open !== undefined) return open;
-          if (states.includes(undefined)) return null;
-          return (
-            states.find((state) => state?.closeReason && state.closeReason !== "completed") ??
-            states[0] ??
-            null
-          );
-        })
-      : emptySidebarIssueState;
-  return useAtomValue(aggregate);
 }
 
 const mergedIssueLists = createMergedIssueListAtoms(issueEnvironment, formatEnvironmentQueryError);

@@ -235,6 +235,7 @@ const LEGACY_MENU_ACTIONS: MenuAction[] = [
 
 function ThreadListV2Section(props: {
   readonly label: string;
+  readonly count?: number;
   readonly pane?: "screen" | "sidebar";
   readonly tone?: "default" | "snoozed";
   readonly disclosure?: {
@@ -265,6 +266,16 @@ function ThreadListV2Section(props: {
       >
         {props.label}
       </Text>
+      {props.count === undefined ? null : (
+        <Text
+          className={cn(
+            "text-xs font-s1-semibold tabular-nums",
+            sidebarPane ? "text-drawer-foreground-muted" : "text-foreground-secondary",
+          )}
+        >
+          {props.count}
+        </Text>
+      )}
       <View
         className={cn(
           "h-px flex-1",
@@ -306,7 +317,9 @@ function ThreadListV2Section(props: {
       {content}
     </Pressable>
   ) : (
-    <View className={className}>{content}</View>
+    <View accessible accessibilityRole="header" className={className}>
+      {content}
+    </View>
   );
 }
 
@@ -351,13 +364,12 @@ const SHELF_COPY = {
 function ThreadListV2ShelfHeader(
   props: ThreadListV2ShelfHeaderProps & { readonly kind: keyof typeof SHELF_COPY },
 ) {
-  const gt = useGT();
   const m = useMessages();
   const copy = SHELF_COPY[props.kind];
-  const label = m(copy.label);
   return (
     <ThreadListV2Section
-      label={props.expanded ? label : gt("{label} ({count})", { label, count: props.count })}
+      label={m(copy.label)}
+      count={props.count}
       pane={props.pane}
       tone={props.kind === "snoozed" ? "snoozed" : "default"}
       disclosure={{
@@ -370,6 +382,28 @@ function ThreadListV2ShelfHeader(
     />
   );
 }
+
+const GROUP_LABEL_COPY = {
+  pinned: msg("Pinned", { $context: "thread list section" }),
+  review: msg("To review", { $context: "thread list section" }),
+  earlier: msg("Earlier", { $context: "thread list section" }),
+} as const;
+
+/** Pinned, To review and Earlier, the web sidebar's group labels. They take no toggle. */
+export const ThreadListV2GroupLabel = memo(function ThreadListV2GroupLabel(props: {
+  readonly group: keyof typeof GROUP_LABEL_COPY;
+  readonly count: number;
+  readonly pane?: "screen" | "sidebar";
+}) {
+  const m = useMessages();
+  return (
+    <ThreadListV2Section
+      label={m(GROUP_LABEL_COPY[props.group])}
+      count={props.count}
+      pane={props.pane}
+    />
+  );
+});
 
 export const ThreadListV2WorkingShelfHeader = memo(function ThreadListV2WorkingShelfHeader(
   props: ThreadListV2ShelfHeaderProps,

@@ -23,7 +23,7 @@ import {
 } from "react";
 import { isTrailingDoubleClick } from "../Sidebar.logic";
 import { Badge } from "../ui/badge";
-import { MiddleTruncate } from "../ui/middle-truncate";
+import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager } from "../ui/toast";
 import { useThreadActionMenu } from "~/hooks/useThreadActionMenu";
@@ -264,38 +264,29 @@ export const ChatHeader = memo(function ChatHeader({
         className="flex-1 overflow-clip [overflow-clip-margin:2px]"
       >
         {activeProject ? (
-          <>
-            <WorkspaceBreadcrumbItem className="shrink">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label={gt("New thread in {project}", { project: activeProjectName })}
-                      onClick={onNewThreadInProject}
-                      className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                    />
-                  }
-                >
-                  <ProjectFavicon project={activeProject} className="size-3.5" />
-                  <MiddleTruncate
-                    data-slot="workspace-breadcrumb-text"
-                    value={activeProjectName ?? ""}
-                    showTitle={false}
-                    variant="cap-aligned"
+          // Title-first: the sidebar already names the project, so the crumb keeps only its icon
+          // and the new-thread action; the name moves to the tooltip and accessible label.
+          <WorkspaceBreadcrumbItem>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={gt("New thread in {project}", { project: activeProjectName })}
+                    onClick={onNewThreadInProject}
                   />
-                </TooltipTrigger>
-                <TooltipPopup side="top">
-                  <T>
-                    New thread in <Var>{activeProjectName}</Var>
-                  </T>
-                </TooltipPopup>
-              </Tooltip>
-            </WorkspaceBreadcrumbItem>
-            <WorkspaceBreadcrumbSeparator>
-              <WorkspaceBreadcrumbText>/</WorkspaceBreadcrumbText>
-            </WorkspaceBreadcrumbSeparator>
-          </>
+                }
+              >
+                <ProjectFavicon project={activeProject} className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipPopup side="top">
+                <T>
+                  New thread in <Var>{activeProjectName}</Var>
+                </T>
+              </TooltipPopup>
+            </Tooltip>
+          </WorkspaceBreadcrumbItem>
         ) : null}
         {parentThreadLink ? (
           <>
@@ -369,7 +360,7 @@ export const ChatHeader = memo(function ChatHeader({
                   />
                 }
               >
-                <h2 className="min-w-0" dir={textDirection(activeThreadTitle)}>
+                <h2 className="min-w-0 font-semibold" dir={textDirection(activeThreadTitle)}>
                   <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
                 </h2>
                 <ChevronDownIcon
@@ -386,7 +377,7 @@ export const ChatHeader = memo(function ChatHeader({
                 render={
                   <h2
                     aria-label={activeThreadTitle}
-                    className="min-w-0 flex-1"
+                    className="min-w-0 flex-1 font-semibold"
                     dir={textDirection(activeThreadTitle)}
                   />
                 }

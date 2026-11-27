@@ -53,6 +53,7 @@ import { ConnectOnboardingRouteScreen } from "./features/cloud/ConnectOnboarding
 import { AttachmentFileScreen } from "./features/files/AttachmentFileScreen";
 import { ThreadFilesTreeScreen, ThreadFileScreen } from "./features/files/ThreadFilesRouteScreen";
 import { AdaptiveWorkspaceLayout } from "./features/layout/AdaptiveWorkspaceLayout";
+import { HomeListScopeSheet } from "./features/home/HomeListScopeSheet";
 import {
   HardwareKeyboardCommandOverlay,
   HardwareKeyboardCommandProvider,
@@ -812,6 +813,10 @@ const RootStackConfig = createWorkspaceStackNavigator({
     LinkedThreadFullscreen: createNativeStackScreen({
       screen: LinkedThreadSheet,
       options: modalRoute({ header: "glass", itemStyle: "editor", duoMinimize: "onScrollUp" }),
+    }),
+    HomeListScope: createNativeStackScreen({
+      screen: HomeListScopeSheet,
+      options: sheetRoute({ detent: 0.6, androidMaxDetent: 0.95 }),
     }),
     ThreadGuestShare: createNativeStackScreen({
       screen: ThreadGuestShareSheet,

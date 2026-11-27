@@ -14,7 +14,6 @@ import {
   type EnvironmentProject,
   type EnvironmentThreadShell,
 } from "@s1tools/client-runtime/state/shell";
-import { pickableProjectGroups } from "@s1tools/client-runtime/state/project-grouping";
 import { threadSearchMatchKey } from "@s1tools/client-runtime/state/thread-search";
 import { type EnvironmentId, type SidebarProjectGroupingMode } from "@s1tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
@@ -73,6 +72,7 @@ import { threadListEnvironmentsAtom } from "../../state/presentation";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 import { useQueuedThreadKeys } from "../../state/use-thread-outbox";
 import {
+  ThreadListV2GroupLabel,
   ThreadListV2PendingRow,
   ThreadListV2Row,
   ThreadListV2SettledShelfHeader,
@@ -91,18 +91,14 @@ import {
 } from "../threads/threadListV2";
 import { useThreadListV2ShelfPreferences } from "../threads/use-thread-list-v2-shelf-preferences";
 import type { HomeListFilterMenuEnvironment } from "./home-list-filter-menu";
-import {
-  buildHomeProjectScopes,
-  findHomeProjectScope,
-  type HomeProjectSortOrder,
-  sortHomeProjectScopes,
-} from "./homeThreadList";
+import { buildHomeProjectScopes, type HomeProjectSortOrder } from "./homeThreadList";
 import { createSwipeRowActivation } from "./swipe-row-activation";
 import { SwipeableScrollGateProvider, useSwipeableScrollGate } from "./thread-swipe-actions";
 import { useFabScroll } from "./FabScrollContext";
 import { holdLaunchSplashForHomeRows, settleLaunchSplashHomeRows } from "./home-launch-splash";
 import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
-import { ThreadListFilters } from "./ThreadListFilters";
+import { HomeProjectStrip } from "./HomeProjectStrip";
+import type { HomeProjectChoice } from "./homeProjectChoices";
 import { deriveHomeEmptyState } from "./home-empty-state";
 
 interface HomeScreenProps {
@@ -118,12 +114,17 @@ interface HomeScreenProps {
   >;
   readonly searchQuery: string;
   readonly selectedEnvironmentId: EnvironmentId | null;
-  readonly selectedProjectKey: string | null;
+  readonly projectChoices: ReadonlyArray<HomeProjectChoice>;
+  /** Null only when there is no project to show; the list then shows every thread. */
+  readonly selectedProjectChoice: HomeProjectChoice | null;
   readonly projectSortOrder: HomeProjectSortOrder;
   readonly projectGroupingMode: SidebarProjectGroupingMode;
   readonly onSearchQueryChange: (query: string) => void;
   readonly onEnvironmentChange: (environmentId: EnvironmentId | null) => void;
-  readonly onProjectChange: (projectKey: string | null) => void;
+  readonly onProjectChange: (projectKey: string) => void;
+  /** Omitted where the bar above opens the scope sheet. */
+  readonly onOpenScopeSheet?: () => void;
+  readonly onAddProject: () => void;
   readonly onAddConnection: () => void;
   readonly onOpenSettings: () => void;
   readonly onStartNewTask: () => void;
@@ -343,18 +344,14 @@ export function HomeScreen(props: HomeScreenProps) {
     return map;
   })();
 
-  const v2ProjectScopeKey = props.selectedProjectKey;
-  // An archived project's filter reads as all projects, matching the filter menu.
-  const v2ScopedProjectGroup = findHomeProjectScope(
-    pickableProjectGroups(projectScopes),
-    v2ProjectScopeKey,
-  );
+  const selectedProjectChoice = props.selectedProjectChoice;
+  const v2ProjectScopeKey = selectedProjectChoice?.key ?? null;
   const threadSearch = useThreadSearch(
     searchEnvironmentIds,
     props.searchQuery,
-    v2ScopedProjectGroup === null
+    selectedProjectChoice === null
       ? {}
-      : { projectIds: v2ScopedProjectGroup.projectRefs.map((ref) => ref.projectId) },
+      : { projectIds: selectedProjectChoice.projectRefs.map((ref) => ref.projectId) },
   );
   const threadSearchMatchByKey = useThreadListSearchMatches(props.threads, threadSearch);
   const v2ProjectTitleByProjectKey = new Map(
@@ -422,7 +419,7 @@ export function HomeScreen(props: HomeScreenProps) {
     threads: props.threads,
     pendingTasks: props.pendingTasks,
     environmentId: props.selectedEnvironmentId,
-    projectRefs: v2ScopedProjectGroup === null ? null : v2ScopedProjectGroup.projectRefs,
+    projectRefs: selectedProjectChoice === null ? null : selectedProjectChoice.projectRefs,
     searchQuery: props.searchQuery,
     searchMatches: threadSearchMatchByKey,
     settlementEnvironmentIds,
@@ -494,6 +491,15 @@ export function HomeScreen(props: HomeScreenProps) {
           onSwipeableWillOpen={handleSwipeableWillOpen}
           simultaneousSwipeGesture={homeScrollGesture}
           activationKey={item.key}
+        />
+      );
+    }
+    if (item.type === "v2-group-label") {
+      return (
+        <ThreadListV2GroupLabel
+          group={item.group}
+          count={item.count}
+          pane={sidebarSurface ? "sidebar" : "screen"}
         />
       );
     }
@@ -680,28 +686,23 @@ export function HomeScreen(props: HomeScreenProps) {
 
   const listHeader = Platform.OS === "ios" ? undefined : <HomeTopContentSpacer />;
 
+  const projectChoices = props.projectChoices;
   const v2ListHeader = (
     <>
       {listHeader}
-      {Platform.OS === "ios" && workspace ? (
-        <ThreadListFilters
-          gutter={sidebarSurface ? 8 : 0}
-          environments={props.environments}
-          projects={pickableProjectGroups(
-            sortHomeProjectScopes({
-              scopes: projectScopes,
-              threads: props.threads,
-              pendingTasks: [],
-              projectSortOrder: "updated_at",
-            }),
-          ).map((scope) => ({
-            key: scope.key,
-            label: scope.title,
-          }))}
-          selectedEnvironmentId={props.selectedEnvironmentId}
-          selectedProjectKey={props.selectedProjectKey}
-          onEnvironmentChange={props.onEnvironmentChange}
-          onProjectChange={props.onProjectChange}
+      {projectChoices.length > 0 ? (
+        <HomeProjectStrip
+          gutter={(sidebarSurface ? 8 : 0) + androidListGutter}
+          choices={projectChoices}
+          selectedKey={v2ProjectScopeKey}
+          environmentLabel={
+            props.environments.find(
+              (environment) => environment.environmentId === props.selectedEnvironmentId,
+            )?.label ?? null
+          }
+          onSelect={props.onProjectChange}
+          onOpenScopeSheet={props.onOpenScopeSheet}
+          onAddProject={props.onAddProject}
         />
       ) : null}
     </>
@@ -728,9 +729,9 @@ export function HomeScreen(props: HomeScreenProps) {
         detail={gt('No threads matching "{query}".', { query: props.searchQuery })}
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
-    ) : v2ScopedProjectGroup !== null ? (
+    ) : selectedProjectChoice !== null ? (
       <EmptyState
-        title={gt("No threads in {name}", { name: v2ScopedProjectGroup.title })}
+        title={gt("No threads in {name}", { name: selectedProjectChoice.title })}
         detail={gt("Choose another project or create a new task.")}
         variant={Platform.OS === "android" ? "plain" : undefined}
       />

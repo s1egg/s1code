@@ -248,6 +248,49 @@ export function ComposerControlsBar(props: {
       onOpenProviderSetup={onOpenProviderSetup}
     />
   );
+  const restingBlocks = restingBlockDefs.map((def, index) => {
+    const hidden = index >= restingBlockDefs.length - restingHiddenBlockCount;
+    return (
+      <div
+        key={def.id}
+        data-resting-block={def.id}
+        data-composer-block-icon-only={
+          index >= restingBlockDefs.length - iconOnlyBlockCount ? "true" : "false"
+        }
+        aria-hidden={hidden || undefined}
+        inert={hidden || undefined}
+        className={cn(
+          "flex w-max min-w-max shrink-0 items-center gap-1",
+          hidden && "pointer-events-none invisible absolute",
+          index >= restingBlockDefs.length - iconOnlyBlockCount &&
+            "[&_[data-composer-control-label]]:pointer-events-none [&_[data-composer-control-label]]:invisible [&_[data-composer-control-label]]:absolute [&_[data-composer-control-label]]:w-max [&_[data-composer-control-label]]:max-w-none [&_[data-composer-control-compact-icon]]:[visibility:inherit] [&_[data-composer-control-compact-icon]]:relative",
+        )}
+      >
+        {def.content}
+      </div>
+    );
+  });
+  const overflowMenu = (
+    <div
+      data-resting-controls-overflow
+      aria-hidden={hiddenRestingBlockIds.length === 0 || undefined}
+      inert={hiddenRestingBlockIds.length === 0 || undefined}
+      className={cn(
+        "min-w-0 shrink-0",
+        hiddenRestingBlockIds.length === 0 && "pointer-events-none invisible absolute",
+      )}
+    >
+      <CompactComposerControlsMenu
+        runtimeMode={compatibleRuntimeMode}
+        runtimeModeOptions={compatibleRuntimeModeOptions}
+        size={controlSize}
+        hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
+        // Permissions join the overflow only when their normal home is in it.
+        showPermissions={overflowShowsPermissions}
+        onRuntimeModeChange={handleRuntimeModeChange}
+      />
+    </div>
+  );
   return showProviderUnavailable ? (
     <ComposerControl
       type="button"
@@ -265,51 +308,20 @@ export function ComposerControlsBar(props: {
     </ComposerControl>
   ) : (
     <>
-      {composerModelPicker}
-
-      <>
-        {restingBlockDefs.map((def, index) => {
-          const hidden = index >= restingBlockDefs.length - restingHiddenBlockCount;
-          return (
-            <div
-              key={def.id}
-              data-resting-block={def.id}
-              data-composer-block-icon-only={
-                index >= restingBlockDefs.length - iconOnlyBlockCount ? "true" : "false"
-              }
-              aria-hidden={hidden || undefined}
-              inert={hidden || undefined}
-              className={cn(
-                "flex w-max min-w-max shrink-0 items-center gap-1",
-                hidden && "pointer-events-none invisible absolute",
-                index >= restingBlockDefs.length - iconOnlyBlockCount &&
-                  "[&_[data-composer-control-label]]:pointer-events-none [&_[data-composer-control-label]]:invisible [&_[data-composer-control-label]]:absolute [&_[data-composer-control-label]]:w-max [&_[data-composer-control-label]]:max-w-none [&_[data-composer-control-compact-icon]]:[visibility:inherit] [&_[data-composer-control-compact-icon]]:relative",
-              )}
-            >
-              {def.content}
-            </div>
-          );
-        })}
-        <div
-          data-resting-controls-overflow
-          aria-hidden={hiddenRestingBlockIds.length === 0 || undefined}
-          inert={hiddenRestingBlockIds.length === 0 || undefined}
-          className={cn(
-            "min-w-0 shrink-0",
-            hiddenRestingBlockIds.length === 0 && "pointer-events-none invisible absolute",
-          )}
-        >
-          <CompactComposerControlsMenu
-            runtimeMode={compatibleRuntimeMode}
-            runtimeModeOptions={compatibleRuntimeModeOptions}
-            size={controlSize}
-            hidden={composerControlsHidden || hiddenRestingBlockIds.length === 0}
-            // Permissions join the overflow only when their normal home is in it.
-            showPermissions={overflowShowsPermissions}
-            onRuntimeModeChange={handleRuntimeModeChange}
-          />
+      {composerControlsCollapsed ? composerModelPicker : null}
+      {composerControlsCollapsed || !showModeBlock ? (
+        <>
+          {restingBlocks}
+          {overflowMenu}
+        </>
+      ) : (
+        // Action controls lead; the model picker trails beside send.
+        <div className="me-auto flex shrink-0 items-center gap-0.5">
+          {restingBlocks}
+          {overflowMenu}
         </div>
-      </>
+      )}
+      {composerControlsCollapsed ? null : composerModelPicker}
     </>
   );
 }

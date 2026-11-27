@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { converter } from "culori/fn";
-import { BUILT_IN_THEMES, WEB_ONLY_THEMES } from "@s1tools/shared/themePalettes";
+import { BUILT_IN_THEMES, S1_PAIRED_THEMES } from "@s1tools/shared/themePalettes";
 
 import { CONTEXT_CHIP_ACCENTS, contextChipColorVariable } from "./lib/contextChipAccents";
 import { appAtomRegistry } from "./rpc/atomRegistry";
@@ -87,10 +87,7 @@ describe("theme files", () => {
     const palettes = [
       getStandardThemeColors("light"),
       getStandardThemeColors("dark"),
-      ...[...BUILT_IN_THEMES, ...WEB_ONLY_THEMES].flatMap((theme) => [
-        theme.colors,
-        ...Object.values(theme.variants ?? {}),
-      ]),
+      ...BUILT_IN_THEMES.flatMap((theme) => [theme.colors, ...Object.values(theme.variants ?? {})]),
     ];
     for (const colors of palettes) {
       expect(
@@ -109,16 +106,61 @@ describe("theme files", () => {
     }
   });
 
-  it("keeps button labels readable in the dark-only themes", () => {
-    for (const { colors } of WEB_ONLY_THEMES) {
+  const pairedHalves = S1_PAIRED_THEMES.flatMap((theme) =>
+    (["light", "dark"] as const).map((mode) => ({
+      name: `${theme.label} ${mode}`,
+      colors: getThemeColorsForMode(theme, mode)!,
+    })),
+  );
+
+  it.each(pairedHalves)(
+    "keeps labels, dim text and the filled bubble readable in $name",
+    ({ colors }) => {
+      const asRgb = converter("rgb");
+      const row = asRgb(colors.sidebarRowActive)!;
+      const sidebar = asRgb(colors.sidebar)!;
+      const alpha = row.alpha ?? 1;
+      const selectedRow =
+        "#" +
+        (["r", "g", "b"] as const)
+          .map((channel) =>
+            Math.round(255 * (row[channel] * alpha + sidebar[channel] * (1 - alpha)))
+              .toString(16)
+              .padStart(2, "0"),
+          )
+          .join("");
+      const surfaces = [
+        selectedRow,
+        colors.canvas,
+        colors.chrome,
+        colors.sidebar,
+        colors.surface,
+        colors.surfaceRaised,
+        colors.surfaceOverlay,
+      ];
+      for (const surface of surfaces) {
+        for (const text of [
+          colors.textMuted,
+          colors.mutedForeground,
+          colors.placeholder,
+          colors.secondaryLabel,
+          colors.sidebarMutedForeground,
+        ]) {
+          expect(contrastRatio(text, surface)).toBeGreaterThanOrEqual(4.5);
+        }
+      }
       for (const surface of [colors.canvas, colors.surface, colors.surfaceOverlay]) {
         expect(contrastRatio(colors.error, surface)).toBeGreaterThanOrEqual(4.5);
       }
       for (const fill of [colors.messageAction, colors.messageActionHover]) {
         expect(contrastRatio(colors.messageActionForeground, fill)).toBeGreaterThanOrEqual(4.5);
       }
-    }
-  });
+      expect(colors.messageSurface).toBe(colors.messageAction);
+      expect(contrastRatio(colors.messageForeground, colors.messageSurface)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    },
+  );
 
   it("derives an imported palette from top-level canvas and accent like a published theme", () => {
     const theme = parseThemeFile({
@@ -638,7 +680,7 @@ describe("context chip colors", () => {
   const palettes = [
     getStandardThemeColors("light"),
     getStandardThemeColors("dark"),
-    ...[...BUILT_IN_THEMES, ...WEB_ONLY_THEMES].flatMap((theme) =>
+    ...BUILT_IN_THEMES.flatMap((theme) =>
       getThemeModes(theme).map((mode) => getThemeColorsForMode(theme, mode)!),
     ),
   ];
@@ -646,7 +688,10 @@ describe("context chip colors", () => {
   it("reads at 5:1 on every chip surface of every built-in theme and keeps each hue", () => {
     for (const colors of palettes) {
       const variables = contextChipVariables(colors);
-      expect(variables["--context-chip-message"]).toBeUndefined();
+      const filledBubble = variables["--context-chip-message"] !== undefined;
+      // Only the paired S1 themes fill bubbles; chips there take the bubble's foreground.
+      expect(filledBubble).toBe(colors.messageSurface === colors.messageAction);
+      if (filledBubble) expect(variables["--context-chip-message"]).toBe(colors.messageForeground);
       for (const [kind, accent] of Object.entries(CONTEXT_CHIP_ACCENTS)) {
         const chip =
           variables[contextChipColorVariable(kind as keyof typeof CONTEXT_CHIP_ACCENTS)]!;
@@ -654,7 +699,7 @@ describe("context chip colors", () => {
           colors.canvas,
           colors.surface,
           colors.surfaceRaised,
-          colors.messageSurface,
+          ...(filledBubble ? [] : [colors.messageSurface]),
         ]) {
           expect(paintedContrastRatio(chip, surface, colors.canvas)).toBeGreaterThanOrEqual(5);
         }
@@ -664,6 +709,26 @@ describe("context chip colors", () => {
           expect(drift).toBeLessThan(4);
         }
       }
+    }
+  });
+
+  it("marks the root while the applied theme fills user bubbles", () => {
+    const dataset: Record<string, string | undefined> = {};
+    vi.stubGlobal("window", { localStorage: { getItem: () => null } });
+    vi.stubGlobal("document", {
+      documentElement: { dataset, style: { setProperty: () => {}, removeProperty: () => {} } },
+    });
+    invalidateCustomThemes();
+    try {
+      for (const mode of ["light", "dark"] as const) {
+        applyThemePalette("s1-midnight", mode);
+        expect(dataset.messageBubble).toBe("filled");
+        applyThemePalette("ocean", mode);
+        expect(dataset.messageBubble).toBeUndefined();
+      }
+    } finally {
+      vi.unstubAllGlobals();
+      invalidateCustomThemes();
     }
   });
 
@@ -705,13 +770,14 @@ describe("context chip colors", () => {
 
   it("solves the invalid state's error color to 5:1 on every chip surface", () => {
     for (const colors of palettes) {
-      const invalid = contextChipVariables(colors)["--context-chip-invalid"];
+      const variables = contextChipVariables(colors);
+      const invalid = variables["--context-chip-invalid"];
       expect(invalid).toBeDefined();
       for (const surface of [
         colors.canvas,
         colors.surface,
         colors.surfaceRaised,
-        colors.messageSurface,
+        ...(variables["--context-chip-message"] === undefined ? [colors.messageSurface] : []),
       ]) {
         expect(paintedContrastRatio(invalid!, surface, colors.canvas)).toBeGreaterThanOrEqual(5);
       }

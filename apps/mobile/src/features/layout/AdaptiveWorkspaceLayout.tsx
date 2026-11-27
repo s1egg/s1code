@@ -62,7 +62,7 @@ import {
 import type { ThreadListFilters } from "../../persistence/mobile-preferences";
 import { appAtomRegistry } from "../../state/atom-registry";
 import { useProjects } from "../../state/entities";
-import { environmentThreadShells } from "../../state/threads";
+import { environmentThreadShells, steadyNavigationThreadShellsAtom } from "../../state/threads";
 import { withKnownPullRequestSummary } from "../../state/use-thread-pr";
 import { mobilePreferencesAtom } from "../../state/preferences";
 import { savedConnectionsByIdAtom } from "../../state/use-remote-environment-registry";
@@ -91,7 +91,9 @@ import {
 import { startOpeningDetail } from "./workspace/useSelectWorkspaceDetail";
 import { useWorkspaceTabs } from "./workspace/WorkspaceTabsContext";
 import { HomeListOptionsProvider } from "../home/home-list-options";
-import { buildHomeProjectScopes, resolveHomeProjectFilterScope } from "../home/homeThreadList";
+import { olderSettledProjectRefsAtom } from "../home/useHomeProjectSelection";
+import { readPendingNewTasks } from "../../state/use-pending-new-tasks";
+import { homeProjectChoicesFor, resolveHomeProjectChoice } from "../home/homeProjectChoices";
 import { newTaskDestination, newTaskFilteredProject } from "../threads/new-task-project-selection";
 import { RenderErrorBoundary, RenderFailureView } from "../../components/RenderErrorBoundary";
 import { PaneContext } from "../../components/ui/Pane";
@@ -631,11 +633,22 @@ function AdaptiveWorkspaceLayoutContent(
       appAtomRegistry.get(savedConnectionsByIdAtom)[listFilters.environmentId] !== undefined
         ? listFilters.environmentId
         : null;
-    const filteredScope = resolveHomeProjectFilterScope(
-      buildHomeProjectScopes({ projects, environmentId: listEnvironmentId, projectGroupingMode }),
+    // The project the thread list shows, resolved as the list resolves it.
+    const selectedChoice = resolveHomeProjectChoice({
+      choices: homeProjectChoicesFor({
+        projects,
+        threads: appAtomRegistry.get(steadyNavigationThreadShellsAtom),
+        pendingTasks: readPendingNewTasks(),
+        olderSettledProjects: appAtomRegistry.get(olderSettledProjectRefsAtom),
+        environmentId: listEnvironmentId,
+        projectGroupingMode,
+        now: new Date().toISOString(),
+      }),
+      selectedProjectKey: listFilters?.projectKey ?? null,
       projects,
-      { selectedProjectKey: listFilters?.projectKey ?? null, projectGroupingMode },
-    );
+      projectGroupingMode,
+    });
+    const filteredScope = selectedChoice?.scope;
     const connectedEnvironmentIds = new Set(
       appAtomRegistry
         .get(workspaceConnections.environmentsAtom)
@@ -655,7 +668,7 @@ function AdaptiveWorkspaceLayoutContent(
             saved?.lastThreadProject,
           )
         : undefined,
-      lastProject: saved?.lastThreadProject,
+      lastProject: selectedChoice ? undefined : saved?.lastThreadProject,
     });
     // Without a project the draft would only push the picker over itself a frame later; open it directly.
     if (destination.draft.projectId === undefined) {

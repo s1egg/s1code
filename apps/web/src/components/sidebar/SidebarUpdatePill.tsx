@@ -442,7 +442,7 @@ function SidebarUpdateControl() {
           ? { status: "downloading", percent: state.downloadPercent }
           : { status: "waiting" };
     return (
-      <SidebarMenuItem className="@container/sidebar-update ml-auto flex min-w-8 flex-1">
+      <SidebarMenuItem className="@container/sidebar-update flex w-full min-w-8 justify-center">
         <SidebarUpdateCapsule
           run={run}
           current={everything.machines}
@@ -522,7 +522,7 @@ function SidebarUpdateControl() {
   );
 
   return (
-    <SidebarMenuItem className="ml-auto shrink-0">
+    <SidebarMenuItem className="shrink-0">
       <Popover
         handle={releaseNotesPopoverHandle}
         open={releaseNotesOpen && showReleaseNotesPopover}
@@ -559,7 +559,7 @@ function SidebarUpdateControl() {
           {!showReleaseNotesPopover ? (
             <TooltipPopup
               align="center"
-              side="top"
+              side="right"
               variant={showUpdateDetails ? "glass" : "default"}
             >
               {idleTooltip?.detail ? (
@@ -575,7 +575,7 @@ function SidebarUpdateControl() {
         </Tooltip>
         {showReleaseNotesPopover && state ? (
           <PopoverPopup
-            align="center"
+            align="end"
             aria-label={gt("Update release notes")}
             initialFocus={false}
             onKeyDownCapture={(event) => {
@@ -587,7 +587,7 @@ function SidebarUpdateControl() {
               }
             }}
             ref={releaseNotesPopupRef}
-            side="top"
+            side="right"
             tooltipStyle
           >
             <SidebarUpdateReleaseNotes

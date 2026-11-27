@@ -6,6 +6,7 @@ import type {
 } from "@s1tools/contracts";
 import {
   FULL_ACCESS_OVERRIDE_QUESTION,
+  standardApprovalLabel,
   fullAccessOverrideExplanation,
 } from "@s1tools/client-runtime/state/thread-requests";
 import { T, useGT, useMessages } from "gt-react-native";
@@ -28,7 +29,7 @@ export interface PendingApprovalCardProps {
 export function PendingApprovalCard(props: PendingApprovalCardProps) {
   const gt = useGT();
   const m = useMessages();
-  const options: ReadonlyArray<ProviderApprovalOption> = props.approval.options ?? [
+  const defaults: ReadonlyArray<ProviderApprovalOption> = [
     { decision: "accept", label: gt("Allow once") },
     { decision: "acceptForSession", label: gt("Allow session") },
     {
@@ -36,6 +37,7 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
       label: gt("Decline", { $context: "verb, rejects the approval request" }),
     },
   ];
+  const options = props.approval.options ?? defaults;
   const warning = options.find((option) => option.warning)?.warning;
   const canRespond = props.approval.responseCapability === "live";
   const disabled = !canRespond || props.respondingApprovalId === props.approval.requestId;
@@ -89,7 +91,7 @@ export function PendingApprovalCard(props: PendingApprovalCardProps) {
         {options.map((option) => (
           <Button
             key={option.decision}
-            label={option.label}
+            label={standardApprovalLabel(option, defaults) ?? option.label}
             tone={
               option.decision === "accept"
                 ? "primary"

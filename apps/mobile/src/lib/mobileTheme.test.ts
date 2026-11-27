@@ -81,16 +81,20 @@ describe("mobile themes", () => {
           : getMobileThemeVariables(themeId, appearance);
       expect(variables["--color-screen"]).toBe(themeColorToNativeColor(colors.canvas));
       expect(variables["--color-thread-canvas"]).toBe(variables["--color-screen"]);
-      expect(variables["--color-drawer"]).toBe(themeColorToNativeColor(colors.sidebar));
+      const drawer = flattenThemeColor(
+        themeColorToNativeColor(colors.sidebar),
+        variables["--color-screen"],
+      );
+      expect(variables["--color-drawer"]).toBe(drawer);
       expect(variables["--color-thread-hover"]).toBe(
-        themeColorToNativeColor(colors.sidebarRowHover),
+        flattenThemeColor(themeColorToNativeColor(colors.sidebarRowHover), drawer),
       );
       expect(variables["--color-card"]).toBe(themeColorToNativeColor(colors.surface));
       expect(variables["--color-composer-surface"]).toBe(
         themeColorWithAlpha(variables["--color-grouped-card"], appearance === "dark" ? 0.9 : 0.94),
       );
       expect(variables["--color-thread-selected"]).toBe(
-        themeColorToNativeColor(colors.sidebarRowActive),
+        flattenThemeColor(themeColorToNativeColor(colors.sidebarRowActive), drawer),
       );
       expect(variables["--color-thread-selected-foreground"]).toBe(
         themeColorToNativeColor(colors.sidebarForeground),

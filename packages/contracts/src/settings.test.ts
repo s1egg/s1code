@@ -135,6 +135,21 @@ describe("ClientSettings terminal close confirmation", () => {
   });
 });
 
+describe("ClientSettings retired keys", () => {
+  it("still decodes settings saved with the retired sidebar switches", () => {
+    const stored = {
+      boringSidebarEnabled: true,
+      boringSidebarMultilineRows: true,
+      sidebarWorkingShelfEnabled: false,
+      wordWrap: true,
+    };
+    expect(decodeClientSettings(stored).wordWrap).toBe(true);
+    expect(decodeClientSettings(stored)).not.toHaveProperty("boringSidebarEnabled");
+    expect(decodeClientSettings(stored)).not.toHaveProperty("sidebarWorkingShelfEnabled");
+    expect(decodeClientSettingsPatch(stored)).toEqual({ wordWrap: true });
+  });
+});
+
 describe("ClientSettings background glow", () => {
   it("defaults to 30 and accepts 0 through 48 whole steps", () => {
     expect(decodeClientSettings({}).backgroundGlow).toBe(30);

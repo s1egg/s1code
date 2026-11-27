@@ -75,12 +75,51 @@ export function SidebarSectionPlaceholder(props: {
   );
 }
 
+function SidebarGroupLabelText(props: { label: string; count: number; tone?: string }) {
+  return (
+    <span
+      className={cn(
+        "flex h-6 items-center gap-1.5 px-2 text-xs font-medium",
+        props.tone ?? "text-sidebar-muted-foreground",
+      )}
+    >
+      <span className="min-w-0 truncate">{props.label}</span>
+      <span className="rounded-full bg-sidebar-row-hover px-1.5 text-2xs leading-4 font-semibold tabular-nums text-sidebar-foreground/80">
+        {props.count}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * The Pinned and Earlier group labels. They are also the drag boundaries that decide
+ * whether a drop pins or unpins, so an empty group keeps a zero-height marker whose label
+ * shows only while dragging.
+ */
 export function SidebarDragBoundary(props: {
   marker: "pinned-header" | "pinned-divider";
   label: string;
+  count: number;
   visible: boolean;
   isDropTarget: boolean;
 }) {
+  if (props.count > 0) {
+    return (
+      <SortableSidebarMarker
+        marker={props.marker}
+        data-testid={`sidebar-${props.marker}`}
+        className="pointer-events-none relative flex h-9 items-end pb-0.5"
+      >
+        <span className="sidebar-drag-boundary-label flex w-full items-center">
+          <SidebarGroupLabelText
+            label={props.label}
+            count={props.count}
+            {...(props.isDropTarget ? { tone: "text-primary" } : {})}
+          />
+        </span>
+      </SortableSidebarMarker>
+    );
+  }
   return (
     <SortableSidebarMarker
       marker={props.marker}
@@ -110,8 +149,33 @@ export function SidebarDragBoundary(props: {
   );
 }
 
+/**
+ * The Working and To review labels. Rows there follow run state, so they take no drops, but a
+ * drop into Earlier lists a running or unseen thread here, and the label shows it.
+ */
+export function SidebarGroupLabel(props: {
+  marker: "working-header" | "review-header";
+  label: string;
+  count: number;
+  isDropTarget: boolean;
+}) {
+  return (
+    <SortableSidebarMarker
+      marker={props.marker}
+      data-testid={`sidebar-${props.marker}`}
+      className="pointer-events-none relative flex h-9 items-end pb-0.5"
+    >
+      <SidebarGroupLabelText
+        label={props.label}
+        count={props.count}
+        {...(props.isDropTarget ? { tone: "text-primary" } : {})}
+      />
+    </SortableSidebarMarker>
+  );
+}
+
 export function SidebarSectionHeader(props: {
-  marker: "working-header" | "snoozed-header" | "settled-header";
+  marker: "snoozed-header" | "settled-header";
   label: string;
   /** A muted trailing count. */
   count: number;
@@ -120,17 +184,12 @@ export function SidebarSectionHeader(props: {
   isDropTarget?: boolean;
   toggle: { expanded: boolean; onToggle: () => void };
 }) {
-  const shelf =
-    props.marker === "working-header"
-      ? "working"
-      : props.marker === "snoozed-header"
-        ? "snoozed"
-        : "settled";
+  const shelf = props.marker === "snoozed-header" ? "snoozed" : "settled";
   return (
     <SortableSidebarMarker
       marker={props.marker}
       data-testid={`sidebar-${props.marker}`}
-      className={cn("relative mx-0.5 h-8", props.className)}
+      className={cn("relative mx-0.5 flex h-9 items-end", props.className)}
     >
       <CollapsibleSectionHeader
         data-sidebar-row={`shelf:${shelf}`}

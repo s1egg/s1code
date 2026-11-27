@@ -31,7 +31,7 @@ export const zh: Messages = {
     downloadForAndroid: "下载 Android 版",
     sourceLink: "来偷我们的代码（合法地）",
     alsoOnPhone: "手机上也能用：",
-    screenshotAlt: "S1 Code 在同一个线程中运行 Claude、Codex、Muse 和 Gemini 子智能体",
+    screenshotAlt: "S1 Code 在同一个会话中运行 Claude、Codex、Muse 和 Gemini 子智能体",
     endorsementsTitle: "超过 {users} 名开发者觉得还行",
     endorsementsSub: "有些人甚至发推夸了它。",
     endorsementsLabel: "开发者评价",
@@ -42,7 +42,7 @@ export const zh: Messages = {
     googleSignIn: "Google 登录",
     harnessPoints: [
       "不转售密钥，不设额度上限。",
-      "线程进行中也能切换模型。",
+      "会话进行中也能切换模型。",
       "每周都有新的智能体接入。",
     ],
     gitVisualLabel: "S1 Code Git 工作流示意图：审查 diff、提交并推送更改、创建 PR。",
@@ -53,7 +53,7 @@ export const zh: Messages = {
     commitPush: "提交并推送",
     gitTitle: "一键提交、推送并创建 PR。",
     gitBody:
-      "每个智能体线程都写入自己的分支。满意之后，一键在 GitHub 上创建 PR，标题、描述和更新日志都会自动生成。不用在终端里来回折腾。",
+      "每个智能体会话都写入自己的分支。满意之后，一键在 GitHub 上创建 PR，标题、描述和更新日志都会自动生成。不用在终端里来回折腾。",
     gitPoints: [
       "自动生成 PR 标题和描述",
       "推送前就地审查 diff",

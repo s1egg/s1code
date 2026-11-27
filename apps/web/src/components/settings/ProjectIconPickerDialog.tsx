@@ -29,9 +29,9 @@ import { Toggle, ToggleGroup } from "../ui/toggle-group";
 
 const DEFAULT_ICON = "folder-code";
 
-function PickerIcon({ name }: { name: string }) {
+function PickerIcon({ name, className = "size-5" }: { name: string; className?: string }) {
   const icon = lucideIconByName(name);
-  return icon ? createElement(icon, { className: "size-5" }) : null;
+  return icon ? createElement(icon, { className }) : null;
 }
 
 function iconLabel(name: string): string {
@@ -124,6 +124,30 @@ function ProjectIconPickerBody({
         </DialogDescription>
       </DialogHeader>
       <DialogPanel className="flex min-h-0 flex-col">
+        <div className="flex items-center gap-3.5">
+          {mode === "monogram" ? (
+            <ProjectMonogram
+              text={validMonogram ? monogram : automatic.monogram}
+              color={color}
+              className="size-14"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "flex size-14 shrink-0 items-center justify-center rounded-[25%] bg-current/14",
+                mode === "lucide" ? selectedColorClassName : "text-muted-foreground",
+              )}
+            >
+              {mode === "lucide" ? (
+                <PickerIcon name={iconName} className="size-7" />
+              ) : (
+                <span className="text-3xl leading-none">{emoji}</span>
+              )}
+            </span>
+          )}
+          <p className="min-w-0 truncate text-sm font-medium text-foreground">{projectName}</p>
+        </div>
         <ToggleGroup
           aria-label={gt("Icon type")}
           variant="segmented"
@@ -146,10 +170,10 @@ function ProjectIconPickerBody({
 
         {mode !== "emoji" ? (
           <div>
-            <div className="mb-2 text-xs font-medium text-muted-foreground">
+            <div className="mb-2 text-xs font-semibold text-muted-foreground">
               <T>Color</T>
             </div>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label={gt("Icon color")}>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={gt("Icon color")}>
               {PROJECT_ICON_COLORS.map((option) => (
                 <button
                   key={option.value}
@@ -157,12 +181,17 @@ function ProjectIconPickerBody({
                   aria-label={m(option.label)}
                   aria-pressed={color === option.value}
                   className={cn(
-                    "flex size-6 items-center justify-center rounded-full border border-transparent outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                    color === option.value && "border-foreground/64",
+                    "flex size-7 items-center justify-center rounded-full border-2 border-transparent outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                    color === option.value && "border-foreground/70",
                   )}
                   onClick={() => setColor(option.value)}
                 >
-                  <span className={cn("size-4 rounded-full", option.swatchClassName)} />
+                  <span
+                    className={cn(
+                      "size-4.5 rounded-full ring-1 ring-white/20 ring-inset",
+                      option.swatchClassName,
+                    )}
+                  />
                 </button>
               ))}
             </div>
@@ -200,8 +229,8 @@ function ProjectIconPickerBody({
                     aria-label={iconLabel(name)}
                     aria-pressed={iconName === name}
                     className={cn(
-                      "flex aspect-square items-center justify-center rounded-md border border-transparent outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                      iconName === name && "border-border bg-accent",
+                      "flex aspect-square items-center justify-center rounded-lg outline-none hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      iconName === name && "bg-foreground/[0.09] ring-1 ring-inset ring-border",
                       selectedColorClassName,
                     )}
                     onClick={() => setIconName(name)}
@@ -219,11 +248,6 @@ function ProjectIconPickerBody({
           </>
         ) : mode === "monogram" ? (
           <div className="flex items-center gap-4 py-2">
-            <ProjectMonogram
-              text={validMonogram ? monogram : automatic.monogram}
-              color={color}
-              className="size-12"
-            />
             <div className="flex-1 space-y-2">
               <label htmlFor="project-monogram" className="text-sm font-medium">
                 <T>Letters</T>
@@ -252,8 +276,9 @@ function ProjectIconPickerBody({
                     aria-label={m(option.label)}
                     aria-pressed={emoji === option.emoji}
                     className={cn(
-                      "flex aspect-square items-center justify-center rounded-md border border-transparent text-xl outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                      emoji === option.emoji && "border-border bg-accent",
+                      "flex aspect-square items-center justify-center rounded-lg text-xl outline-none hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      emoji === option.emoji &&
+                        "bg-foreground/[0.09] ring-1 ring-inset ring-border",
                     )}
                     onClick={() => setEmoji(option.emoji)}
                   >
@@ -263,7 +288,7 @@ function ProjectIconPickerBody({
               </div>
             </ScrollArea>
             <div>
-              <div className="mb-2 text-xs font-medium text-muted-foreground">
+              <div className="mb-2 text-xs font-semibold text-muted-foreground">
                 <T>Or paste any emoji</T>
               </div>
               <Input

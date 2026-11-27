@@ -288,6 +288,19 @@ describe("CommandPalette open intents", () => {
         projectId: open.id,
       }),
     );
+
+    entities.handleNewThread.mockClear();
+    openCommandPalette({ query: "New thread in acme" });
+    await page
+      .getByRole("option", { name: /New thread in acme/i })
+      .first()
+      .click();
+    await vi.waitFor(() =>
+      expect(entities.handleNewThread).toHaveBeenCalledWith({
+        environmentId: open.environmentId,
+        projectId: open.id,
+      }),
+    );
   });
 
   it("numbers filtered New thread in... rows from 1 and jumps to them", async () => {

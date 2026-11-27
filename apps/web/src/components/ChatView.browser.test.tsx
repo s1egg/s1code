@@ -133,7 +133,7 @@ vi.mock(import("~/rpc/requestLatencyState"), async (original) => ({
   trackRpcRequestSent: () => {},
 }));
 
-it("opens a linked Linear issue from an inactive thread's sidebar badge", async () => {
+it("opens a linked Linear issue from an inactive thread's hover card", async () => {
   const style = document.createElement("style");
   style.textContent = stylesheet;
   document.head.append(style);
@@ -243,27 +243,13 @@ it("opens a linked Linear issue from an inactive thread's sidebar badge", async 
     // AppRoot brings its own router.
     router: false,
   });
-  const badge = page.getByRole("button", {
-    name: `Issue ${issue.displayKey}: ${issue.title}, Open`,
+  await userEvent.hover(page.getByRole("button", { name: new RegExp(grouped.title) }));
+  const completedLink = page.getByRole("link", {
+    name: `Issue ${completed.displayKey}: ${completed.title}`,
   });
-  await expect.element(badge).toBeVisible();
-  expect(badge.element().querySelector("span")).toHaveClass(/text-emerald-600/);
-  expect(badge.element()).toHaveTextContent("123");
-  expect(badge.element()).not.toHaveTextContent("#");
-  const prBadge = page.getByRole("link", { name: "PR #124, status pending" });
-  await expect.element(prBadge).toHaveTextContent("124");
-  for (const control of [badge, prBadge]) {
-    expect(control.element().querySelector("span")).toHaveClass(
-      "contents",
-      "text-xs",
-      "tabular-nums",
-    );
-  }
-  const groupedBadge = page.getByRole("button", { name: "2 linked issues" });
-  await vi.waitFor(() =>
-    expect(groupedBadge.element().querySelector("span")).toHaveClass(/text-emerald-600/),
-  );
-  await userEvent.hover(badge);
+  await expect.element(completedLink).toBeVisible();
+  await expect.element(completedLink).toHaveAttribute("href", completed.url);
+  await userEvent.hover(page.getByRole("button", { name: new RegExp(linked.title) }));
   const issueName = `Issue ${issue.displayKey}: ${liveTitle}`;
   const previewLink = page.getByRole("link", { name: issueName });
   await userEvent.hover(previewLink.getByText("sam", { exact: true }));
@@ -271,15 +257,11 @@ it("opens a linked Linear issue from an inactive thread's sidebar badge", async 
   const contextMenu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
   await act(() => previewLink.element().dispatchEvent(contextMenu));
   expect(contextMenu.defaultPrevented).toBe(false);
-  await userEvent.click(badge);
-  const issueRow = page
-    .getByRole("region", { name: "Linked issues" })
-    .getByRole("link", { name: issueName });
-  await expect.element(issueRow.getByRole("img", { name: "Open" })).toBeVisible();
-  await expect.element(issueRow.getByRole("img", { name: "3 comments" })).toBeVisible();
-  await expect.element(issueRow.getByRole("img", { name: "Linear" })).toBeVisible();
-  await expect.element(issueRow.getByText(issue.scope, { exact: true })).toBeVisible();
-  await userEvent.click(issueRow);
+  await expect.element(previewLink.getByRole("img", { name: "Open" })).toBeVisible();
+  await expect.element(previewLink.getByRole("img", { name: "3 comments" })).toBeVisible();
+  await expect.element(previewLink.getByRole("img", { name: "Linear" })).toBeVisible();
+  await expect.element(previewLink.getByText(issue.scope, { exact: true })).toBeVisible();
+  await userEvent.click(previewLink);
   expect(router.history.location.pathname).toBe(`/${ENVIRONMENT_ID}/${linked.id}`);
   await expect.element(page.getByRole("heading", { name: liveTitle })).toBeVisible();
   await act(() => useRightPanelStore.getState().close(scopeThreadRef(ENVIRONMENT_ID, linked.id)));

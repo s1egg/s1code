@@ -308,9 +308,10 @@ export function readProjects(): ReadonlyArray<EnvironmentProject> {
 export function waitForProject(
   ref: ScopedProjectRef,
   timeoutMs = 10_000,
+  accepts: (project: EnvironmentProject) => boolean = () => true,
 ): Promise<EnvironmentProject> {
   const current = readProject(ref);
-  if (current !== null) return Promise.resolve(current);
+  if (current !== null && accepts(current)) return Promise.resolve(current);
 
   return new Promise((resolve, reject) => {
     let unsubscribe: (() => void) | null = null;
@@ -319,7 +320,7 @@ export function waitForProject(
       reject(new Error(m(msg("The project did not appear in the desktop app."))));
     }, timeoutMs);
     const finish = (project: EnvironmentProject | null) => {
-      if (project === null) return;
+      if (project === null || !accepts(project)) return;
       clearTimeout(timeout);
       unsubscribe?.();
       resolve(project);

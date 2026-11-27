@@ -330,14 +330,20 @@ export function createMobileThemeVariables(
   prominentAction: readonly [string, string] = [colors.text, colors.canvas],
 ) {
   const c = nativeColors(colors);
-  const groupedCard = themeColorToNativeColor(groupedCardColor);
+  const groupedCard = flattenThemeColor(themeColorToNativeColor(groupedCardColor), c.chrome);
+  const sidebar = flattenThemeColor(c.sidebar, c.canvas);
+  const hover = flattenThemeColor(c.sidebarRowHover, sidebar);
+  const selected = flattenThemeColor(c.sidebarRowActive, sidebar);
+  const secondary = flattenThemeColor(c.secondary, c.canvas);
+  const filledBubble = c.messageSurface === c.messageAction;
+  const bubbleCodeTint = isDarkThemeColor(c.messageForeground) ? "#ffffff" : "#000000";
   const textSurfaces = [
     c.canvas,
     c.surface,
     c.surfaceRaised,
     c.chrome,
-    c.sidebar,
-    c.secondary,
+    sidebar,
+    secondary,
     groupedCard,
   ];
   return {
@@ -349,13 +355,13 @@ export function createMobileThemeVariables(
     "--color-card-alt": c.surfaceRaised,
     "--color-card-translucent": withAlpha(c.surface, 0.8),
     "--color-thread-canvas": c.canvas,
-    "--color-thread-selected": c.sidebarRowActive,
+    "--color-thread-selected": selected,
     "--color-thread-selected-foreground": c.sidebarForeground,
     "--color-thread-selected-foreground-muted": themeColorWithContrast(
       c.sidebarMutedForeground,
-      c.sidebarRowActive,
+      selected,
     ),
-    "--color-thread-hover": c.sidebarRowHover,
+    "--color-thread-hover": hover,
     "--color-row-hover": c.toolbarControlHover,
     "--color-composer-panel": themeColorWithAlpha(c.canvas, appearance === "dark" ? 0.92 : 0.88),
     "--color-composer-surface": themeColorWithAlpha(
@@ -363,13 +369,13 @@ export function createMobileThemeVariables(
       appearance === "dark" ? 0.9 : 0.94,
     ),
     "--color-composer-border": themeColorWithAlpha(
-      c.border,
+      flattenThemeColor(c.border, groupedCard),
       groupedCard === c.surface ? (appearance === "dark" ? 0.46 : 0.54) : 0.8,
     ),
     "--color-foreground": c.text,
     "--color-foreground-secondary": themeColorWithContrast(c.textMuted, textSurfaces),
     "--color-foreground-muted": themeColorWithContrast(c.mutedForeground, textSurfaces),
-    "--color-foreground-tertiary": c.secondaryLabel,
+    "--color-foreground-tertiary": themeColorWithContrast(c.secondaryLabel, textSurfaces),
     "--color-border": c.border,
     "--color-focus": c.focus,
     "--color-border-subtle": withAlpha(c.border, 0.7),
@@ -385,7 +391,7 @@ export function createMobileThemeVariables(
     "--color-primary-foreground": c.messageActionForeground,
     "--color-primary-text": themeColorWithContrast(c.messageAction, textSurfaces),
     "--color-primary-shadow": "#000000",
-    "--color-secondary": c.secondary,
+    "--color-secondary": secondary,
     "--color-secondary-foreground": c.secondaryForeground,
     "--color-secondary-border": c.border,
     "--color-switch-active-track": c.messageAction,
@@ -406,7 +412,7 @@ export function createMobileThemeVariables(
     "--color-placeholder": themeColorWithContrast(c.placeholder, textSurfaces),
     "--color-icon": c.text,
     "--color-icon-muted": c.iconMuted,
-    "--color-icon-subtle": c.secondaryLabel,
+    "--color-icon-subtle": themeColorWithContrast(c.secondaryLabel, textSurfaces, 3),
     "--color-header": withAlpha(c.toolbar, 0.97),
     "--color-header-foreground": c.toolbarForeground,
     "--color-header-border": c.toolbarBorder,
@@ -421,24 +427,29 @@ export function createMobileThemeVariables(
     "--color-md-blockquote-bg": c.muted,
     "--color-md-code-bg": c.codeBackground,
     "--color-md-code-text": c.codeForeground,
-    "--color-md-user-code-bg": withAlpha(c.messageForeground, 0.18),
+    "--color-md-user-code-bg": withAlpha(filledBubble ? bubbleCodeTint : c.messageForeground, 0.18),
     "--color-md-user-code-text": c.messageForeground,
-    "--color-md-user-fence-bg": withAlpha("#000000", appearance === "dark" ? 0.28 : 0.16),
+    "--color-md-user-fence-bg": withAlpha(
+      filledBubble ? bubbleCodeTint : "#000000",
+      appearance === "dark" ? 0.28 : 0.16,
+    ),
     "--color-md-user-fence-text": c.messageForeground,
     "--color-md-hr": c.border,
     "--color-user-bubble": c.messageSurface,
     "--color-user-bubble-foreground": c.messageForeground,
-    "--color-user-bubble-foreground-muted": withAlpha(c.messageForeground, 0.78),
+    "--color-user-bubble-foreground-muted": filledBubble
+      ? c.messageForeground
+      : withAlpha(c.messageForeground, 0.78),
     "--color-user-bubble-skill-foreground": themeColorWithContrast(
       c.messageAction,
       c.messageSurface,
     ),
     "--color-backdrop": withAlpha("#000000", appearance === "dark" ? 0.48 : 0.22),
-    "--color-drawer": c.sidebar,
+    "--color-drawer": sidebar,
     "--color-drawer-foreground": c.sidebarForeground,
     "--color-drawer-foreground-muted": themeColorWithContrast(c.sidebarMutedForeground, [
-      c.sidebar,
-      c.sidebarRowHover,
+      sidebar,
+      hover,
     ]),
     "--color-drawer-border": c.sidebarBorder,
     "--color-drawer-shadow": withAlpha("#000000", appearance === "dark" ? 0.32 : 0.12),
@@ -475,17 +486,19 @@ export function getMobileThemeVariables(
           ? colors.toolbarControl
           : colors.surface
         : colors.muted;
+  // The mobile default draws user bubbles in its accent, like the desktop design; built-in
+  // themes keep the message roles they share with web. The label needs 6.5:1 on the bubble so
+  // it still reads on inline code, which lightens the bubble by 18%.
   const mobileColors =
     themeId === DEFAULT_MOBILE_THEME_ID
       ? {
           ...colors,
-          messageSurface: flattenThemeColor(
-            themeColorWithAlpha(
-              appearance === "dark" ? colors.sidebarRowActive : colors.border,
-              0.3,
-            ),
-            colors.messageSurface,
+          messageSurface: themeAccentWithContrast(
+            themeColorToNativeColor(colors.messageAction),
+            [themeColorToNativeColor(colors.messageActionForeground)],
+            6.5,
           ),
+          messageForeground: colors.messageActionForeground,
         }
       : colors;
   const baseVariables = createMobileThemeVariables(

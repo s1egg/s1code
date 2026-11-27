@@ -7,10 +7,17 @@ import { describe, expect, it } from "vite-plus/test";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import {
-  ADD_PROJECT_SCOPE_ITEM_VALUE,
-  filterSidebarProjectScopeItems,
+  buildSidebarRailEntries,
+  findSidebarRailEntryKey,
+  isSidebarThreadUnseen,
+  resolveSidebarInboxGroup,
+  resolveAdjacentThreadId,
+  resolveSidebarRailSelection,
+  resolveStoredSidebarRailKey,
+  SIDEBAR_UNASSIGNED_RAIL_KEY,
+  sidebarRailEntryProjectIds,
+  sidebarThreadNeedsUser,
   shouldCreateNewThreadInCurrentProject,
-  resolveScopedNewThreadProjectRef,
   deleteSelectedThreadEntries,
   getFallbackThreadIdAfterDelete,
   hasUnseenCompletion,
@@ -23,7 +30,6 @@ import {
   resolveWindowTitleThreadStatus,
   resolveWorkingStartedAt,
   searchSidebarThreads,
-  shouldRecedeSidebarThread,
   sortInboxThreadsByReturn,
   resolveSidebarDropTarget,
   planSidebarThreadDrop,
@@ -36,9 +42,6 @@ import {
   type SidebarListMarker,
   type SidebarSection,
   resolveSidebarDropVerb,
-  groupSidebarThreadsByProject,
-  resolveSidebarFolderDot,
-  sidebarFolderExpansionKeys,
   withoutRemovedCheckout,
 } from "./Sidebar.logic";
 import { scopeThreadRef, scopedThreadKey } from "@s1tools/client-runtime/environment";
@@ -47,7 +50,6 @@ import {
   sortActiveThreadsByOrderKey,
   sortPinnedThreadsByOrderKey,
 } from "@s1tools/client-runtime/state/thread-sort";
-import { resolveProjectExpanded } from "../uiStateStore";
 import { threadSearchMatchKey } from "@s1tools/client-runtime/state/thread-search";
 import { EnvironmentId, ProjectId, ProviderInstanceId, RunId, ThreadId } from "@s1tools/contracts";
 
@@ -59,10 +61,21 @@ import {
 } from "../types";
 import { makeThreadFixture, type ThreadFixtureOverrides } from "../test-fixtures";
 import {
+  completeSidebarProjectReveal,
   completeSidebarRouteReveal,
   pendingSidebarRouteReveal,
   resolveSidebarRouteReveal,
+  type SidebarRouteReveal,
 } from "./sidebar/routeReveal";
+import {
+  derivePhysicalProjectKey,
+  pickableProjectGroups,
+} from "@s1tools/client-runtime/state/project-grouping";
+import {
+  buildSidebarProjectSnapshots,
+  resolveNewThreadTargetForProjectRef,
+  resolveProjectNewThreadTarget,
+} from "../sidebarProjectGrouping";
 
 const localEnvironmentId = EnvironmentId.make("environment-local");
 
@@ -280,15 +293,6 @@ describe("resolveSidebarThreadStatus", () => {
     expect(
       resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "completed" } }),
     ).toBe("ready");
-    expect(
-      shouldRecedeSidebarThread({
-        status: "limited",
-        isUnread: false,
-        isWoke: false,
-        isActive: false,
-        isSelected: false,
-      }),
-    ).toBe(false);
   });
 
   it("reports worktree setup as preparing, and failed only while the latest run failed", () => {
@@ -625,6 +629,18 @@ describe("resolveThreadStatusPill", () => {
         },
       }),
     ).toMatchObject({ label: "Failed" });
+    // Once the failure is seen, the plan still does not read as ready, as on its row.
+    expect(
+      resolveThreadStatusPill({
+        thread: {
+          ...baseThread,
+          hasActionableProposedPlan: true,
+          latestRun: { ...makeLatestRun(), status: "failed" },
+          lastVisitedAt: "2026-03-09T10:06:00.000Z",
+          runtime: { ...baseThread.runtime, status: "failed", activeRunId: null },
+        },
+      }),
+    ).toBeNull();
   });
 
   it("drops the failed pill once the failure has been seen", () => {
@@ -1059,15 +1075,6 @@ describe("unseen completion with background work", () => {
 
     expect(isUnread).toBe(true);
     expect(status).toBe(expected.status);
-    expect(
-      shouldRecedeSidebarThread({
-        status,
-        isUnread,
-        isWoke: false,
-        isActive: false,
-        isSelected: false,
-      }),
-    ).toBe(expected.receded);
     expect(isSidebarThreadWorking(thread)).toBe(expected.receded);
     expect(resolveThreadStatusPill({ thread })).toMatchObject({ label: expected.pill });
   });
@@ -1187,23 +1194,47 @@ describe("Working shelf (beta)", () => {
     const items: readonly SidebarListItem[] = [
       marker("pinned-header"),
       row("p1", "pinned"),
+      marker("working-header"),
+      row("w1", "working"),
+      marker("review-header"),
+      row("r1", "review"),
       marker("pinned-divider"),
       row("a1", "active"),
       row("a2", "active"),
-      marker("working-header"),
-      row("w1", "working"),
       marker("settled-header"),
       row("s1", "settled"),
     ];
 
-    it("never drops into the Working shelf, and keeps it out of the inbox order", () => {
+    it("never drops into Working or To review, and keeps them out of the inbox order", () => {
       expect(resolveSidebarDropTarget(items, "a1", "w1")).toBeNull();
+      expect(resolveSidebarDropTarget(items, "a1", "r1")).toBeNull();
       expect(resolveSidebarDropTarget(items, "p1", "a2")).toEqual({
         section: "active",
         pinnedOrder: [],
         activeOrder: ["a1", "a2", "p1"],
       });
       expect(resolveSidebarDropVerb("active", "working")).toBeNull();
+      expect(resolveSidebarDropVerb("active", "review")).toBeNull();
+    });
+
+    it("lets a To review row pin or settle like any active thread", () => {
+      expect(resolveSidebarDropVerb("review", "pinned")).toBe("pin");
+      expect(resolveSidebarDropVerb("review", "settled")).toBe("settle");
+      expect(resolveSidebarDropVerb("review", "active")).toBeNull();
+      const plan = (overKey: string) =>
+        planSidebarThreadDrop({
+          activeKey: "r1",
+          activeSection: "review",
+          target: resolveSidebarDropTarget(items, "r1", overKey)!,
+          pinnedOrder: ["p1"],
+          pinnedKeysById: new Map([["p1", "m"]]),
+          activeOrder: ["a1", "a2"],
+          activeKeysById: new Map(),
+          activeTimeOrdered: true,
+        });
+      expect(plan("s1")).toEqual({ kind: "settle" });
+      expect(plan("a2")).toEqual({ kind: "none" });
+      expect(plan("p1").kind).toBe("pin");
     });
 
     it.each([
@@ -1591,177 +1622,414 @@ describe("pendingSidebarRouteReveal", () => {
 });
 
 describe("resolveSidebarRouteReveal", () => {
-  const scopedProjectKeys = new Set(["environment-test:project-scoped"]);
-  const hidden = makeThreadFixture({ projectId: ProjectId.make("project-other") });
-  const hiddenKey = "environment-test:thread-test";
-  const findThread = (key: string) => (key === hiddenKey ? hidden : undefined);
-
-  it("widens the scope for a newly opened thread the scope hides", () => {
-    expect(
-      resolveSidebarRouteReveal({
-        reveal: { observedKey: "environment-test:other", pendingKey: null },
-        routeKey: hiddenKey,
-        routeKeyInPlace: false,
-        isSearching: false,
-        scopedProjectKeys,
-        delegatedUnderParent: new Set(),
-        findThread,
-      }),
-    ).toEqual({ pendingKey: hiddenKey, widensScope: true });
-  });
-
-  it("never widens for a thread whose reveal already completed", () => {
-    // A remount's once-per-mount scroll must keep the scope the user chose.
-    expect(
-      resolveSidebarRouteReveal({
-        reveal: { observedKey: hiddenKey, pendingKey: null },
-        routeKey: hiddenKey,
-        routeKeyInPlace: false,
-        isSearching: false,
-        scopedProjectKeys,
-        delegatedUnderParent: new Set(),
-        findThread,
-      }),
-    ).toEqual({ pendingKey: null, widensScope: false });
-  });
-
-  it("widens again for a thread reopened before the thread between them listed its row", () => {
-    // The user scoped away from the open thread, then went to a thread whose row
-    // never mounted, then came back.
-    const reveal = { observedKey: hiddenKey, pendingKey: null };
-    const resolve = (routeKey: string) =>
-      resolveSidebarRouteReveal({
-        reveal,
-        routeKey,
-        routeKeyInPlace: false,
-        isSearching: false,
-        scopedProjectKeys,
-        delegatedUnderParent: new Set(),
-        findThread,
-      });
-    resolve("environment-test:unlisted");
-    expect(resolve(hiddenKey)).toEqual({ pendingKey: hiddenKey, widensScope: true });
-  });
-
-  it("holds a pending reveal without widening while searching", () => {
-    expect(
-      resolveSidebarRouteReveal({
-        reveal: { observedKey: hiddenKey, pendingKey: hiddenKey },
-        routeKey: hiddenKey,
-        routeKeyInPlace: false,
-        isSearching: true,
-        scopedProjectKeys,
-        delegatedUnderParent: new Set(),
-        findThread,
-      }),
-    ).toEqual({ pendingKey: hiddenKey, widensScope: false });
-  });
-});
-
-describe("sidebarFolderExpansionKeys", () => {
-  it("honors a collapse the legacy sidebar saved under a member's cwd", () => {
-    const keys = sidebarFolderExpansionKeys({
-      projectKey: "github.com/s1egg/s1code",
-      memberProjects: [{ physicalProjectKey: "local:/code/s1code", workspaceRoot: "/code/s1code" }],
+  const routeKey = "environment-test:thread-test";
+  const resolve = (
+    reveal: SidebarRouteReveal,
+    options: {
+      readonly routeKey?: string;
+      readonly routeRailKey?: string | null;
+      readonly selectedRailKey?: string;
+      readonly isSearching?: boolean;
+    } = {},
+  ) =>
+    resolveSidebarRouteReveal({
+      reveal,
+      routeKey: options.routeKey ?? routeKey,
+      routeKeyInPlace: false,
+      isSearching: options.isSearching ?? false,
+      routeRailKey: options.routeRailKey === undefined ? "web" : options.routeRailKey,
+      selectedRailKey: options.selectedRailKey ?? "api",
     });
-    const cwdKey = keys.at(-1)!;
 
-    expect(resolveProjectExpanded({}, keys)).toBe(true);
-    expect(resolveProjectExpanded({ [cwdKey]: false }, keys)).toBe(false);
-    expect(resolveProjectExpanded({ [keys[0]!]: true, [cwdKey]: false }, keys)).toBe(true);
-  });
-});
-
-describe("groupSidebarThreadsByProject", () => {
-  it("puts each thread in its project's folder and drops empty projects unless kept", () => {
-    const remoteEnvironmentId = EnvironmentId.make("environment-remote");
-    const s1code = ProjectId.make("s1code");
-    const s1codeRemote = ProjectId.make("s1code-remote");
-    const fleet = ProjectId.make("fleet");
-    const thread = (id: string, environmentId: EnvironmentId, projectId: ProjectId) => ({
-      id,
-      environmentId,
-      projectId,
+  it("follows a newly opened thread that lists under another project", () => {
+    expect(resolve({ observedKey: "environment-test:other", pendingKey: null })).toEqual({
+      followsRoute: true,
+      settledRailKey: "web",
     });
-    const groups = [
-      {
-        projectKey: "s1code",
-        memberProjectRefs: [
-          { environmentId: localEnvironmentId, projectId: s1code },
-          { environmentId: remoteEnvironmentId, projectId: s1codeRemote },
-        ],
-      },
-      {
-        projectKey: "fleet",
-        memberProjectRefs: [{ environmentId: localEnvironmentId, projectId: fleet }],
-      },
-      {
-        projectKey: "notes",
-        memberProjectRefs: [
-          { environmentId: localEnvironmentId, projectId: ProjectId.make("notes") },
-        ],
-      },
-    ];
+  });
 
-    const threads = [
-      thread("a", localEnvironmentId, s1code),
-      thread("orphan", localEnvironmentId, ProjectId.make("deleted")),
-      thread("b", remoteEnvironmentId, s1codeRemote),
-    ];
-    const summarize = (keepEmpty: (group: (typeof groups)[number]) => boolean) =>
-      groupSidebarThreadsByProject(groups, threads, keepEmpty).map((folder) => ({
-        projectKey: folder.group.projectKey,
-        threads: folder.threads.map((entry) => entry.id),
-      }));
+  it("never follows a thread whose reveal already completed", () => {
+    // A remount's once-per-mount scroll must keep the project the user chose.
+    expect(resolve({ observedKey: routeKey, pendingKey: null })).toEqual({
+      followsRoute: false,
+      settledRailKey: null,
+    });
+  });
 
-    expect(summarize(() => true)).toEqual([
-      { projectKey: "s1code", threads: ["a", "b"] },
-      { projectKey: "fleet", threads: [] },
-      { projectKey: "notes", threads: [] },
-    ]);
-    expect(summarize(() => false)).toEqual([{ projectKey: "s1code", threads: ["a", "b"] }]);
-    // A pinned project keeps its empty folder while other empty projects drop out.
-    expect(summarize((group) => group.projectKey === "fleet")).toEqual([
-      { projectKey: "s1code", threads: ["a", "b"] },
-      { projectKey: "fleet", threads: [] },
-    ]);
+  it("settles the route's project even while it is already selected", () => {
+    // An open draft is already in the selected project and has no row to complete its scroll.
+    const reveal: SidebarRouteReveal = { observedKey: null, pendingKey: null };
+    expect(resolve(reveal, { selectedRailKey: "web" })).toEqual({
+      followsRoute: false,
+      settledRailKey: "web",
+    });
+    completeSidebarProjectReveal(reveal);
+    expect(reveal.pendingKey).toBe(routeKey);
+    // Picking another project afterwards is not undone.
+    expect(resolve(reveal, { selectedRailKey: "api" })).toEqual({
+      followsRoute: false,
+      settledRailKey: null,
+    });
+  });
+
+  it("drops a reveal still waiting to place its project once the user picks one", () => {
+    const reveal: SidebarRouteReveal = { observedKey: null, pendingKey: null };
+    expect(resolve(reveal, { routeRailKey: null })).toEqual({
+      followsRoute: false,
+      settledRailKey: null,
+    });
+    completeSidebarProjectReveal(reveal);
+    expect(resolve(reveal)).toEqual({ followsRoute: false, settledRailKey: null });
+  });
+
+  it("follows again for a thread reopened before the thread between them listed its row", () => {
+    // The user picked another project, then went to a thread whose row never mounted,
+    // then came back.
+    const reveal: SidebarRouteReveal = { observedKey: routeKey, pendingKey: null };
+    resolve(reveal, { routeKey: "environment-test:unlisted", routeRailKey: null });
+    expect(resolve(reveal)).toEqual({ followsRoute: true, settledRailKey: "web" });
+  });
+
+  it("waits for a restored draft's projects before settling its project", () => {
+    // The draft's environment has not loaded its projects, so its project reads as one no
+    // group holds and lands under the entry for threads without a project.
+    const draftProject = { environmentId: "env", projectId: "web" };
+    const before = [
+      { key: "api", projectKeys: new Set(["env:api"]) },
+      { key: SIDEBAR_UNASSIGNED_RAIL_KEY, projectKeys: new Set(["env:scratch", "env:web"]) },
+    ];
+    const reveal: SidebarRouteReveal = { observedKey: null, pendingKey: null };
+    const routeRailKey = findSidebarRailEntryKey(before, draftProject, false);
+    expect(routeRailKey).toBeNull();
+    expect(resolve(reveal, { routeRailKey, selectedRailKey: "api" })).toEqual({
+      followsRoute: false,
+      settledRailKey: null,
+    });
+    const after = [{ key: "web", projectKeys: new Set(["env:web"]) }, ...before];
+    expect(
+      resolve(reveal, {
+        routeRailKey: findSidebarRailEntryKey(after, draftProject, true),
+        selectedRailKey: "api",
+      }),
+    ).toEqual({ followsRoute: true, settledRailKey: "web" });
+  });
+
+  it("holds a pending reveal without following while searching", () => {
+    const reveal: SidebarRouteReveal = { observedKey: null, pendingKey: null };
+    expect(resolve(reveal, { isSearching: true })).toEqual({
+      followsRoute: false,
+      settledRailKey: null,
+    });
+    expect(resolve(reveal)).toEqual({ followsRoute: true, settledRailKey: "web" });
   });
 });
 
-describe("resolveSidebarFolderDot", () => {
-  it("flags the most urgent hidden thread and stays quiet otherwise", () => {
-    const idle = {
-      hasActionableProposedPlan: false,
-      hasPendingApprovals: false,
-      hasPendingUserInput: false,
-      interactionMode: "default" as const,
-      latestRun: makeLatestRun(),
-      lastVisitedAt: "2026-03-09T10:06:00.000Z",
-      runtime: null,
-    };
-    const runtime = {
-      status: "running" as const,
-      activeRunId: null,
-      providerInstanceId: ProviderInstanceId.make("codex"),
-      providerName: "Codex",
-      lastError: null,
-      updatedAt: "2026-03-09T10:00:00.000Z",
-    };
-    const working = { ...idle, runtime };
-    const unread = { ...idle, lastVisitedAt: "2026-03-09T10:04:00.000Z" };
-    const limited = {
-      ...idle,
-      runtime: { ...runtime, status: "failed" as const, lastErrorClass: "usage_limit" as const },
-    };
+describe("resolveSidebarInboxGroup", () => {
+  it("keeps a thread waiting on the user in Working, ahead of its unseen results", () => {
+    expect(resolveSidebarInboxGroup({ working: false, needsUser: true, unseen: true })).toBe(
+      "working",
+    );
+    expect(resolveSidebarInboxGroup({ working: true, needsUser: false, unseen: true })).toBe(
+      "working",
+    );
+  });
 
-    expect(resolveSidebarFolderDot([idle])).toBeNull();
-    // A waiting thread stays quiet even with an unread completion, like its row.
+  it("lists finished unseen threads under To review and the rest under Earlier", () => {
+    expect(resolveSidebarInboxGroup({ working: false, needsUser: false, unseen: true })).toBe(
+      "review",
+    );
+    expect(resolveSidebarInboxGroup({ working: false, needsUser: false, unseen: false })).toBe(
+      "active",
+    );
+  });
+});
+
+describe("sidebarThreadNeedsUser", () => {
+  const quiet = {
+    hasActionableProposedPlan: false,
+    hasPendingApprovals: false,
+    hasPendingUserInput: false,
+    pendingSubagentRequest: null,
+    pendingGuestMessageCount: 0,
+    interactionMode: "default" as const,
+    latestRun: makeLatestRun(),
+    runtime: null,
+  };
+  const readyPlan = { ...quiet, interactionMode: "plan" as const, hasActionableProposedPlan: true };
+  it("is true for approvals, questions, subagent requests and guest messages", () => {
+    expect(sidebarThreadNeedsUser(quiet)).toBe(false);
+    expect(sidebarThreadNeedsUser({ ...quiet, hasPendingApprovals: true })).toBe(true);
+    expect(sidebarThreadNeedsUser({ ...quiet, hasPendingUserInput: true })).toBe(true);
+    expect(sidebarThreadNeedsUser({ ...quiet, pendingSubagentRequest: "approval" })).toBe(true);
+    expect(sidebarThreadNeedsUser({ ...quiet, pendingGuestMessageCount: 1 })).toBe(true);
+  });
+
+  it("holds a finished plan awaiting the user's decision after it has been seen", () => {
+    expect(isSidebarThreadWorking(readyPlan)).toBe(false);
+    expect(sidebarThreadNeedsUser(readyPlan)).toBe(true);
     expect(
-      resolveSidebarFolderDot([{ ...unread, runtime: { ...runtime, status: "idle" as const } }]),
-    ).toBeNull();
-    expect(resolveSidebarFolderDot([idle, working])).toBe("working");
-    expect(resolveSidebarFolderDot([working, unread])).toBe("unread");
-    expect(resolveSidebarFolderDot([unread, limited])).toBe("attention");
+      resolveSidebarInboxGroup({
+        working: isSidebarThreadWorking(readyPlan),
+        needsUser: sidebarThreadNeedsUser(readyPlan),
+        unseen: false,
+      }),
+    ).toBe("working");
+    expect(resolveThreadStatusPill({ thread: readyPlan })).toMatchObject({ label: "Plan Ready" });
+    // A plan still being written, or a failed run, does not wait on a decision.
+    expect(
+      sidebarThreadNeedsUser({
+        ...readyPlan,
+        latestRun: { ...makeLatestRun({ completedAt: null }), status: "running" },
+      }),
+    ).toBe(false);
+    expect(
+      sidebarThreadNeedsUser({ ...readyPlan, latestRun: { ...makeLatestRun(), status: "failed" } }),
+    ).toBe(false);
+  });
+});
+
+describe("isSidebarThreadUnseen", () => {
+  const base = {
+    hasActionableProposedPlan: false,
+    hasPendingApprovals: false,
+    hasPendingUserInput: false,
+    interactionMode: "default" as const,
+    latestRun: makeLatestRun(),
+    runtime: null,
+  };
+  it("counts a completion after the last visit", () => {
+    expect(
+      isSidebarThreadUnseen({ ...base, lastVisitedAt: "2026-03-09T10:04:00.000Z" }, null),
+    ).toBe(true);
+    expect(
+      isSidebarThreadUnseen({ ...base, lastVisitedAt: "2026-03-09T10:06:00.000Z" }, null),
+    ).toBe(false);
+  });
+
+  it("counts a snooze that woke after the last visit", () => {
+    const visited = { ...base, lastVisitedAt: "2026-03-09T10:06:00.000Z" };
+    expect(isSidebarThreadUnseen(visited, "2026-03-09T11:00:00.000Z")).toBe(true);
+    expect(isSidebarThreadUnseen(visited, "2026-03-09T10:00:00.000Z")).toBe(false);
+  });
+});
+
+describe("buildSidebarRailEntries", () => {
+  const remoteEnvironmentId = EnvironmentId.make("environment-remote");
+  const repositoryIdentity = {
+    canonicalKey: "github.com/acme/s1code",
+    locator: {
+      source: "git-remote" as const,
+      remoteName: "origin",
+      remoteUrl: "https://github.com/acme/s1code.git",
+    },
+    displayName: "acme/s1code",
+  };
+  const project = (id: string, overrides: Partial<Project> = {}) =>
+    makeProject({ id: ProjectId.make(id), title: id, workspaceRoot: `/repo/${id}`, ...overrides });
+  // As the sidebar groups them: scratch projects form one "No project" group.
+  const groups = buildSidebarProjectSnapshots({
+    projects: [
+      project("s1code", { repositoryIdentity }),
+      project("s1code-remote", { environmentId: remoteEnvironmentId, repositoryIdentity }),
+      project("fleet"),
+      project("old", { archivedAt: "2026-03-01T00:00:00.000Z" }),
+      project("scratch-1", { workspaceRoot: "/scratch/1", isScratch: true }),
+    ],
+    groupScratchProjects: true,
+    settings: { sidebarProjectGroupingMode: "repository", sidebarProjectGroupingOverrides: {} },
+    primaryEnvironmentId: localEnvironmentId,
+    resolveEnvironmentLabel: () => null,
+  });
+  const thread = (
+    id: string,
+    projectId: string,
+    options: { settled?: boolean; status?: "waiting" | "running" | null } = {},
+  ) => ({
+    id,
+    environmentId: localEnvironmentId as string,
+    projectId,
+    settled: options.settled ?? false,
+    status: options.status ?? null,
+  });
+  const build = (threads: ReturnType<typeof thread>[], heldProjectKeys: string[] = []) =>
+    buildSidebarRailEntries({
+      groups: [...pickableProjectGroups(groups), ...groups.filter((group) => group.archived)],
+      threads,
+      isListed: (entry) => !entry.settled,
+      statusOf: (entry) => entry.status,
+      heldProjectKeys,
+    });
+  const titles = (entries: ReturnType<typeof build>) =>
+    entries.map((entry) => entry.group?.title ?? SIDEBAR_UNASSIGNED_RAIL_KEY);
+
+  it("keeps open projects in order and an archived one while it holds anything", () => {
+    expect(titles(build([]))).toEqual(["s1code", "fleet"]);
+    // Settling its last active thread leaves the project on the rail with its Settled shelf.
+    expect(titles(build([thread("a", "old", { settled: true })]))).toEqual([
+      "s1code",
+      "fleet",
+      "old",
+    ]);
+    // A draft, or settled history not loaded yet, holds it too.
+    expect(titles(build([], [`${localEnvironmentId}:old`]))).toEqual(["s1code", "fleet", "old"]);
+    expect(build([])[0]!.projectKeys).toEqual(
+      new Set([`${localEnvironmentId}:s1code`, `${remoteEnvironmentId}:s1code-remote`]),
+    );
+  });
+
+  it("lists threads in a scratch project and in no known project under one entry", () => {
+    const scratch = build([thread("a", "scratch-1")]);
+    expect(titles(scratch)).toEqual(["s1code", "fleet", SIDEBAR_UNASSIGNED_RAIL_KEY]);
+    expect(scratch.at(-1)!.group).toBeNull();
+    expect(scratch.at(-1)!.projectKeys).toEqual(new Set([`${localEnvironmentId}:scratch-1`]));
+
+    const both = build([thread("a", "scratch-1", { settled: true }), thread("b", "deleted")]);
+    expect(both.at(-1)!.projectKeys).toEqual(
+      new Set([`${localEnvironmentId}:scratch-1`, `${localEnvironmentId}:deleted`]),
+    );
+    // The entry stays for a draft without a project and leaves with its last thread.
+    expect(titles(build([], [`${localEnvironmentId}:scratch-1`])).at(-1)).toBe(
+      SIDEBAR_UNASSIGNED_RAIL_KEY,
+    );
+  });
+
+  it("scopes search to every project an entry holds, including ones with no loaded rows", () => {
+    const scratchGroups = buildSidebarProjectSnapshots({
+      projects: [
+        project("fleet"),
+        project("scratch-1", { workspaceRoot: "/scratch/1", isScratch: true }),
+        project("scratch-2", { workspaceRoot: "/scratch/2", isScratch: true }),
+      ],
+      groupScratchProjects: true,
+      settings: { sidebarProjectGroupingMode: "repository", sidebarProjectGroupingOverrides: {} },
+      primaryEnvironmentId: localEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    });
+    // Only scratch-1's older settled threads hold the entry; scratch-2 has a loaded row.
+    const entries = buildSidebarRailEntries({
+      groups: scratchGroups,
+      threads: [thread("a", "scratch-2", { settled: true })],
+      isListed: (entry) => !entry.settled,
+      statusOf: () => null,
+      heldProjectKeys: [`${localEnvironmentId}:scratch-1`],
+    });
+    expect(sidebarRailEntryProjectIds(entries.at(-1)!, [localEnvironmentId]).toSorted()).toEqual([
+      "scratch-1",
+      "scratch-2",
+    ]);
+  });
+
+  it("badges a project while a thread runs, and amber while one waits on the user", () => {
+    const status = (threads: ReturnType<typeof thread>[]) =>
+      build(threads).find((entry) => entry.group?.title === "s1code")?.status;
+    expect(status([thread("a", "s1code")])).toBeNull();
+    expect(status([thread("a", "s1code", { status: "running" })])).toBe("running");
+    expect(
+      status([
+        thread("a", "s1code", { status: "running" }),
+        thread("b", "s1code", { status: "waiting" }),
+        thread("c", "s1code", { status: "running" }),
+      ]),
+    ).toBe("waiting");
+    // Settled threads list only under Settled, so they never badge the rail.
+    expect(status([thread("a", "s1code", { status: "running", settled: true })])).toBeNull();
+  });
+});
+
+describe("resolveSidebarRailSelection", () => {
+  const entries = [{ key: "s1code" }, { key: "fleet" }];
+  it("keeps the stored project, then the open thread's, then the first", () => {
+    expect(resolveSidebarRailSelection({ entries, storedKey: "fleet", routeKey: "s1code" })).toBe(
+      "fleet",
+    );
+    expect(resolveSidebarRailSelection({ entries, storedKey: "gone", routeKey: "fleet" })).toBe(
+      "fleet",
+    );
+    expect(resolveSidebarRailSelection({ entries, storedKey: null, routeKey: null })).toBe(
+      "s1code",
+    );
+    expect(resolveSidebarRailSelection({ entries: [], storedKey: "fleet", routeKey: null })).toBe(
+      null,
+    );
+  });
+
+  it("restores a stored No project selection on the entry for threads without a project", () => {
+    const scratch = makeProject({
+      id: ProjectId.make("scratch-1"),
+      workspaceRoot: "/scratch/1",
+      isScratch: true,
+    });
+    const groups = buildSidebarProjectSnapshots({
+      projects: [makeProject({ id: ProjectId.make("fleet") }), scratch],
+      groupScratchProjects: true,
+      settings: { sidebarProjectGroupingMode: "repository", sidebarProjectGroupingOverrides: {} },
+      primaryEnvironmentId: localEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    });
+    const railEntries = buildSidebarRailEntries({
+      groups,
+      threads: [{ environmentId: localEnvironmentId, projectId: scratch.id }],
+      isListed: () => true,
+      statusOf: () => null,
+      heldProjectKeys: [],
+    });
+    // The folder sidebar stored the grouped key, or a scratch project's own key.
+    for (const key of ["\0no-project", derivePhysicalProjectKey(scratch)]) {
+      const storedKey = resolveStoredSidebarRailKey({ groups, key, canClearMissingScope: true });
+      expect(storedKey).toBe(SIDEBAR_UNASSIGNED_RAIL_KEY);
+      expect(resolveSidebarRailSelection({ entries: railEntries, storedKey, routeKey: null })).toBe(
+        SIDEBAR_UNASSIGNED_RAIL_KEY,
+      );
+    }
+  });
+
+  it("maps the stored No project key to the unassigned entry when no scratch group is left", () => {
+    const groups = buildSidebarProjectSnapshots({
+      projects: [makeProject({ id: ProjectId.make("fleet") })],
+      groupScratchProjects: true,
+      settings: { sidebarProjectGroupingMode: "repository", sidebarProjectGroupingOverrides: {} },
+      primaryEnvironmentId: localEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    });
+    expect(
+      resolveStoredSidebarRailKey({ groups, key: "\0no-project", canClearMissingScope: true }),
+    ).toBe(SIDEBAR_UNASSIGNED_RAIL_KEY);
+  });
+
+  it("finds the entry that lists a project", () => {
+    const railEntries = [
+      { key: "s1code", projectKeys: new Set(["env:s1code", "env-remote:s1code-remote"]) },
+    ];
+    expect(
+      findSidebarRailEntryKey(
+        railEntries,
+        { environmentId: "env-remote", projectId: "s1code-remote" },
+        true,
+      ),
+    ).toBe("s1code");
+    expect(
+      findSidebarRailEntryKey(railEntries, { environmentId: "env", projectId: "x" }, true),
+    ).toBe(null);
+    expect(findSidebarRailEntryKey(railEntries, null, true)).toBe(null);
+  });
+});
+
+describe("resolveAdjacentThreadId", () => {
+  it("steps from the open row, and enters the list when the open thread is not in it", () => {
+    const threadIds = ["a", "b", "c"];
+    expect(resolveAdjacentThreadId({ threadIds, currentThreadId: "b", direction: "next" })).toBe(
+      "c",
+    );
+    expect(resolveAdjacentThreadId({ threadIds, currentThreadId: "c", direction: "next" })).toBe(
+      null,
+    );
+    // Search filtered the open thread out of the results.
+    for (const currentThreadId of [null, "hidden"]) {
+      expect(resolveAdjacentThreadId({ threadIds, currentThreadId, direction: "next" })).toBe("a");
+      expect(resolveAdjacentThreadId({ threadIds, currentThreadId, direction: "previous" })).toBe(
+        "c",
+      );
+    }
   });
 });
 
@@ -1775,84 +2043,89 @@ describe("shouldCreateNewThreadInCurrentProject", () => {
   });
 });
 
-describe("resolveScopedNewThreadProjectRef", () => {
-  const local = { environmentId: "env-local", projectId: "api" };
-  const remote = { environmentId: "env-remote", projectId: "api-remote" };
-  const api = { environmentId: "env-local", id: "api", memberProjectRefs: [local, remote] };
-  const web = {
-    environmentId: "env-local",
-    id: "web",
-    memberProjectRefs: [{ environmentId: "env-local", projectId: "web" }],
+describe("resolveProjectNewThreadTarget", () => {
+  const remoteEnvironmentId = EnvironmentId.make("environment-remote");
+  const repositoryIdentity = {
+    canonicalKey: "github.com/acme/api",
+    locator: {
+      source: "git-remote" as const,
+      remoteName: "origin",
+      remoteUrl: "https://github.com/acme/api.git",
+    },
+    displayName: "acme/api",
   };
-  const viewedWeb = { environmentId: "env-local", projectId: "web" };
+  const local = makeProject({ id: ProjectId.make("api"), repositoryIdentity });
+  const remote = makeProject({
+    id: ProjectId.make("api-remote"),
+    environmentId: remoteEnvironmentId,
+    workspaceRoot: "/remote/api",
+    repositoryIdentity,
+  });
+  const archived = "2026-03-01T00:00:00.000Z";
+  const group = (projects: Project[]) =>
+    buildSidebarProjectSnapshots({
+      projects,
+      settings: { sidebarProjectGroupingMode: "repository", sidebarProjectGroupingOverrides: {} },
+      primaryEnvironmentId: localEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    })[0]!;
+  const ref = (project: Project) => ({
+    environmentId: project.environmentId,
+    projectId: project.id,
+  });
+  const viewedWeb = { environmentId: localEnvironmentId, projectId: ProjectId.make("web") };
 
-  it("starts in the one scoped project even while another project's thread is open", () => {
-    expect(
-      resolveScopedNewThreadProjectRef({
-        shiftKey: false,
-        scopedProjectGroups: [api],
-        viewed: viewedWeb,
-      }),
-    ).toBe(local);
-    expect(
-      resolveScopedNewThreadProjectRef({
-        shiftKey: false,
-        scopedProjectGroups: [api],
-        viewed: null,
-      }),
-    ).toBe(local);
+  const loaded = () => true;
+
+  it("starts in the selected project even while another project's thread is open", () => {
+    expect(resolveProjectNewThreadTarget(group([local, remote]), viewedWeb, loaded)).toEqual(
+      ref(local),
+    );
+    expect(resolveProjectNewThreadTarget(group([local, remote]), null, loaded)).toEqual(ref(local));
   });
 
-  it("keeps the viewed thread's environment when that thread is in the scoped project", () => {
+  it("keeps the viewed copy while it is open, and skips an archived one", () => {
+    expect(resolveProjectNewThreadTarget(group([local, remote]), ref(remote), loaded)).toEqual(
+      ref(remote),
+    );
+    const localArchived = { ...local, archivedAt: archived };
     expect(
-      resolveScopedNewThreadProjectRef({
-        shiftKey: false,
-        scopedProjectGroups: [api],
-        viewed: { environmentId: "env-remote", projectId: "api-remote" },
-      }),
-    ).toBe(remote);
-  });
-
-  it("leaves Shift+click, no scope and several scoped projects to the existing rule", () => {
+      resolveProjectNewThreadTarget(group([localArchived, remote]), ref(local), loaded),
+    ).toEqual(ref(remote));
     expect(
-      resolveScopedNewThreadProjectRef({
-        shiftKey: true,
-        scopedProjectGroups: [api],
-        viewed: viewedWeb,
-      }),
-    ).toBeNull();
-    expect(
-      resolveScopedNewThreadProjectRef({
-        shiftKey: false,
-        scopedProjectGroups: [],
-        viewed: viewedWeb,
-      }),
-    ).toBeNull();
-    expect(
-      resolveScopedNewThreadProjectRef({
-        shiftKey: false,
-        scopedProjectGroups: [api, web],
-        viewed: viewedWeb,
-      }),
+      resolveProjectNewThreadTarget(
+        group([localArchived, { ...remote, archivedAt: archived }]),
+        ref(local),
+        loaded,
+      ),
     ).toBeNull();
   });
-});
 
-describe("filterSidebarProjectScopeItems", () => {
-  it("hides Add project and All projects while searching", () => {
-    const items = [
-      { value: ADD_PROJECT_SCOPE_ITEM_VALUE, label: "Add project" },
-      { value: "all", label: "All projects" },
-      { value: "p1", label: "project" },
-    ];
-    const filter = (query: string) =>
-      filterSidebarProjectScopeItems({
-        items,
-        query,
-        matches: (item, q) => item.label.includes(q),
-      }).map((item) => item.value);
+  it("waits for the environment config that says whether a project is scratch", () => {
+    // Before the config, a scratch project's shell is an ordinary project on the rail.
+    const scratchShell = makeProject({ id: ProjectId.make("scratch-1"), workspaceRoot: "/s/1" });
+    const pending = (environmentId: EnvironmentId) => environmentId !== localEnvironmentId;
+    expect(resolveProjectNewThreadTarget(group([scratchShell]), null, pending)).toBeNull();
+    expect(resolveProjectNewThreadTarget(group([scratchShell]), null, loaded)).toEqual(
+      ref(scratchShell),
+    );
+  });
 
-    expect(filter("")).toEqual([ADD_PROJECT_SCOPE_ITEM_VALUE, "all", "p1"]);
-    expect(filter("project")).toEqual(["p1"]);
+  it("starts from a viewed thread in the same project, skipping its archived copy", () => {
+    const localArchived = { ...local, archivedAt: archived };
+    const old = makeProject({
+      id: ProjectId.make("old"),
+      workspaceRoot: "/repo/old",
+      archivedAt: archived,
+    });
+    const groups = buildSidebarProjectSnapshots({
+      projects: [localArchived, remote, old],
+      settings: { sidebarProjectGroupingMode: "repository", sidebarProjectGroupingOverrides: {} },
+      primaryEnvironmentId: localEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    });
+    expect(resolveNewThreadTargetForProjectRef(groups, ref(local), loaded)).toEqual(ref(remote));
+    // Settling the last active thread of a project whose only copy is archived picks a project.
+    expect(resolveNewThreadTargetForProjectRef(groups, ref(old), loaded)).toBeNull();
   });
 });

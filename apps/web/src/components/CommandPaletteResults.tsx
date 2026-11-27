@@ -207,7 +207,7 @@ function DisabledCommandPaletteResultRow(props: {
   item: CommandPaletteActionItem | CommandPaletteSubmenuItem;
 }) {
   return (
-    <div className="flex min-h-8 select-none items-center gap-2 rounded-sm px-2 py-1.5 text-base opacity-64 sm:min-h-7 sm:text-sm">
+    <div className="flex min-h-9 select-none items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-base opacity-64 sm:min-h-8.5 sm:text-sm">
       <CommandPaletteTitleIcon>{props.item.icon}</CommandPaletteTitleIcon>
       {props.item.description || props.item.threadContentMatch ? (
         <span className="flex min-w-0 flex-1 flex-col">

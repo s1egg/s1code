@@ -13,7 +13,6 @@ import type { EnvironmentThreadShell } from "@s1tools/client-runtime/state/shell
 import {
   resolveEnvironmentMachineKind,
   type EnvironmentId,
-  type ScopedThreadRef,
   type ThreadLinkedPullRequest,
   type ThreadPullRequestLink,
   type VcsStatusResult,
@@ -41,7 +40,6 @@ import {
   type ReactElement,
 } from "react";
 import { cn } from "../lib/utils";
-import { revealThreadTerminal } from "../lib/revealThreadTerminal";
 
 import { useEnvironmentQuery } from "../state/query";
 import { linkedPullRequestDetailAtom, useSharedPullRequestSummary } from "../state/pullRequests";
@@ -195,10 +193,7 @@ export function linkedPullRequestSnapshotStatus(
   };
 }
 
-export {
-  resolveThreadPullRequestBadge,
-  type ThreadPullRequestBadge,
-} from "@s1tools/client-runtime/thread-pull-requests";
+export { type ThreadPullRequestBadge } from "@s1tools/client-runtime/thread-pull-requests";
 
 export interface ThreadPullRequestBadgePresentation {
   readonly Icon: PullRequestGlyphIcon;
@@ -506,7 +501,7 @@ function PullRequestBadge({
   );
 }
 
-export function ThreadLinkBadge({
+function ThreadLinkBadge({
   control,
   Icon,
   toneClassName,
@@ -747,57 +742,6 @@ function synchronizeTerminalPulse(event: AnimationEvent<SVGSVGElement>) {
       animation.startTime = 0;
     }
   }
-}
-
-export function ThreadTerminalStatusButton({
-  threadRef,
-  terminalIds,
-  onThreadActivate,
-}: {
-  threadRef: ScopedThreadRef;
-  terminalIds: readonly string[];
-  onThreadActivate: (threadRef: ScopedThreadRef) => void;
-}) {
-  const gt = useGT();
-  const messages = useMessages();
-  const terminalId = terminalIds[0];
-  if (terminalId === undefined) return null;
-  const status = terminalStatusFromRunningIds(terminalIds, messages);
-  const label = gt(
-    "{count, plural, one {{count} terminal process running. Open terminal} other {{count} terminal processes running. Open terminal}}",
-    { count: terminalIds.length },
-  );
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            aria-label={label}
-            data-testid={`sidebar-terminal-status-${threadRef.threadId}`}
-            className={cn(
-              "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-              status?.colorClass,
-            )}
-            onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              revealThreadTerminal(threadRef, terminalId);
-              onThreadActivate(threadRef);
-            }}
-          />
-        }
-      >
-        <TerminalIcon
-          className="size-3.5 motion-safe:animate-status-pulse"
-          onAnimationStart={synchronizeTerminalPulse}
-        />
-      </TooltipTrigger>
-      <TooltipPopup side="top">{label}</TooltipPopup>
-    </Tooltip>
-  );
 }
 
 function ThreadStatusLabel({

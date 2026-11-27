@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { contextChipAccent, contextChipPresentation } from "./composerChipPresentation";
 import {
   flattenThemeColor,
+  isDarkThemeColor,
   getMobileThemeVariables,
   MOBILE_THEME_IDS,
   type MobileThemeVariables,
@@ -71,12 +72,18 @@ const BUILT_IN_THEMES = MOBILE_THEME_IDS.filter((id) => id !== "material-you").f
 );
 
 describe("contextChipAccent", () => {
-  it("draws one color per theme that reads at 5:1 in messages, replies and the composer", () => {
+  it("draws one color per text tone that reads at 5:1 in messages, replies and the composer", () => {
     for (const { name, theme } of BUILT_IN_THEMES) {
       for (const accent of CHIP_ACCENTS) {
-        const shown = contextChipAccent(accent, theme, theme["--color-md-body"])!;
         for (const { surface, text } of chipSurfaces(theme)) {
-          expect(contextChipAccent(accent, theme, text)).toBe(shown);
+          const shown = contextChipAccent(accent, theme, text)!;
+          // Surfaces whose text shares a tone share one chip color; an accent bubble with light
+          // text beside a light canvas gets its own.
+          for (const other of chipSurfaces(theme)) {
+            if (isDarkThemeColor(other.text) === isDarkThemeColor(text)) {
+              expect(contextChipAccent(accent, theme, other.text)).toBe(shown);
+            }
+          }
           expect(
             contrastRatio(shown, surface),
             `${name}: ${accent} → ${shown} on ${surface}`,
@@ -104,7 +111,11 @@ describe("contextChipAccent", () => {
   });
 
   it("keeps an accent that already reads everywhere", () => {
-    const theme = getMobileThemeVariables("s1-code", "dark");
+    const theme = {
+      ...getMobileThemeVariables("s1-code", "dark"),
+      "--color-user-bubble": "#161616",
+      "--color-user-bubble-foreground": "#f5f5f5",
+    };
     expect(contextChipAccent("#009f6e", theme, theme["--color-md-body"])).toBe("#009f6e");
   });
 });

@@ -11,6 +11,7 @@ import {
   selectGroupDefaultProject,
   type ProjectGroupingSettings,
 } from "@s1tools/client-runtime/state/project-grouping";
+import { scopeProjectRef } from "@s1tools/client-runtime/environment";
 import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "./i18n/messages";
@@ -110,17 +111,6 @@ export function resolveSidebarProjectScopeKey(input: {
           candidate.projectKey,
     );
   return group?.projectKey ?? (input.canClearMissingScope ? null : input.key);
-}
-
-export function resolveSidebarProjectScopeKeys(input: {
-  readonly groups: ReadonlyArray<SidebarProjectSnapshot>;
-  readonly keys: ReadonlyArray<string>;
-  readonly settings?: ProjectGroupingSettings;
-  readonly canClearMissingScope?: boolean;
-}): string[] {
-  return [
-    ...new Set(input.keys.flatMap((key) => resolveSidebarProjectScopeKey({ ...input, key }) ?? [])),
-  ];
 }
 
 export function buildPhysicalToLogicalProjectKeyMap(input: {
@@ -255,4 +245,35 @@ export function buildSidebarProjectPickerEntries(input: {
   const preferred = entries.find((entry) => entry.isPreferred);
   if (!preferred) return entries;
   return [preferred, ...entries.filter((entry) => entry !== preferred)];
+}
+
+/**
+ * Where a new thread in a project starts: the preferred copy while it is open, else the
+ * project's default open copy. Null when every copy is archived, or while the copy's
+ * environment config is pending, since that config marks a scratch project; the caller then
+ * offers the picker.
+ */
+export function resolveProjectNewThreadTarget(
+  group: SidebarProjectSnapshot,
+  preferredProjectRef: ScopedProjectRef | null,
+  isConfigLoaded: (environmentId: EnvironmentId) => boolean,
+): ScopedProjectRef | null {
+  const [entry] = buildSidebarProjectPickerEntries({ groups: [group], preferredProjectRef });
+  if (!entry || !isConfigLoaded(entry.targetProject.environmentId)) return null;
+  return scopeProjectRef(entry.targetProject.environmentId, entry.targetProject.id);
+}
+
+/** Where a new thread from a thread or draft in `projectRef` starts, by the same rules. */
+export function resolveNewThreadTargetForProjectRef(
+  groups: ReadonlyArray<SidebarProjectSnapshot>,
+  projectRef: ScopedProjectRef,
+  isConfigLoaded: (environmentId: EnvironmentId) => boolean,
+): ScopedProjectRef | null {
+  const group = groups.find((candidate) =>
+    candidate.memberProjectRefs.some(
+      (ref) =>
+        ref.environmentId === projectRef.environmentId && ref.projectId === projectRef.projectId,
+    ),
+  );
+  return group ? resolveProjectNewThreadTarget(group, projectRef, isConfigLoaded) : null;
 }

@@ -68,7 +68,7 @@ export function CommandPaletteContent({
   return (
     <div className="contents" data-testid={testId}>
       <Command {...commandProps}>
-        <div className="relative">
+        <div className="relative border-b border-foreground/[0.07]">
           <CommandInput
             autoFocus={false}
             {...inputProps}

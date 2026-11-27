@@ -24,6 +24,7 @@ import {
   createInboxReturnTracker,
   isThreadWorking,
   sortInboxThreadsByReturn,
+  threadHasReadyPlan,
   sortWorkingThreadsBySend,
 } from "@s1tools/client-runtime/state/thread-inbox";
 import {
@@ -271,6 +272,20 @@ export function resolveThreadListV2WokeAt(
     : null;
 }
 
+/** Waiting on the user: an approval, a question, a guest's message, or a ready plan. */
+export function threadListV2NeedsUser(
+  thread: Parameters<typeof resolveThreadListV2Status>[0] &
+    Parameters<typeof threadHasReadyPlan>[0],
+): boolean {
+  const status = resolveThreadListV2Status(thread);
+  if (status === "approval" || status === "input" || status === "request") return true;
+  return (
+    threadHasReadyPlan(thread) &&
+    thread.latestRun?.status !== "failed" &&
+    thread.runtime?.status !== "failed"
+  );
+}
+
 export function resolveThreadListV2Status(
   thread: Pick<
     EnvironmentThreadShell,
@@ -422,6 +437,16 @@ export interface ThreadListV2Layout {
   readonly hiddenSettledCount: number;
   /** The settled rows the shelf may list, before its visible limit. */
   readonly listedSettledThreads: ReadonlyArray<EnvironmentThreadShell>;
+  /**
+   * Group labels, as the web sidebar lists them: Pinned, Working, To review, Earlier. Only the
+   * Working layout groups rows; a manually ordered list keeps one unlabeled block.
+   */
+  readonly pinnedCount: number;
+  readonly pinnedHeaderIndex: number | null;
+  readonly reviewCount: number;
+  readonly reviewHeaderIndex: number | null;
+  readonly earlierCount: number;
+  readonly earlierHeaderIndex: number | null;
   readonly workingCount: number;
   readonly workingShelfHeaderIndex: number | null;
   readonly snoozedCount: number;
@@ -456,6 +481,15 @@ export interface ThreadListV2PendingListItem {
   readonly showTrailingDivider: boolean;
 }
 
+export type ThreadListV2Group = "pinned" | "review" | "earlier";
+
+export interface ThreadListV2GroupLabelListItem {
+  readonly type: "v2-group-label";
+  readonly key: `v2-group-label:${ThreadListV2Group}`;
+  readonly group: ThreadListV2Group;
+  readonly count: number;
+}
+
 export interface ThreadListV2WorkingShelfListItem {
   readonly type: "v2-working-shelf";
   readonly key: "v2-working-shelf";
@@ -484,6 +518,7 @@ export interface ThreadListV2SettledShelfListItem {
 export type ThreadListV2ListItem =
   | ThreadListV2ThreadListItem
   | ThreadListV2PendingListItem
+  | ThreadListV2GroupLabelListItem
   | ThreadListV2WorkingShelfListItem
   | ThreadListV2SnoozedShelfListItem
   | ThreadListV2SettledShelfListItem;
@@ -494,6 +529,7 @@ export function isThreadListV2ListItem(value: {
   return (
     value.type === "v2-thread" ||
     value.type === "v2-pending" ||
+    value.type === "v2-group-label" ||
     value.type === "v2-working-shelf" ||
     value.type === "v2-snoozed-shelf" ||
     value.type === "v2-settled-shelf"
@@ -530,6 +566,12 @@ export function threadListV2ListItemsAreEqual(
         previous.pendingTask === item.pendingTask &&
         previous.showPendingDivider === item.showPendingDivider &&
         previous.showTrailingDivider === item.showTrailingDivider
+      );
+    case "v2-group-label":
+      return (
+        previous.type === "v2-group-label" &&
+        previous.group === item.group &&
+        previous.count === item.count
       );
     case "v2-working-shelf":
       return (
@@ -581,6 +623,12 @@ function resolveThreadListV2ItemTimeLabel(
 export function buildThreadListV2ListItems(input: {
   readonly items: ReadonlyArray<ThreadListV2Item>;
   readonly pendingTasks: ReadonlyArray<PendingNewTask>;
+  readonly pinnedCount?: number;
+  readonly pinnedHeaderIndex?: number | null;
+  readonly reviewCount?: number;
+  readonly reviewHeaderIndex?: number | null;
+  readonly earlierCount?: number;
+  readonly earlierHeaderIndex?: number | null;
   readonly workingCount?: number;
   readonly workingShelfExpanded?: boolean;
   readonly workingShelfHeaderIndex?: number | null;
@@ -637,47 +685,69 @@ export function buildThreadListV2ListItems(input: {
     showPendingDivider: index === 0,
     showTrailingDivider: false,
   }));
-  const workingCount = input.workingCount ?? 0;
-  const workingShelfHeaderIndex = input.workingShelfHeaderIndex ?? null;
-  const snoozedCount = input.snoozedCount ?? 0;
-  const snoozedShelfHeaderIndex = input.snoozedShelfHeaderIndex ?? null;
-  const settledCount = input.settledCount ?? 0;
-  const settledShelfHeaderIndex = input.settledShelfHeaderIndex ?? null;
-  const snoozedEnd = settledShelfHeaderIndex ?? threadItems.length;
-  const workingEnd = snoozedShelfHeaderIndex ?? snoozedEnd;
-  const activeEnd = workingShelfHeaderIndex ?? workingEnd;
-  const result: ThreadListV2ListItem[] = [...pendingItems, ...threadItems.slice(0, activeEnd)];
   const shelfDisabled = input.shelfPreferencesLoading === true;
-  if (workingShelfHeaderIndex !== null && workingCount > 0) {
-    result.push({
-      type: "v2-working-shelf",
-      key: "v2-working-shelf",
-      count: workingCount,
-      expanded: input.workingShelfExpanded === true,
-      disabled: shelfDisabled,
+  // Headers in list order; their indices into the rows never decrease.
+  const headers: Array<{ readonly index: number; readonly entry: ThreadListV2ListItem }> = [];
+  const groupLabel = (
+    group: ThreadListV2Group,
+    index: number | null | undefined,
+    count: number | undefined,
+  ) => {
+    if (index == null || !count) return;
+    headers.push({
+      index,
+      entry: { type: "v2-group-label", key: `v2-group-label:${group}`, group, count },
     });
-    result.push(...threadItems.slice(workingShelfHeaderIndex, workingEnd));
-  }
-  if (snoozedShelfHeaderIndex !== null && snoozedCount > 0) {
-    result.push({
-      type: "v2-snoozed-shelf",
-      key: "v2-snoozed-shelf",
-      count: snoozedCount,
-      expanded: input.snoozedShelfExpanded === true,
-      disabled: shelfDisabled,
+  };
+  groupLabel("pinned", input.pinnedHeaderIndex, input.pinnedCount);
+  if (input.workingShelfHeaderIndex != null && (input.workingCount ?? 0) > 0) {
+    headers.push({
+      index: input.workingShelfHeaderIndex,
+      entry: {
+        type: "v2-working-shelf",
+        key: "v2-working-shelf",
+        count: input.workingCount ?? 0,
+        expanded: input.workingShelfExpanded === true,
+        disabled: shelfDisabled,
+      },
     });
-    result.push(...threadItems.slice(snoozedShelfHeaderIndex, snoozedEnd));
   }
-  if (settledShelfHeaderIndex !== null && settledCount > 0) {
-    result.push({
-      type: "v2-settled-shelf",
-      key: "v2-settled-shelf",
-      count: settledCount,
-      expanded: input.settledShelfExpanded !== false,
-      disabled: shelfDisabled,
+  groupLabel("review", input.reviewHeaderIndex, input.reviewCount);
+  groupLabel("earlier", input.earlierHeaderIndex, input.earlierCount);
+  if (input.snoozedShelfHeaderIndex != null && (input.snoozedCount ?? 0) > 0) {
+    headers.push({
+      index: input.snoozedShelfHeaderIndex,
+      entry: {
+        type: "v2-snoozed-shelf",
+        key: "v2-snoozed-shelf",
+        count: input.snoozedCount ?? 0,
+        expanded: input.snoozedShelfExpanded === true,
+        disabled: shelfDisabled,
+      },
     });
-    result.push(...threadItems.slice(settledShelfHeaderIndex));
   }
+  if (input.settledShelfHeaderIndex != null && (input.settledCount ?? 0) > 0) {
+    headers.push({
+      index: input.settledShelfHeaderIndex,
+      entry: {
+        type: "v2-settled-shelf",
+        key: "v2-settled-shelf",
+        count: input.settledCount ?? 0,
+        expanded: input.settledShelfExpanded !== false,
+        disabled: shelfDisabled,
+      },
+    });
+  }
+  const result: ThreadListV2ListItem[] = [...pendingItems];
+  let nextHeader = 0;
+  threadItems.forEach((item, index) => {
+    while (nextHeader < headers.length && headers[nextHeader]!.index <= index) {
+      result.push(headers[nextHeader]!.entry);
+      nextHeader += 1;
+    }
+    result.push(item);
+  });
+  for (; nextHeader < headers.length; nextHeader += 1) result.push(headers[nextHeader]!.entry);
   return result.map((entry, index) => {
     if (entry.type !== "v2-thread" && entry.type !== "v2-pending") return entry;
     const next = result[index + 1];
@@ -760,6 +830,7 @@ export function buildThreadListV2Items(input: {
   const pinned: EnvironmentThreadShell[] = [];
   const active: EnvironmentThreadShell[] = [];
   const working: EnvironmentThreadShell[] = [];
+  const review: EnvironmentThreadShell[] = [];
   const settled: EnvironmentThreadShell[] = [];
   const snoozed: EnvironmentThreadShell[] = [];
   let nextSnoozeWakeAt: string | null = null;
@@ -814,8 +885,16 @@ export function buildThreadListV2Items(input: {
       settled.push(thread);
     } else if (thread.pinnedAt != null) {
       pinned.push(thread);
-    } else if (workingShelfEnabled && (input.isWorking ?? isThreadWorking)(thread)) {
+    } else if (
+      workingShelfEnabled &&
+      ((input.isWorking ?? isThreadWorking)(thread) || threadListV2NeedsUser(thread))
+    ) {
       working.push(thread);
+    } else if (
+      workingShelfEnabled &&
+      (threadHasUnseenCompletion(thread) || resolveThreadListV2WokeAt(thread, { now }) !== null)
+    ) {
+      review.push(thread);
     } else {
       active.push(thread);
     }
@@ -850,6 +929,12 @@ export function buildThreadListV2Items(input: {
       })),
       hiddenSettledCount: 0,
       listedSettledThreads: [],
+      pinnedCount: 0,
+      pinnedHeaderIndex: null,
+      reviewCount: 0,
+      reviewHeaderIndex: null,
+      earlierCount: 0,
+      earlierHeaderIndex: null,
       workingCount: 0,
       workingShelfHeaderIndex: null,
       snoozedCount: 0,
@@ -864,17 +949,21 @@ export function buildThreadListV2Items(input: {
   const orderedActive = workingShelfEnabled
     ? sortInboxThreadsByReturn(active, input.inboxReturnAt)
     : applyPendingThreadOrder(sortThreadsForListV2(active), "active", pending);
+  const orderedReview = sortInboxThreadsByReturn(review, input.inboxReturnAt);
   const orderedWorking = sortWorkingThreadsBySend(working);
   const orderedSnoozed = [...snoozed].sort(
     (left, right) =>
       parseTimestampMs(left.snoozedUntil ?? "") - parseTimestampMs(right.snoozedUntil ?? ""),
   );
   const selectedThreadKey = input.selectedThreadKey ?? null;
+  // A collapsed Working shelf still lists threads waiting on the user.
   const visibleWorking =
     input.workingShelfExpanded === true
       ? orderedWorking
       : orderedWorking.filter(
-          (thread) => `${thread.environmentId}:${thread.id}` === selectedThreadKey,
+          (thread) =>
+            `${thread.environmentId}:${thread.id}` === selectedThreadKey ||
+            threadListV2NeedsUser(thread),
         );
   const visibleSnoozed =
     input.snoozedShelfExpanded === true
@@ -922,27 +1011,25 @@ export function buildThreadListV2Items(input: {
       isLast: false,
     });
   }
-  for (const thread of orderedActive) {
-    items.push({
-      thread,
-      variant: "card",
-      snoozed: false,
-      pinned: false,
-      wokeAt: resolveThreadListV2WokeAt(thread, { now }),
-      isLast: false,
-    });
-  }
+  const card = (thread: EnvironmentThreadShell): ThreadListV2Item => ({
+    thread,
+    variant: "card",
+    snoozed: false,
+    pinned: false,
+    wokeAt: resolveThreadListV2WokeAt(thread, { now }),
+    isLast: false,
+  });
   const workingShelfHeaderIndex = orderedWorking.length > 0 ? items.length : null;
-  for (const thread of visibleWorking) {
-    items.push({
-      thread,
-      variant: "card",
-      snoozed: false,
-      pinned: false,
-      wokeAt: resolveThreadListV2WokeAt(thread, { now }),
-      isLast: false,
-    });
-  }
+  items.push(...visibleWorking.map(card));
+  const reviewHeaderIndex = orderedReview.length > 0 ? items.length : null;
+  items.push(...orderedReview.map(card));
+  const earlierHeaderIndex =
+    workingShelfEnabled &&
+    orderedActive.length > 0 &&
+    pinned.length + orderedWorking.length + orderedReview.length > 0
+      ? items.length
+      : null;
+  items.push(...orderedActive.map(card));
   const snoozedShelfHeaderIndex = orderedSnoozed.length > 0 ? items.length : null;
   for (const thread of visibleSnoozed) {
     items.push({
@@ -973,6 +1060,12 @@ export function buildThreadListV2Items(input: {
     items,
     hiddenSettledCount: Math.max(0, settledTotal - pagedSettled.length),
     listedSettledThreads: listedSettled,
+    pinnedCount: pinned.length,
+    pinnedHeaderIndex: workingShelfEnabled && pinned.length > 0 ? 0 : null,
+    reviewCount: orderedReview.length,
+    reviewHeaderIndex,
+    earlierCount: orderedActive.length,
+    earlierHeaderIndex,
     workingCount: orderedWorking.length,
     workingShelfHeaderIndex,
     snoozedCount: orderedSnoozed.length,

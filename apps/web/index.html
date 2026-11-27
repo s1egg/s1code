@@ -129,6 +129,12 @@
               accent: "#8b7dff",
               chrome: "#16171f",
             },
+            light: {
+              background: "#f6f6f9",
+              foreground: "#1c1d27",
+              accent: "#6655e8",
+              chrome: "#efeff3",
+            },
           },
           "s1-graphite": {
             dark: {
@@ -136,6 +142,12 @@
               foreground: "#ededee",
               accent: "#5aa2ff",
               chrome: "#18191a",
+            },
+            light: {
+              background: "#f6f7f8",
+              foreground: "#1b1c1e",
+              accent: "#2368d6",
+              chrome: "#eff0f1",
             },
           },
           "s1-charcoal": {
@@ -145,6 +157,12 @@
               accent: "#e58a5c",
               chrome: "#1c1917",
             },
+            light: {
+              background: "#f8f5f1",
+              foreground: "#221c17",
+              accent: "#ad4f1c",
+              chrome: "#f2eeea",
+            },
           },
           "s1-deepsea": {
             dark: {
@@ -152,6 +170,12 @@
               foreground: "#e6f0ee",
               accent: "#3fd0b0",
               chrome: "#131b1c",
+            },
+            light: {
+              background: "#f3f7f7",
+              foreground: "#152221",
+              accent: "#0a7864",
+              chrome: "#ecf1f1",
             },
           },
         };
@@ -284,11 +308,10 @@
             themeModes !== null;
           const theme = isKnownTheme && storedTheme ? storedTheme : "system";
           const isThemed = isKnownTheme && themeModes !== null;
+          // Each built-in lists its base appearance first, like a custom theme's appearance.
           const baseAppearance = customTheme
             ? customTheme.appearance
-            : (builtInModes?.includes("light") ?? true)
-              ? "light"
-              : "dark";
+            : (builtInModes?.[0] ?? "light");
           const systemMode = prefersDark ? "dark" : "light";
           const storedAppearanceMode = window.localStorage.getItem(
             THEME_APPEARANCE_MODE_STORAGE_KEY,

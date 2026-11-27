@@ -14,20 +14,37 @@ type WorkingThreadInput = Pick<
   | "runtime"
 >;
 
-export function isThreadWorking(thread: WorkingThreadInput): boolean {
-  if (thread.hasPendingApprovals || thread.hasPendingUserInput) return false;
-  if (thread.pendingSubagentRequest != null) return false;
-  if (!threadRuntimeIsActive(thread.runtime) && thread.runtime?.status !== "idle") return false;
+/** A finished plan turn whose proposed plan waits on the user to implement or revise it. */
+export function threadHasReadyPlan(
+  thread: Pick<
+    EnvironmentThreadShell,
+    | "hasActionableProposedPlan"
+    | "hasPendingUserInput"
+    | "interactionMode"
+    | "latestRun"
+    | "runtime"
+  >,
+): boolean {
   const run = thread.latestRun;
-  const runSettled =
+  return (
+    !thread.hasPendingUserInput &&
+    thread.interactionMode === "plan" &&
+    thread.hasActionableProposedPlan &&
     run !== null &&
     run.status !== "preparing" &&
     run.status !== "queued" &&
     run.status !== "starting" &&
     run.status !== "running" &&
     run.status !== "waiting" &&
-    thread.runtime?.activeRunId !== run.runId;
-  return !(thread.interactionMode === "plan" && thread.hasActionableProposedPlan && runSettled);
+    thread.runtime?.activeRunId !== run.runId
+  );
+}
+
+export function isThreadWorking(thread: WorkingThreadInput): boolean {
+  if (thread.hasPendingApprovals || thread.hasPendingUserInput) return false;
+  if (thread.pendingSubagentRequest != null) return false;
+  if (!threadRuntimeIsActive(thread.runtime) && thread.runtime?.status !== "idle") return false;
+  return !threadHasReadyPlan(thread);
 }
 
 /**

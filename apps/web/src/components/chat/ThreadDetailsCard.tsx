@@ -118,8 +118,9 @@ export function ThreadDetailsCard({
     <div
       className={cn(
         "dropdown-glass isolate contain-paint grid max-h-full grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl",
-        mode === "popover" &&
-          "max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))]",
+        mode === "popover"
+          ? "max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))]"
+          : "shadow-composer dark:shadow-composer-dark",
       )}
       style={placement ? { maxHeight: height } : undefined}
       onContextMenu={onContextMenu}

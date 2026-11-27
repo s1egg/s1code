@@ -18,12 +18,19 @@ import {
 } from "../hooks/useHandleNewThread";
 import { createScratchProjectActions } from "../hooks/useScratchProject";
 import { getClientSettings } from "../hooks/useSettings";
-import { startNewThreadFromContext } from "../lib/chatThreadActions";
+import { resolveThreadActionProjectRef } from "../lib/chatThreadActions";
 import { selectProjectGroupingSettings } from "@s1tools/client-runtime/state/project-grouping";
 import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { appAtomRegistry } from "../rpc/atomRegistry";
-import { buildSidebarProjectSnapshots } from "../sidebarProjectGrouping";
-import { readProjects, readThreadShell } from "../state/entities";
+import {
+  buildSidebarProjectSnapshots,
+  resolveNewThreadTargetForProjectRef,
+} from "../sidebarProjectGrouping";
+import {
+  readEnvironmentServerConfigLoaded,
+  readProjects,
+  readThreadShell,
+} from "../state/entities";
 import { defaultProjectFallbackReadyAtom } from "../state/projects";
 import { environmentPresentations } from "../state/presentation";
 import { primaryEnvironmentIdAtom } from "../state/primaryEnvironment";
@@ -115,10 +122,22 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
 
   const startNewLocal: CommandHandler = (event) => {
     claim(event);
-    // With no current or open project, such as when every project is archived, pick one.
-    void startNewThreadFromContext(readThreadContext()).then((started) => {
-      if (!started) openCommandPalette({ open: "new-thread-in" });
-    });
+    const context = readThreadContext();
+    const contextProjectRef = resolveThreadActionProjectRef(context);
+    // An archived copy is skipped as the sidebar does; with no open copy, pick a project.
+    const projectRef =
+      contextProjectRef === null
+        ? null
+        : resolveNewThreadTargetForProjectRef(
+            readProjectGroups(),
+            contextProjectRef,
+            readEnvironmentServerConfigLoaded,
+          );
+    if (projectRef === null) {
+      openCommandPalette({ open: "new-thread-in" });
+      return;
+    }
+    void context.handleNewThread(projectRef);
   };
 
   const previewCommand =

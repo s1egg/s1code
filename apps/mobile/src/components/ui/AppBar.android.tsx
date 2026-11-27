@@ -139,8 +139,12 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
             ? {
                 accessibilityLabel: menu.title,
                 customized: icon?.endsWith(".fill") === true,
-                actions: menuActionsFromAppBarItems(menu.items),
-                onSelect: (id) => selectMenuItem(menu.items, id),
+                ...(menu.onPress
+                  ? { onPress: menu.onPress }
+                  : {
+                      actions: menuActionsFromAppBarItems(menu.items),
+                      onSelect: (id: string) => selectMenuItem(menu.items, id),
+                    }),
               }
             : undefined
         }
@@ -148,18 +152,27 @@ function AppBarView(props: AppBarProps & { readonly searchState?: SearchState })
     );
   }
 
-  const menuView = props.menus?.map((menu) => (
-    <AndroidAnchoredMenu
-      key={menu.title}
-      actions={menuActionsFromAppBarItems(menu.items)}
-      title={menu.status ?? menu.title}
-      onPressAction={({ nativeEvent }) => selectMenuItem(menu.items, nativeEvent.event)}
-    >
-      {(open) => (
-        <ScreenHeaderButton accessibilityLabel={menu.title} icon={menu.icon} onPress={open} />
-      )}
-    </AndroidAnchoredMenu>
-  ));
+  const menuView = props.menus?.map((menu) =>
+    menu.onPress ? (
+      <ScreenHeaderButton
+        key={menu.title}
+        accessibilityLabel={menu.title}
+        icon={menu.icon}
+        onPress={menu.onPress}
+      />
+    ) : (
+      <AndroidAnchoredMenu
+        key={menu.title}
+        actions={menuActionsFromAppBarItems(menu.items)}
+        title={menu.status ?? menu.title}
+        onPressAction={({ nativeEvent }) => selectMenuItem(menu.items, nativeEvent.event)}
+      >
+        {(open) => (
+          <ScreenHeaderButton accessibilityLabel={menu.title} icon={menu.icon} onPress={open} />
+        )}
+      </AndroidAnchoredMenu>
+    ),
+  );
   const confirmButton = props.confirm ? (
     <View className="self-center">
       <Button

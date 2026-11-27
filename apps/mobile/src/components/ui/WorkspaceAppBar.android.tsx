@@ -40,9 +40,11 @@ export interface WorkspaceAppBarProps {
   readonly filter?: {
     readonly accessibilityLabel: string;
     readonly customized: boolean;
-    readonly actions: MenuAction[];
-    readonly onSelect: (id: string) => void;
-  };
+  } & (
+    | { readonly actions: MenuAction[]; readonly onSelect: (id: string) => void }
+    /** Opens its own picker, such as a sheet, in place of a menu. */
+    | { readonly onPress: () => void }
+  );
 }
 
 function createWorkspaceAppBarStore() {
@@ -134,35 +136,37 @@ function WorkspaceAppBarView(props: WorkspaceAppBarProps) {
   const { colors } = useControlTheme();
   const tint = colors["--color-header-foreground"];
   const { height, paddingTop, paddingBottom } = useToolbarLayout();
-  const filterMenu = filter ? (
+  const filterTrigger = (onPress: () => void) =>
+    !filter ? null : searching ? (
+      <AndroidHeaderIconButton
+        accessibilityLabel={filter.accessibilityLabel}
+        icon={
+          filter.customized
+            ? "line.3.horizontal.decrease.circle.fill"
+            : "line.3.horizontal.decrease.circle"
+        }
+        onPress={onPress}
+      />
+    ) : (
+      // The bar draws the icon; this takes the touch so a menu can anchor to the slot.
+      <Pressable
+        accessibilityLabel={filter.accessibilityLabel}
+        accessibilityRole="button"
+        android_ripple={{ borderless: true, radius: 20 }}
+        onPress={onPress}
+        style={{ width: ACTION_SIZE, height: ACTION_SIZE }}
+      />
+    );
+  const filterMenu = !filter ? null : "onPress" in filter ? (
+    filterTrigger(filter.onPress)
+  ) : (
     <AndroidAnchoredMenu
       actions={filter.actions}
       onPressAction={({ nativeEvent }) => filter.onSelect(nativeEvent.event)}
     >
-      {(open) =>
-        searching ? (
-          <AndroidHeaderIconButton
-            accessibilityLabel={filter.accessibilityLabel}
-            icon={
-              filter.customized
-                ? "line.3.horizontal.decrease.circle.fill"
-                : "line.3.horizontal.decrease.circle"
-            }
-            onPress={open}
-          />
-        ) : (
-          // The bar draws the icon; this takes the touch so the menu can anchor to the slot.
-          <Pressable
-            accessibilityLabel={filter.accessibilityLabel}
-            accessibilityRole="button"
-            android_ripple={{ borderless: true, radius: 20 }}
-            onPress={open}
-            style={{ width: ACTION_SIZE, height: ACTION_SIZE }}
-          />
-        )
-      }
+      {filterTrigger}
     </AndroidAnchoredMenu>
-  ) : null;
+  );
   return (
     <View className="bg-header" style={{ paddingTop, paddingBottom }}>
       {searching ? (

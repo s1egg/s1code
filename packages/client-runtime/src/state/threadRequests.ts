@@ -21,6 +21,23 @@ import type { ThreadStructure, ThreadStructureVisibleTurnItem } from "./models.t
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 
+const standardApprovalLabels: Partial<Record<ProviderApprovalDecision, readonly string[]>> = {
+  accept: ["allow once", "approve", "allow"],
+  acceptForSession: ["allow session", "allow for this session"],
+  decline: ["decline", "deny", "reject"],
+  cancel: ["cancel"],
+};
+
+/** Translate a native label only when it describes the same decision without extra policy scope. */
+export function standardApprovalLabel(
+  option: ProviderApprovalOption,
+  defaults: ReadonlyArray<ProviderApprovalOption>,
+): string | undefined {
+  if (!standardApprovalLabels[option.decision]?.includes(option.label.trim().toLowerCase()))
+    return undefined;
+  return defaults.find((choice) => choice.decision === option.decision)?.label;
+}
+
 export type ApprovalResponder = (
   requestId: RuntimeRequestId,
   decision: ProviderApprovalDecision,
@@ -279,6 +296,8 @@ export function derivePendingThreadRequests(
     const item = projection.turnItems.findLast(
       (candidate) => candidate.type === "approval_request" && candidate.requestId === request.id,
     );
+    // The request may arrive before its card. Only the card can authorize the default choices.
+    const options = item?.type === "approval_request" ? item.options : [];
     approvals.push({
       requestId: request.id,
       requestKind: request.kind,
@@ -289,9 +308,7 @@ export function derivePendingThreadRequests(
         ? { fullAccessOverride: item.fullAccessOverride }
         : {}),
       ...(item?.type === "approval_request" && item.appName ? { appName: item.appName } : {}),
-      ...(item?.type === "approval_request" && item.options !== undefined
-        ? { options: item.options }
-        : {}),
+      ...(options === undefined ? {} : { options }),
       responseCapability: responseCapability === "live" ? "live" : "not_resumable",
       ...(request.responseCapability.type === "live" && request.responseCapability.supportsFeedback
         ? { supportsFeedback: true }

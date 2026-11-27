@@ -280,7 +280,7 @@ export function AppearanceSettingsPanel() {
         <SettingsRow
           {...searchableSetting("setting-background-glow")}
           description={gt(
-            "Soft accent-colored light in the window corners in dark mode. Set to 0 for a flat background.",
+            "Soft accent-colored light in the window corners, fainter in light mode. Set to 0 for a flat background.",
           )}
           resetAction={
             settings.backgroundGlow !== DEFAULT_UNIFIED_SETTINGS.backgroundGlow ? (

@@ -1175,13 +1175,13 @@ export function ProviderInstanceCard({
       <div
         data-slot="settings-row"
         className={cn(
-          "group relative flex min-h-18 items-center gap-3 px-3 py-3 transition-colors sm:px-4",
+          "group relative flex min-h-14 items-center gap-3 px-3 py-2.5 transition-colors sm:px-4",
           selected ? "bg-foreground/[0.06]" : "hover:bg-muted/25",
         )}
       >
         <div
           className={cn(
-            "pointer-events-none flex min-w-0 flex-1 items-start gap-3 rounded-md text-left transition-opacity",
+            "pointer-events-none flex min-w-0 flex-1 items-center gap-3 rounded-md text-left transition-opacity",
             !enabled && !selected && "opacity-60 group-hover:opacity-100",
           )}
         >
@@ -1192,7 +1192,9 @@ export function ProviderInstanceCard({
             aria-label={gt("Select {provider}", { provider: displayName })}
             aria-pressed={selected}
           />
-          {titleIconNode}
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.06]">
+            {titleIconNode}
+          </span>
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-2">
               <span className="truncate text-sm font-medium text-foreground">{displayName}</span>

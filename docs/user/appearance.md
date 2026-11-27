@@ -11,15 +11,17 @@ Use **Change appearance** in the command palette to choose System, Light, or Dar
 the theme. **Cmd+Option+Shift+A** on macOS or **Ctrl+Alt+Shift+A** on Windows/Linux cycles through
 those modes. Customize these shortcuts under **Settings → Keybindings**.
 
-Midnight, Graphite, Charcoal, and Deep Sea are dark-only themes for web and desktop. Selecting one
-sets it as your dark-mode theme; light mode keeps its own theme.
+Mist / Midnight, Paper / Graphite, Sand / Charcoal, and Shallows / Deep Sea pair a light theme
+with a dark one. When you follow the system appearance, switching between light and dark keeps you
+in the same pair. These themes also fill your own messages with the accent color.
 
-In dark mode on web and desktop, the window background carries a soft glow in the theme's accent
-color. Set **Background glow** in **Settings → Appearance** to 0 for a flat background. Touch
-devices always show a flat background.
+On web and desktop, the window background carries a soft glow in the theme's accent color, fainter
+in light mode. Set **Background glow** in **Settings → Appearance** to 0 for a flat background.
+Touch devices always show a flat background.
 
-On mobile, open **Settings → Appearance**. Mobile has its own themes and text,
-code, and terminal preferences. It does not follow environment themes or defaults.
+On mobile, choose any of the same four pairs in **Settings → Appearance**. The phone stores its
+own theme selection and text, code, and terminal preferences. Environment theme defaults apply to
+web and desktop.
 
 On Android 12 or newer, choose the **Material You** theme in Appearance to use colors from
 your wallpaper. Selecting another theme replaces those colors. Like other themes, Material You

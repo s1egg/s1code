@@ -2476,6 +2476,12 @@ it("keeps concurrent approvals actionable outside collapsed work and restores se
     />
   );
   await using screen = await renderElement(ui());
+  const allowOnceIn = (group: string) =>
+    screen
+      .getByRole("group", { name: group })
+      .getByRole("button", { name: "Allow once", exact: true });
+  const commandAllowOnce = () => allowOnceIn("Command approval");
+  const appAllowOnce = () => allowOnceIn("App permission approval");
   await expect.element(screen.getByRole("group", { name: "Command approval" })).toBeVisible();
   await expect
     .element(screen.getByRole("group", { name: "App permission approval" }))
@@ -2499,13 +2505,35 @@ it("keeps concurrent approvals actionable outside collapsed work and restores se
   await expect.element(page.getByRole("menuitem", { name: "Always allow Safari" })).toBeVisible();
   await page.getByRole("menuitem", { name: "Always allow Safari" }).click();
   expect(onRespondToApproval).toHaveBeenLastCalledWith(appRequest, "acceptAlways");
+  // Common decisions share labels; the app-specific persistent grant stays in the menu.
+  expect(
+    screen
+      .buttons(/^(Allow once|Allow session|Decline|Deny|More approval options)$/)
+      .map((button) => button.getAttribute("aria-label") ?? button.textContent),
+  ).toEqual([
+    "Allow once",
+    "Allow session",
+    "Decline",
+    "More approval options",
+    "Allow once",
+    "Decline",
+    "More approval options",
+  ]);
   await click(screen.buttons("More approval options")[0]!);
   await expect.element(page.getByRole("menuitem", { name: "Cancel", exact: true })).toBeVisible();
-  await page.getByRole("menuitem", { name: "Always allow this session" }).click();
+  expect(page.getByRole("menuitem").elements()).toHaveLength(1);
+  await page.getByRole("menuitem", { name: "Cancel", exact: true }).click();
+  expect(onRespondToApproval).toHaveBeenLastCalledWith(commandRequest, "cancel");
+  await click(screen.button("Allow session"));
   expect(onRespondToApproval).toHaveBeenLastCalledWith(commandRequest, "acceptForSession");
-  await click(screen.button("Decline"));
+  await click(
+    screen
+      .getByRole("group", { name: "Command approval" })
+      .getByRole("button", { name: "Decline", exact: true })
+      .element() as HTMLElement,
+  );
   expect(onRespondToApproval).toHaveBeenLastCalledWith(commandRequest, "decline");
-  await click(screen.button("Allow once"));
+  await click(appAllowOnce().element() as HTMLElement);
   expect(onRespondToApproval).toHaveBeenLastCalledWith(appRequest, "accept");
   for (const timelineEntries of [entries(), []]) {
     await screen.rerender(
@@ -2514,19 +2542,22 @@ it("keeps concurrent approvals actionable outside collapsed work and restores se
     await expect
       .element(screen.getByRole("group", { name: "Command approval" }))
       .not.toBeInTheDocument();
-    await vi.waitFor(() => expect(screen.buttons("Approve")).toHaveLength(0));
-    await expect
-      .element(screen.getByRole("button", { name: "Allow once", exact: true }))
-      .toBeVisible();
+    await vi.waitFor(() => expect(screen.buttons("Allow session")).toHaveLength(0));
+    await expect.element(appAllowOnce()).toBeVisible();
     await screen.rerender(ui({ timelineEntries }));
     await expect.element(screen.getByRole("group", { name: "Command approval" })).toBeVisible();
-    await vi.waitFor(() => expect(screen.buttons("Approve")).toHaveLength(1));
+    await vi.waitFor(() => expect(screen.buttons("Allow session")).toHaveLength(1));
   }
   await screen.rerender(ui({ timelineEntries: [], isWorking: false }));
   await expect.element(screen.getByRole("group", { name: "Command approval" })).toBeVisible();
-  await click(screen.button("Approve"));
+  await click(commandAllowOnce().element() as HTMLElement);
   expect(onRespondToApproval).toHaveBeenLastCalledWith(commandRequest, "accept");
-  await click(screen.button("Deny"));
+  await click(
+    screen
+      .getByRole("group", { name: "App permission approval" })
+      .getByRole("button", { name: "Decline", exact: true })
+      .element() as HTMLElement,
+  );
   expect(onRespondToApproval).toHaveBeenLastCalledWith(appRequest, "decline");
   await screen.rerender(
     ui({
@@ -2539,24 +2570,22 @@ it("keeps concurrent approvals actionable outside collapsed work and restores se
     .element(screen.getByLabelText("Command", { exact: true }))
     .toHaveTextContent("Command approval");
   await screen.rerender(ui({ canOperateThread: false }));
-  await expect.element(screen.getByRole("button", { name: "Approve", exact: true })).toBeDisabled();
+  await expect.element(commandAllowOnce()).toBeDisabled();
   await vi.waitFor(() =>
     expect(
       screen.buttons("More approval options").every((button) => button.hasAttribute("disabled")),
     ).toBe(true),
   );
   await screen.rerender(ui({ respondingRequestIds: [commandRequest] }));
-  await expect.element(screen.getByRole("button", { name: "Approve", exact: true })).toBeDisabled();
-  await expect
-    .element(screen.getByRole("button", { name: "Allow once", exact: true }))
-    .toBeEnabled();
+  await expect.element(commandAllowOnce()).toBeDisabled();
+  await expect.element(appAllowOnce()).toBeEnabled();
   await screen.rerender(
     ui({ pendingApprovals: [{ ...approvals[0]!, responseCapability: "not_resumable" }] }),
   );
   await expect
     .element(screen.getByText("Provider process is gone. Interrupt or restart the run to respond."))
     .toBeVisible();
-  await vi.waitFor(() => expect(screen.buttons("Approve")).toHaveLength(0));
+  await vi.waitFor(() => expect(screen.buttons("Allow once")).toHaveLength(0));
   await screen.rerender(
     ui({ pendingApprovals: [], timelineEntries: entries(true), isWorking: false }),
   );

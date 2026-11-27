@@ -2,7 +2,6 @@ import { useGT, useMessages } from "gt-react-native";
 import { useActiveNewTask } from "../../state/active-new-task";
 import { ThreadUndoNotice } from "../home/ThreadUndoNotice";
 import { useAndroidControlSizing } from "../../components/ui/useAndroidControlSizing";
-import { pickableProjectGroups } from "@s1tools/client-runtime/state/project-grouping";
 import {
   useAppearancePreferences,
   useAndroidFloatingTabs,
@@ -46,15 +45,10 @@ import { useThreadJumpShortcuts } from "../keyboard/threadKeyboardShortcuts";
 import { requestThreadMessageJump } from "./threadMessageJump";
 import { useThreadListSearchMatches } from "./useThreadListSearchMatches";
 import { useHomeListOptions } from "../home/home-list-options";
-import {
-  buildHomeListFilterMenuItems,
-  homeListFilterEnvironments,
-} from "../home/home-list-filter-menu";
-import {
-  buildHomeProjectScopes,
-  resolveHomeProjectFilterScope,
-  sortHomeProjectScopes,
-} from "../home/homeThreadList";
+import { homeListFilterEnvironments } from "../home/home-list-filter-menu";
+import { buildHomeProjectScopes } from "../home/homeThreadList";
+import { HomeProjectStrip } from "../home/HomeProjectStrip";
+import { useHomeProjectSelection } from "../home/useHomeProjectSelection";
 import { SwipeableScrollGateProvider, useSwipeableScrollGate } from "../home/thread-swipe-actions";
 import { usePendingTaskListActions } from "../home/usePendingTaskListActions";
 import { useThreadListActions } from "../home/useThreadListActions";
@@ -64,6 +58,7 @@ import { WorkspaceSidebarColumn } from "../layout/workspace/WorkspaceSidebarColu
 import {
   ThreadListV2PendingRow,
   ThreadListV2Row,
+  ThreadListV2GroupLabel,
   ThreadListV2SettledShelfHeader,
   ThreadListV2ShowMoreRow,
   ThreadListV2SnoozedShelfHeader,
@@ -97,6 +92,8 @@ interface ThreadNavigationSidebarProps {
   readonly selectedThreadKey: string | null;
   readonly onOpenSettings: () => void;
   readonly onOpenEnvironmentSettings: () => void;
+  readonly onOpenScopeSheet: () => void;
+  readonly onAddProject: () => void;
   readonly onNewThreadOnBranch: (thread: EnvironmentThreadShell) => void;
   readonly onNewThreadInProject: (project: EnvironmentProject) => void;
   readonly onOpenPendingTask: (pendingTask: PendingNewTask) => void;
@@ -162,8 +159,7 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
   const availableEnvironmentIds = new Set(
     environments.map((environment) => environment.environmentId),
   );
-  const { options, setSelectedEnvironmentId, setSelectedProjectKey } =
-    useHomeListOptions(availableEnvironmentIds);
+  const { options, setSelectedProjectKey } = useHomeListOptions(availableEnvironmentIds);
   const searchEnvironmentIds =
     options.selectedEnvironmentId === null
       ? workspaceEnvironments
@@ -188,17 +184,13 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
       ),
     [projects, options.selectedEnvironmentId, options.projectGroupingMode, messages],
   );
-  const projectFilterOptions = pickableProjectGroups(
-    sortHomeProjectScopes({
-      scopes: projectScopes,
-      threads,
-      pendingTasks: [],
-      projectSortOrder: "updated_at",
-    }),
-  ).map((scope) => ({
-    key: scope.key,
-    label: scope.title,
-  }));
+  const { choices: projectChoices, selected: selectedProjectChoice } = useHomeProjectSelection({
+    threads: launchingThreads,
+    pendingTasks,
+    environmentId: options.selectedEnvironmentId,
+    projectGroupingMode: options.projectGroupingMode,
+    selectedProjectKey: options.selectedProjectKey,
+  });
   const projectTitleByProjectKey = useMemo(
     () =>
       new Map(
@@ -214,18 +206,17 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
       ),
     [projectScopes],
   );
-  const selectedProjectScope = resolveHomeProjectFilterScope(projectScopes, projects, options);
   const threadSearch = useThreadSearch(
     searchEnvironmentIds,
     props.searchQuery,
-    selectedProjectScope === null
+    selectedProjectChoice === null
       ? {}
-      : { projectIds: selectedProjectScope.projectRefs.map((ref) => ref.projectId) },
+      : { projectIds: selectedProjectChoice.projectRefs.map((ref) => ref.projectId) },
   );
   // This map reaches LegendList's extraData, which re-renders every row whenever it changes
   // identity; the hook keeps it stable.
   const threadSearchMatchByKey = useThreadListSearchMatches(threads, threadSearch);
-  const selectedProjectKey = selectedProjectScope?.key ?? null;
+  const selectedProjectKey = selectedProjectChoice?.key ?? null;
   const projectByKey = useMemo(() => {
     const map = new Map<string, EnvironmentProject>();
     for (const project of projects) {
@@ -280,7 +271,7 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
     threads: launchingThreads,
     pendingTasks,
     environmentId: options.selectedEnvironmentId,
-    projectRefs: selectedProjectScope === null ? null : selectedProjectScope.projectRefs,
+    projectRefs: selectedProjectChoice === null ? null : selectedProjectChoice.projectRefs,
     searchQuery: props.searchQuery,
     searchMatches: threadSearchMatchByKey,
     settlementEnvironmentIds,
@@ -490,6 +481,8 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
           />
         );
       }
+      case "v2-group-label":
+        return <ThreadListV2GroupLabel group={item.group} count={item.count} pane="sidebar" />;
       case "v2-working-shelf":
         return (
           <ThreadListV2WorkingShelfHeader
@@ -546,18 +539,8 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
         accessibilityLabel: gt("Search threads"),
       }}
       filter={{
-        customized: options.selectedEnvironmentId !== null || selectedProjectKey !== null,
-        items: buildHomeListFilterMenuItems(
-          {
-            environments,
-            projects: projectFilterOptions,
-            selectedEnvironmentId: options.selectedEnvironmentId,
-            selectedProjectKey,
-            onEnvironmentChange: setSelectedEnvironmentId,
-            onProjectChange: setSelectedProjectKey,
-          },
-          messages,
-        ),
+        customized: options.selectedEnvironmentId !== null,
+        onPress: props.onOpenScopeSheet,
       }}
       sidebar={{
         width: props.width,
@@ -566,6 +549,21 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
       }}
     />
   );
+  const projectStrip =
+    projectChoices.length > 0 ? (
+      <HomeProjectStrip
+        gutter={Platform.OS === "ios" ? styles.threadListContent.paddingHorizontal : 0}
+        choices={projectChoices}
+        selectedKey={selectedProjectKey}
+        environmentLabel={
+          environments.find(
+            (environment) => environment.environmentId === options.selectedEnvironmentId,
+          )?.label ?? null
+        }
+        onSelect={setSelectedProjectKey}
+        onAddProject={props.onAddProject}
+      />
+    ) : undefined;
   const showAddEnvironment =
     !catalogState.isLoadingConnections &&
     !catalogState.hasReadyEnvironment &&
@@ -589,8 +587,8 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
                 : threadSearch.failed
                   ? gt("Couldn't search thread messages")
                   : gt("No matching threads")
-              : selectedProjectScope !== null
-                ? gt("No threads in {project}", { project: selectedProjectScope.title })
+              : selectedProjectChoice !== null
+                ? gt("No threads in {project}", { project: selectedProjectChoice.title })
                 : gt("No threads yet")}
       </Text>
       {showAddEnvironment ? (
@@ -642,6 +640,7 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 style={styles.threadList}
+                ListHeaderComponent={projectStrip}
                 ListEmptyComponent={listEmpty}
               />
             </GestureDetector>
@@ -667,7 +666,10 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
         }}
       >
         {listItems.length === 0 ? (
-          <View className="flex-1 items-center justify-center">{listEmpty}</View>
+          <View className="flex-1" style={{ paddingTop: 6 }}>
+            {projectStrip}
+            <View className="flex-1 items-center justify-center">{listEmpty}</View>
+          </View>
         ) : (
           <SwipeableScrollGateProvider enabled={swipeEnabled}>
             <GestureDetector gesture={sidebarScrollGesture}>
@@ -695,6 +697,7 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 style={styles.threadList}
+                ListHeaderComponent={projectStrip}
                 ListEmptyComponent={listEmpty}
               />
             </GestureDetector>

@@ -1,5 +1,5 @@
 import { TimelinePendingApprovalRow } from "./TimelinePendingApprovalRow";
-import { WorkLogButton, WorkLogList, WorkLogRow } from "./WorkLog";
+import { WorkLogCapsule, WorkLogList, WorkLogRow } from "./WorkLog";
 import type { WorktreeSetupSnapshot } from "@s1tools/contracts";
 import { type ToolActivityIcon } from "@s1tools/contracts";
 import {
@@ -338,7 +338,7 @@ function ExpandedWorkGroupEntries({
           data-tool-group-scroll
           style={{ maxHeight: `calc(min(18rem, 50dvh) + ${expandedContentHeight}px)` }}
           className={cn(
-            "scrollbar-gutter-stable scroll-py-6 overflow-x-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+            "scrollbar-gutter-stable scroll-py-6 ms-2.5 overflow-x-hidden border-s border-border/60 ps-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
             getVirtualizedScrollFadeClassName(fades),
           )}
         />
@@ -749,21 +749,24 @@ function WorkGroupHeader(props: {
 }) {
   const gt = useGT();
   return (
-    <WorkLogButton
+    <WorkLogCapsule
       aria-label={
         props.failed ? gt("{label}, tool call failed", { label: props.label }) : props.label
       }
-      aria-expanded={props.expanded}
+      expanded={props.expanded}
       onClick={props.onToggle}
       icon={
         <ToolActivityIconView
           icon={props.toolIcon}
           fallbackName={props.iconName}
-          className="size-4 shrink-0 stroke-2 text-icon-muted"
+          className={cn(
+            "size-3 shrink-0 stroke-2",
+            props.failed ? failedToolIconClassName : "text-icon-muted",
+          )}
           muted
         />
       }
-      label={<span className="block truncate">{props.label}</span>}
+      label={props.label}
       trailing={
         <TimelineRowTimestamp createdAt={props.createdAt} timestampFormat={props.timestampFormat} />
       }

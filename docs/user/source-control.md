@@ -436,8 +436,8 @@ tracker records one. An issue read through a project that does not own its repos
 
 An issue can be kept with a thread the way a pull request can: open it beside the thread (issue
 links in the conversation open there) and use **Link to this thread** in its header; **Unlink**
-undoes it. Click the issue badge in the thread sidebar to see its issues and pull requests in
-**Linked items**. Select an issue there to open it beside the thread. Agents link the issues they
+undoes it. Hover over a thread in the sidebar to see its linked issues and pull requests.
+Select an issue to open it beside that thread. You can also open linked issues from **Thread details**. Agents link the issues they
 work on with the `link_issue` tool.
 
 Writing to a tracker over a remote connection requires the `source-control:write` scope.

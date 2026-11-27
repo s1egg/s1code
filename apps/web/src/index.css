@@ -1841,50 +1841,46 @@ body {
   background-attachment: fixed, fixed, fixed, fixed, scroll;
 }
 
-/* Static corner glows behind the dark window, tinted by the theme accent; Settings → Appearance
-   scales them with --background-glow. Touch browsers skip them: they draw fixed backgrounds per
-   element, so stacked panes would not line up. --app-glow always holds four layers so the
-   per-layer lists in surface-grain keep the grain on the fifth. */
+/* Static corner glows behind the window, tinted by the theme accent; Settings → Appearance
+   scales them with --background-glow, and light appearance paints them at a quarter of that.
+   Touch browsers skip them: they draw fixed backgrounds per element, so stacked panes would not
+   line up. --app-glow always holds four layers so the per-layer lists in surface-grain keep the
+   grain on the fifth. */
 :root {
   --app-glow: none, none, none, none;
   --glow-accent: var(--app-theme-accent, var(--primary));
   --glow-secondary: oklch(from var(--glow-accent) l c calc(h - 25));
   --glow-tertiary: oklch(from var(--glow-accent) l c calc(h + 25));
+  --glow-strength: calc(var(--background-glow) * 0.25);
+
+  @variant dark {
+    --glow-strength: var(--background-glow);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
   :root {
-    @variant dark {
-      --app-glow:
-        radial-gradient(
-          42% 55% at 0% 0%,
-          color-mix(in srgb, var(--glow-accent) var(--background-glow), transparent),
-          transparent 70%
-        ),
-        radial-gradient(
-          40% 50% at 100% 100%,
-          color-mix(
-            in srgb,
-            var(--glow-secondary) calc(var(--background-glow) * 0.57),
-            transparent
-          ),
-          transparent 70%
-        ),
-        radial-gradient(
-          30% 40% at 62% -8%,
-          color-mix(
-            in srgb,
-            var(--glow-secondary) calc(var(--background-glow) * 0.57),
-            transparent
-          ),
-          transparent 70%
-        ),
-        radial-gradient(
-          34% 44% at 6% 100%,
-          color-mix(in srgb, var(--glow-tertiary) calc(var(--background-glow) * 0.43), transparent),
-          transparent 70%
-        );
-    }
+    --app-glow:
+      radial-gradient(
+        42% 55% at 0% 0%,
+        color-mix(in srgb, var(--glow-accent) var(--glow-strength), transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        40% 50% at 100% 100%,
+        color-mix(in srgb, var(--glow-secondary) calc(var(--glow-strength) * 0.57), transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        30% 40% at 62% -8%,
+        color-mix(in srgb, var(--glow-secondary) calc(var(--glow-strength) * 0.57), transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        34% 44% at 6% 100%,
+        color-mix(in srgb, var(--glow-tertiary) calc(var(--glow-strength) * 0.43), transparent),
+        transparent 70%
+      );
   }
 }
 
@@ -2281,6 +2277,18 @@ code {
 .chat-markdown.user-message-markdown :not(pre) > code {
   background: color-mix(in srgb, var(--contrast-message-foreground) 10%, transparent);
   color: var(--contrast-message-foreground);
+}
+
+/* Accent-filled bubbles: canvas-tuned muted text and blue links would vanish into the fill, and
+   the fill leaves no contrast headroom for a dimmer shade. */
+html[data-message-bubble="filled"] [data-user-message-bubble] {
+  --contrast-muted-foreground: var(--contrast-message-foreground);
+  --info-foreground: var(--contrast-message-foreground);
+
+  & .chat-markdown a:not(.chat-markdown-file-link, :has([data-slot="context-chip-label"])) {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
 }
 
 .chat-markdown strong {

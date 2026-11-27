@@ -139,7 +139,6 @@ export function useThreadActionMenu(input: {
       canFind: onFind !== undefined,
       canRename: onStartRename !== undefined,
       branch: thread.branch ?? null,
-      projectFilter: null,
       isPinned: thread.pinnedAt != null,
       isSettled: supports.settlement && thread.settledOverride === "settled",
       autoSettleEnabled: thread.autoSettleDisabledAt == null,

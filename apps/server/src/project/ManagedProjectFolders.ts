@@ -281,17 +281,25 @@ const make = Effect.gen(function* () {
     Effect.onInterrupt(() => invalidate),
   );
   // A symlinked scratch folder lets the No project live at either the link or its target.
-  const scratchProjectRoot = (root: string) =>
-    fileSystem.realPath(root).pipe(
-      Effect.flatMap((target) =>
-        target === root
-          ? Effect.succeed(root)
-          : projects
-              .getByWorkspaceRoot(target)
-              .pipe(Effect.map((project) => (Option.isSome(project) ? target : root))),
-      ),
-      Effect.orElseSucceed(() => root),
-    );
+  const scratchProjectRoot = Effect.fn("ManagedProjectFolders.scratchProjectRoot")(
+    function* (root: string) {
+      const target = yield* fileSystem.realPath(root);
+      if (target === root) return root;
+      if (Option.isSome(yield* projects.getByWorkspaceRoot(target))) return target;
+      // The stored target may itself use an alias, such as /var on macOS.
+      const link = yield* fileSystem.readLink(root);
+      const storedTarget = path.resolve(path.dirname(root), link);
+      if (
+        storedTarget !== target &&
+        Option.isSome(yield* projects.getByWorkspaceRoot(storedTarget)) &&
+        (yield* fileSystem.realPath(storedTarget)) === target
+      ) {
+        return storedTarget;
+      }
+      return root;
+    },
+    (effect, root) => Effect.orElseSucceed(effect, () => root),
+  );
   const scratchRoot = scratchProbe.pipe(
     Effect.flatMap((probed) =>
       Result.isSuccess(probed)

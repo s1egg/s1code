@@ -215,6 +215,12 @@ export function useThreadListV2(input: {
       buildThreadListV2ListItems({
         items: layout.items,
         pendingTasks,
+        pinnedCount: layout.pinnedCount,
+        pinnedHeaderIndex: layout.pinnedHeaderIndex,
+        reviewCount: layout.reviewCount,
+        reviewHeaderIndex: layout.reviewHeaderIndex,
+        earlierCount: layout.earlierCount,
+        earlierHeaderIndex: layout.earlierHeaderIndex,
         workingCount: layout.workingCount,
         workingShelfExpanded: input.workingShelfExpanded,
         workingShelfHeaderIndex: layout.workingShelfHeaderIndex,

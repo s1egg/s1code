@@ -327,7 +327,7 @@ describe("newTaskDestination", () => {
     });
   });
 
-  it("opens the picker for an archived last project, but keeps an archived current one", () => {
+  it("opens the picker when the current or last project is archived", () => {
     const archived = { ...makeProject("archived"), archivedAt: "2026-01-01T00:00:00.000Z" };
     expect(
       destination({
@@ -336,9 +336,9 @@ describe("newTaskDestination", () => {
         last: { environmentId: "environment", projectId: "archived" },
       }),
     ).toEqual(picker);
-    expect(destination({ useLastProject: true, projects: [archived], current: archived })).toEqual({
-      draft: { requestId: "request", environmentId: "environment", projectId: "archived" },
-    });
+    expect(destination({ useLastProject: true, projects: [archived], current: archived })).toEqual(
+      picker,
+    );
   });
 
   it("treats an unset preference as on", () => {

@@ -7,7 +7,6 @@ import { m, type MessageResolver } from "../i18n/messages";
 export type ThreadActionMenuId =
   | "find"
   | "new-thread-on-branch"
-  | "filter-by-project"
   | "turn-into-project"
   | "project-settings"
   | "pin"
@@ -101,10 +100,6 @@ export interface ThreadActionMenuState {
   /** False where no inline title editor is rendered, such as sidebar search results. */
   readonly canRename?: boolean;
   readonly branch: string | null;
-  readonly projectFilter: {
-    readonly label: string;
-    readonly isActive: boolean;
-  } | null;
   readonly isPinned: boolean;
   readonly isSettled: boolean;
   readonly autoSettleEnabled: boolean;
@@ -238,17 +233,6 @@ export function buildThreadActionMenuItems(
       : []),
     ...(state.canShareWithGuest
       ? [{ id: "share-guest" as const, label: resolve(msg("Share with guest")), icon: "user-plus" }]
-      : []),
-    ...(state.projectFilter
-      ? [
-          {
-            id: "filter-by-project" as const,
-            label: state.projectFilter.isActive
-              ? resolve(msg("Show all projects"))
-              : resolve(msg("Filter by {project}", { project: state.projectFilter.label })),
-            icon: "folder-tree",
-          },
-        ]
       : []),
     ...(state.canTurnIntoProject
       ? [

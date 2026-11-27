@@ -57,13 +57,16 @@ it.live.each(["linked", "plain"] as const)(
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const base = yield* fs.makeTempDirectoryScoped();
-      const entry = path.join(base, "linked");
-      const first = path.join(base, "first", "themes");
-      const second = path.join(base, "second", "themes");
-      yield* fs.makeDirectory(first, { recursive: true });
-      yield* fs.makeDirectory(second, { recursive: true });
-      if (kind === "linked" && !symlinksSupported) return;
-      yield* kind === "linked" ? fs.symlink(first, entry) : fs.makeDirectory(entry);
+      // A queued native event for fixture creation would reset the backoff under test.
+      silent.root = path.resolve("/silent-watch", "backoff", kind);
+      const entry = path.join(silent.root, "userdata", "themes");
+      const target = path.join(silent.root, "tree", "first", "themes");
+      silent.links.clear();
+      if (kind === "linked") silent.links.set(entry, target);
+      const first = path.join(base, "first");
+      const second = path.join(base, "second");
+      yield* fs.makeDirectory(first);
+      yield* fs.makeDirectory(second);
       const firstIdentity = yield* fs.stat(first);
       const secondIdentity = yield* fs.stat(second);
       let identity = firstIdentity;
@@ -76,6 +79,8 @@ it.live.each(["linked", "plain"] as const)(
           FileSystem.FileSystem,
           FileSystem.FileSystem.of({
             ...fs,
+            readLink: (file) =>
+              kind === "linked" && file === entry ? Effect.succeed(target) : fs.readLink(file),
             stat: (file) =>
               file === entry
                 ? Queue.offer(events, "probe").pipe(Effect.map(() => identity))

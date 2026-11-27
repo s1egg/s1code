@@ -39,8 +39,8 @@ function SidebarColumnHeader(
     filter: {
       accessibilityLabel: gt("Filter threads"),
       icon: workspaceListFilterIcon(props.filter.customized),
-      title: gt("Thread list options"),
-      items: props.filter.items,
+      title: gt("Switch project"),
+      onPress: props.filter.onPress,
     },
     onOpenSettings: props.onOpenSettings,
     resolve: m,

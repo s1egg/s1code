@@ -4,6 +4,37 @@ Use a new thread for a separate task. Choose **New worktree** when its code chan
 need a separate branch and working directory. Threads in the same checkout share its
 branch, so S1 Code refuses a branch switch there while one of them is working.
 
+## Find your way around the sidebar
+
+On web and desktop, the sidebar has a narrow rail of projects on its left and the threads of the
+selected project beside it. Click a project in the rail to list its threads. Opening a thread
+from anywhere else, such as the command palette, a link, or a notification, selects its project.
+The rail remembers your last project on this device. A project shows a green badge while one of
+its threads works, and an amber badge while one waits on your approval, an answer, or a decision
+on its plan. Threads started without a project, and threads whose project is gone, share one
+entry at the end of the rail. An archived project stays on the rail while it still has threads or
+drafts. Right-click a project for
+**New thread**, **Copy path**, **Pin project**, and **Project settings**, and use **+** at the
+end of the rail to add a project. Settings, pull requests, issues, and usage sit at the bottom of
+the rail.
+
+On mobile, tap a project icon above the chat list to see its conversations. Open **Switch project**
+to choose a different environment or add a project. Tap a conversation to open it and use Back
+to return to the same list.
+
+The thread list groups the selected project's threads by what they need from you:
+
+- **Pinned** threads stay on top.
+- **Working** lists threads that are running or waiting on you, with what each is doing. A
+  thread waiting on an approval, an answer, or a decision on its plan shows an amber ring and
+  stays here until you respond in the thread.
+- **To review** lists threads that finished, or woke from a snooze, since you last opened them.
+- **Earlier** holds the rest, newest first.
+- **Snoozed** and **Settled** stay collapsed at the bottom until you open them.
+
+Empty groups are hidden. When a project has threads on more than one machine, each row names its
+machine. The search box searches the selected project, including its messages.
+
 ## Resize or hide the sidebar
 
 On web and desktop, drag the sidebar's right edge to resize it. Continue left past its minimum
@@ -16,14 +47,11 @@ and leaves it hidden. The sidebar toggle and shortcut still keep it open.
 
 ## Start a thread
 
-On web and desktop, **New thread** opens the project picker when you have more than one
-open project in the default or project-grouped sidebar. Archived projects don't count. **Shift-click** to start in
-the current project, or use a project's own new-thread action. A new thread carries
-your model and mode selections, unless the destination project has its own model default.
-Its branch and workspace mode come from your configured defaults. To continue in
+On web and desktop, the **+** button beside the project name in the sidebar starts a thread in
+the selected project. With **Threads without a project** selected, it opens the project picker.
+A new thread carries your model and mode selections, unless the destination project has its own
+model default. Its branch and workspace mode come from your configured defaults. To continue in
 an existing worktree, use **New thread in this worktree** from the branch toolbar.
-While the sidebar is filtered to one project, the sidebar's **New thread** button
-starts the thread in that project instead of asking which project to use.
 
 On mobile, **New thread** starts in the current thread's project, or else in the
 project the thread list is filtered to, or else in the last project you opened
@@ -93,12 +121,14 @@ scroll position instead of following the thread to its new place in the list.
 Pinning does not prevent automatic settlement. Settling a thread removes its pin.
 
 On web and desktop, drag a thread between sections to change its state. Drag a thread up into
-the pinned section to pin it at the spot you drop it; drag a pinned thread down into the active
-list to unpin it. Dragging a thread onto the **Settled** header settles it, and dragging a settled
-thread into the active list un-settles it. A snoozed thread can be dragged out of the snoozed
+the pinned section to pin it at the spot you drop it; drag a pinned thread down into **Earlier**
+to unpin it. Dragging a thread onto the **Settled** header settles it, and dragging a settled
+thread into **Earlier** un-settles it. Threads in **Working** and **To review** follow their
+run state, so you cannot drop a thread there; a **To review** thread can still be dragged up to
+pin it or onto **Settled**, and a **Working** thread only drags out onto the composer. A snoozed thread can be dragged out of the snoozed
 shelf, which wakes it, but threads cannot be dragged into the shelf because snoozing needs a wake
 time. Dragging a pinned thread out of the pinned section does not ask for unpin confirmation.
-Pinned and active boundary labels appear only while dragging, without moving the rows. The
+An empty **Pinned** or **Earlier** section shows its label only while dragging. The
 other rows slide aside to show where the thread will land. When you cross into another section,
 the dragged thread shows the action the drop performs, with its icon: **Pin**, **Unpin**,
 **Settle**, **Un-settle**, or **Wake**. Its status and hover actions hide during the drag. A pinned
@@ -108,9 +138,9 @@ edge to pin a thread. Section labels stay readable for the whole drag, and the s
 thread is over takes the accent color. Section labels also
 identify empty sections and a collapsed settled shelf.
 
-Drag within the pinned or active section to change its order. Other rows slide aside to show the
-spot where the thread will land. Drops into either section keep the position you choose. On
-mobile, open a thread's menu and choose **Arrange threads**. Drag a handle within or between
+On web and desktop, drag within the pinned section to change its order; **Earlier** lists threads
+by when each last came back to you, so its order follows that. Other rows slide aside to show the
+spot where the thread will land. On mobile, open a thread's menu and choose **Arrange threads**. Drag a handle within or between
 **Pinned** and **Active** to reorder, pin, or unpin. Drop onto the **Settled** divider to
 settle a thread. The dragged card shows the action before you release it. Expand **Snoozed**
 or **Settled** to drag a parked thread back into either live section. Each drop saves; close the sheet to return to the thread list.
@@ -122,8 +152,8 @@ On web and desktop, the list also animates section changes made with thread acti
 preference. While dragging, rows follow the insertion gap without replaying a second transition
 after the drop.
 
-New threads appear above the active threads you have arranged. Settling clears a thread's active
-position, so using **Un-settle** returns it to the top. Pinning and snoozing preserve its active
+On mobile, new threads appear above the active threads you have arranged. Settling clears a
+thread's active position, so using **Un-settle** returns it to the top. Pinning and snoozing preserve its active
 position until you move it again. Thread activity does not change the order. The settled shelf
 continues to use settlement time.
 
@@ -144,34 +174,18 @@ rename a thread, regenerate its title, or link and unlink a pull request. These 
 appear on web, desktop, and mobile without requiring the originating browser to remain
 open.
 
-### Fold working threads (beta)
+### Fold working threads on mobile (beta)
 
-Threads that are working or waiting on work they will resume from move into a collapsed
-**Working** section below the active list.
-That includes subagents, watched pull requests with checks still running, Claude monitors and
-`sleep` timers, and background commands or other monitors the agent says it is waiting on. A dev server or other process an agent leaves running does not keep a thread
-there. A thread returns to the top of the active list when it finishes, fails, or needs an approval or
-answer. The Working section lists the thread you last sent work to first. Pinned threads stay in
-the pinned section.
+On iOS and Android, threads that are working or waiting on work they will resume from move into a
+collapsed **Working** section below the active list. That includes subagents, watched pull
+requests with checks still running, Claude monitors and `sleep` timers, and background commands
+or other monitors the agent says it is waiting on. A dev server or other process an agent leaves
+running does not keep a thread there. A thread returns to the top of the active list when it
+finishes, fails, or needs an approval or answer. Pinned threads stay in the pinned section.
 
-This is on by default. Turn it off with **Settings → General → Working section** on web and desktop,
-or **Settings → General → Working section** on iOS and Android. Each device keeps its own
-choice.
-
-While this is on, the active list is ordered by when each thread last came back to you, so you
-cannot drag or move threads within it. Your saved order returns when you turn it off.
-
-### Group threads by project (beta)
-
-Turn on **Settings → Labs → Boring sidebar (group by project)** on web and desktop to put active
-threads in a folder for each project. Pinned projects come first. A project with no active
-threads has no folder unless it is pinned or you pick it in the project filter. An archived
-project's folder comes last and shows only while it has active threads. Click a folder to open or
-close it. A closed folder shows how many threads it holds, and a dot when one of them
-needs you. Use the pen button on a folder, or right-click it, to start a thread in that project.
-Pinned threads stay above the folders, and Snoozed and Settled stay below them. In this mode you
-can drag a thread onto the composer to mention it, but not within the sidebar, and the Working
-section is off. Each device keeps its own choice.
+This is on by default. Turn it off with **Settings → General → Working section**. While it is on,
+the active list is ordered by when each thread last came back to you, so you cannot move threads
+within it. Your saved order returns when you turn it off.
 
 ## Settle finished work
 

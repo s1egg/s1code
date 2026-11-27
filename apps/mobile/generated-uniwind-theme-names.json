@@ -8,5 +8,13 @@
   "ember-light",
   "ember-dark",
   "iris-light",
-  "iris-dark"
+  "iris-dark",
+  "s1-midnight-light",
+  "s1-midnight-dark",
+  "s1-graphite-light",
+  "s1-graphite-dark",
+  "s1-charcoal-light",
+  "s1-charcoal-dark",
+  "s1-deepsea-light",
+  "s1-deepsea-dark"
 ]

@@ -13,7 +13,8 @@ import { normalizeProjectPathForComparison } from "./projects.ts";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 
-const SCRATCH_PROJECT_SCOPE_KEY = "\0no-project";
+/** The project scope key every scratch project shares when scratch projects group together. */
+export const SCRATCH_PROJECT_SCOPE_KEY = "\0no-project";
 
 export interface ProjectGroupingSettings {
   readonly sidebarProjectGroupingMode: SidebarProjectGroupingMode;

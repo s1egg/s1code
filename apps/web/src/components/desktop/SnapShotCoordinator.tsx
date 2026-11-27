@@ -311,7 +311,6 @@ export function SnapShotCoordinator() {
       activeDraftThread,
       activeThread: activeThread ?? undefined,
       defaultProjectRef,
-      handleNewThread,
     });
     if (!projectRef) return null;
     const created = await handleNewThread(projectRef);

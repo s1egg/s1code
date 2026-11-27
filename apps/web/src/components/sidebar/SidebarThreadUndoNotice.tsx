@@ -11,7 +11,6 @@ import {
 import { cn } from "../../lib/utils";
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { InlineButton } from "../ui/button";
-import { SidebarMenuItem } from "../ui/sidebar";
 
 const SHORT_SUMMARY = {
   Settled: msg("{count, plural, =1 {Settled,} other {Settled {count},}}"),
@@ -21,7 +20,7 @@ const SHORT_SUMMARY = {
   Discarded: msg("{count, plural, =1 {Discarded,} other {Discarded {count},}}"),
 };
 
-/** Fills the free space in the sidebar footer's utility row, so it never moves or covers the list. */
+/** A one-line notice under the thread list, shown only while an undo is on offer. */
 export function SidebarThreadUndoNotice() {
   const notice = useThreadUndoNotice((state) => state.notice);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
@@ -36,11 +35,7 @@ export function SidebarThreadUndoNotice() {
   if (!text) return null;
 
   return (
-    <SidebarMenuItem
-      className="@container flex min-w-0 flex-1"
-      aria-hidden={!summary}
-      inert={!summary}
-    >
+    <div className="@container flex min-w-0 px-2" aria-hidden={!summary} inert={!summary}>
       <div
         onTransitionEnd={(event) => {
           if (!summary && event.target === event.currentTarget) setShownSummary(null);
@@ -63,6 +58,6 @@ export function SidebarThreadUndoNotice() {
         </InlineButton>
         <span>{text}</span>
       </div>
-    </SidebarMenuItem>
+    </div>
   );
 }

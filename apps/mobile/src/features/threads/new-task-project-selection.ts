@@ -231,16 +231,17 @@ export function newTaskDestination(options: {
   const find = (ref: ProjectRef | undefined) =>
     ref &&
     options.projects.find(
-      (project) => project.environmentId === ref.environmentId && project.id === ref.projectId,
+      (project) =>
+        project.environmentId === ref.environmentId &&
+        project.id === ref.projectId &&
+        project.archivedAt == null,
     );
-  // A remembered project that was archived since opens the picker; the current one still wins.
-  const last = find(options.lastProject);
   const project =
     options.useLastProject === false
       ? undefined
       : (find(options.currentProject) ??
         find(options.filteredProject) ??
-        (last?.archivedAt == null ? last : undefined));
+        find(options.lastProject));
   return project
     ? {
         draft: {

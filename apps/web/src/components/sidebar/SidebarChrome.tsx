@@ -1,6 +1,6 @@
 import { ArrowLeftIcon, ArrowRightIcon, ChartNoAxesColumnIcon, SettingsIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { T, useGT } from "gt-react";
+import { useGT } from "gt-react";
 import { memo } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 
@@ -25,7 +25,6 @@ import {
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
-  SidebarFooter,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -219,13 +218,14 @@ function SidebarUtilityItem({
             </SidebarMenuButton>
           }
         />
-        <TooltipPopup side="top">{label}</TooltipPopup>
+        <TooltipPopup side="right">{label}</TooltipPopup>
       </Tooltip>
     </SidebarMenuItem>
   );
 }
 
-const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
+/** The project rail's foot: the update control above the utility pages. */
+export const SidebarRailUtilities = memo(function SidebarRailUtilities() {
   const navigate = useNavigate();
   const navigateToMainApp = useNavigateToMainApp();
   const gt = useGT();
@@ -255,37 +255,22 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
     closeMobileSidebar();
     void navigate({ to: "/settings" });
   };
-
   const handleUsageClick = () => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
+    closeMobileSidebar();
     void navigate({ to: "/usage" });
   };
-
   const handleBackClick = () => {
     closeMobileSidebar();
     void navigateToMainApp();
   };
 
   return (
-    <SidebarMenu className="flex-row items-center">
+    <SidebarMenu className="items-center">
+      <SidebarUpdatePill />
       {isOnUtilityPage ? (
-        <SidebarMenuItem className="min-w-0 flex-1">
-          <SidebarMenuButton onClick={handleBackClick}>
-            <ArrowLeftIcon />
-            <span>
-              <T>Back</T>
-            </span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+        <SidebarUtilityItem icon={<ArrowLeftIcon />} label={gt("Back")} onClick={handleBackClick} />
       ) : (
         <>
-          <SidebarUtilityItem
-            icon={<SettingsIcon />}
-            label={gt("Settings")}
-            onClick={handleSettingsClick}
-          />
           {pullRequestsSupported ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
@@ -305,20 +290,24 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
             label={gt("Usage")}
             onClick={handleUsageClick}
           />
+          <SidebarUtilityItem
+            icon={<SettingsIcon />}
+            label={gt("Settings")}
+            onClick={handleSettingsClick}
+          />
         </>
       )}
-      <SidebarThreadUndoNotice />
-      <SidebarUpdatePill />
     </SidebarMenu>
   );
 });
 
-export const SidebarChromeFooter = memo(function SidebarChromeFooter() {
+/** Notices under the thread list. Takes no room while none shows. */
+export const SidebarNotices = memo(function SidebarNotices() {
   return (
-    <SidebarFooter>
+    <div className="flex flex-col gap-2 px-2 pt-1 pb-2 empty:hidden">
       <SidebarProviderUpdatePill />
       <SidebarUpdateArchitectureWarning />
-      <SidebarUtilityMenu />
-    </SidebarFooter>
+      <SidebarThreadUndoNotice />
+    </div>
   );
 });

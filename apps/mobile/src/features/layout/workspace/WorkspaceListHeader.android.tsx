@@ -82,7 +82,8 @@ export function WorkspaceListHeader(props: WorkspaceListHeaderProps) {
               {
                 title: gt("Filter threads"),
                 icon: workspaceListFilterIcon(props.filter.customized),
-                items: props.filter.items,
+                items: [],
+                onPress: props.filter.onPress,
               },
             ]
           : undefined

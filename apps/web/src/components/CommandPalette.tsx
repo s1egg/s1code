@@ -153,11 +153,7 @@ import {
   waitForProject,
 } from "../state/entities";
 import { isShownUnderParent, visibleLinkedThreads } from "@s1tools/client-runtime/state/threads";
-import {
-  resolveThreadActionProjectRef,
-  startNewThreadFromContext,
-  threadHasStarted,
-} from "../lib/chatThreadActions";
+import { resolveThreadActionProjectRef, threadHasStarted } from "../lib/chatThreadActions";
 import {
   appendBrowsePathSegment,
   findProjectByPath,
@@ -395,7 +391,7 @@ function CommandPaletteDialog(props: {
             ? gt("Search project contents")
             : gt("Command palette")
       }
-      className={cn("overflow-hidden", props.mode === "content" && "h-105")}
+      className={cn("max-w-2xl overflow-hidden", props.mode === "content" && "h-105")}
       data-command-palette="true"
       data-palette-mode={props.mode}
       data-testid="command-palette"
@@ -593,7 +589,6 @@ function OpenCommandPaletteDialog(props: {
     activeDraftThread,
     activeThread: activeThread ?? undefined,
     defaultProjectRef,
-    handleNewThread,
   });
   const projectPickerEntries = buildSidebarProjectPickerEntries({
     groups: pickableProjectGroups(projectGroups),
@@ -1350,12 +1345,9 @@ function OpenCommandPaletteDialog(props: {
   const actionItems: Array<CommandPaletteActionItem | CommandPaletteSubmenuItem> = [];
 
   if (projects.length > 0) {
-    const activeProjectTitle =
-      projectPickerEntries.find((entry) => entry.isPreferred)?.group.displayName ??
-      currentProject?.title ??
-      null;
-
-    if (activeProjectTitle) {
+    const preferredEntry = projectPickerEntries.find((entry) => entry.isPreferred);
+    if (preferredEntry) {
+      const activeProjectTitle = preferredEntry.group.displayName;
       actionItems.push({
         kind: "action",
         value: "action:new-thread",
@@ -1372,12 +1364,8 @@ function OpenCommandPaletteDialog(props: {
         icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
         shortcutCommand: "chat.newLocal",
         run: async () => {
-          await startNewThreadFromContext({
-            activeDraftThread,
-            activeThread: activeThread ?? undefined,
-            defaultProjectRef,
-            handleNewThread,
-          });
+          const project = preferredEntry.targetProject;
+          await handleNewThread(scopeProjectRef(project.environmentId, project.id));
         },
       });
     }
@@ -2046,10 +2034,25 @@ function OpenCommandPaletteDialog(props: {
     if (existing) {
       // Adding an archived project's folder again brings the project back.
       if (existing.archivedAt != null) {
-        void updateProject({
+        const restored = await updateProject({
           environmentId: existing.environmentId,
           input: { projectId: existing.id, archived: false },
-        }).then((result) => reportProjectFailure(gt("Failed to unarchive project"), result));
+        });
+        if (restored._tag === "Failure") {
+          reportProjectFailure(gt("Failed to unarchive project"), restored);
+          return;
+        }
+        const arrived = await settlePromise(() =>
+          waitForProject(
+            scopeProjectRef(existing.environmentId, existing.id),
+            10_000,
+            (copy) => copy.archivedAt == null,
+          ),
+        );
+        if (arrived._tag === "Failure") {
+          reportProjectFailure(gt("Failed to open project"), arrived);
+          return;
+        }
       }
       const latestThread = getLatestThreadForProject(
         threads.filter((thread) => thread.environmentId === existing.environmentId),

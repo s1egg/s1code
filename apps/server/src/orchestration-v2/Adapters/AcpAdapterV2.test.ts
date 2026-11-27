@@ -7408,7 +7408,8 @@ describe("AcpAdapterV2", () => {
 
   it.effect.each([
     {
-      label: "answers Always allow with the agent's allow-always option",
+      label: "answers an explicit persistent grant with the agent's allow-always option",
+      decision: "acceptAlways",
       options: [
         { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
         { optionId: "allow-always", name: "Always allow", kind: "allow_always" },
@@ -7417,15 +7418,18 @@ describe("AcpAdapterV2", () => {
       optionId: "allow-always",
     },
     {
-      label: "answers Always allow with allow-once when the agent offers no allow-always option",
+      label: "never widens a stale session approval to a persistent rule",
+      decision: "acceptForSession",
       options: [
         { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
+        { optionId: "persistent", name: "Always allow", kind: "allow_always" },
         { optionId: "reject-once", name: "Reject", kind: "reject_once" },
       ],
       optionId: "allow-once",
     },
     {
-      label: "answers Always allow with the agent's option id unchanged when it has spaces",
+      label: "returns the one-time option id unchanged when it has spaces",
+      decision: "accept",
       options: [
         { optionId: " opaque-choice ", name: "Allow once", kind: "allow_once" },
         { optionId: "reject-once", name: "Reject", kind: "reject_once" },
@@ -7433,14 +7437,15 @@ describe("AcpAdapterV2", () => {
       optionId: " opaque-choice ",
     },
     {
-      label: "answers Always allow with a whitespace-only option id instead of cancelling",
+      label: "returns a whitespace-only one-time option id instead of cancelling",
+      decision: "accept",
       options: [
         { optionId: " ", name: "Allow once", kind: "allow_once" },
         { optionId: "reject-once", name: "Reject", kind: "reject_once" },
       ],
       optionId: " ",
     },
-  ] as const)("$label", ({ options, optionId }) =>
+  ] as const)("$label", ({ options, optionId, decision }) =>
     Effect.gen(function* () {
       const childProcessSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
       const selfInvocation = yield* resolveSelfInvocation();
@@ -7516,25 +7521,34 @@ describe("AcpAdapterV2", () => {
         },
         { requestId: "always-allow-request", method: "session/request_permission" },
       ).pipe(Effect.forkScoped);
-      const pending = Option.getOrThrow(
+      const event = Option.getOrThrow(
         yield* runtime.events.pipe(
           Stream.filter(
             (event) =>
-              event.type === "runtime_request.updated" && event.runtimeRequest.status === "pending",
+              event.type === "turn_item.updated" && event.turnItem.type === "approval_request",
           ),
           Stream.runHead,
         ),
       );
       if (
-        pending.type !== "runtime_request.updated" ||
-        pending.runtimeRequest.providerTurnId === null
+        event.type !== "turn_item.updated" ||
+        event.turnItem.type !== "approval_request" ||
+        event.turnItem.providerTurnId === null
       ) {
-        return yield* Effect.die("Expected an ACP approval request");
+        return yield* Effect.die("Expected an ACP approval card");
       }
+      const approval = event.turnItem;
+      const providerTurnId = event.turnItem.providerTurnId;
+      assert.deepEqual(
+        approval.options?.map((option) => option.decision),
+        options.some((option) => option.kind === "allow_always")
+          ? ["accept", "acceptAlways", "decline", "cancel"]
+          : ["accept", "decline", "cancel"],
+      );
       const responseFiber = yield* runtime
         .respondToRuntimeRequest({
-          requestId: pending.runtimeRequest.id,
-          decision: "acceptForSession",
+          requestId: approval.requestId,
+          decision,
         })
         .pipe(Effect.forkScoped);
       const { outcome } = yield* Fiber.join(permissionFiber);
@@ -7546,7 +7560,7 @@ describe("AcpAdapterV2", () => {
 
       yield* runtime.interruptTurn({
         providerThread,
-        providerTurnId: pending.runtimeRequest.providerTurnId,
+        providerTurnId,
       });
       yield* Fiber.join(turnFiber);
       assert.deepEqual(outcome, { outcome: "selected", optionId });

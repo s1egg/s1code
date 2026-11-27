@@ -4,7 +4,7 @@ import { expect } from "e2e";
 import { test, WEB } from "./s1.ts";
 
 test(
-  "The project folder for threads without a project follows the app language",
+  "The rail tile for threads without a project follows the app language",
   WEB,
   async ({ s1, app, browser, screen }) => {
     const project = await s1.project("scenario-scratch");
@@ -66,25 +66,15 @@ test(
       } as typeof WebSocket.prototype.addEventListener;
     }, project);
 
-    await s1.open("/settings/labs");
-    await screen.getByLabel("Boring sidebar (group by project)", { exact: true }).tap();
-    await screen.getByLabel("Two-line folder rows", { exact: true }).waitFor();
-
-    await s1.open("/settings/general");
-    const openFolder = screen.getByTestId("sidebar-project-folder");
-    await expect(openFolder).toContainText("No project", { timeout: 60_000 });
+    // The rail tile's name gains a status after it while the thread works.
+    await s1.open(thread);
+    await screen.getByRole("button", /^Threads without a project/).waitFor({ timeout: 60_000 });
+    await screen.getByRole("button", "Settings", { exact: true }).tap();
     await screen.getByLabel("Language", { exact: true }).tap();
     await screen.getByText("日本語", { exact: true }).tap();
     await screen.getByLabel("言語", { exact: true }).waitFor();
-    // Settings leaves the sidebar mounted. Keep this failure through the capture after reopening.
-    await expect.soft(openFolder).toContainText("プロジェクトなし");
-
-    await s1.open(thread);
-    const folder = screen.getByTestId("sidebar-project-folder");
-    await folder.getByText(/^(?:No project|プロジェクトなし)$/, { exact: true }).waitFor({
-      timeout: 60_000,
-    });
-    await app.screenshot("scratch-folder-in-japanese");
-    await expect(folder).toContainText("プロジェクトなし");
+    await browser.keyboard.press("Escape");
+    await expect(screen.getByRole("button", /^プロジェクトなしのスレッド/)).toBeVisible();
+    await app.screenshot("scratch-tile-in-japanese");
   },
 );

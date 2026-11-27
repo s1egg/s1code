@@ -48,6 +48,8 @@ export interface AppBarMenu {
   readonly status?: string;
   readonly separateBackground?: boolean;
   readonly items: ReadonlyArray<AppBarMenuItem>;
+  /** Android: the button opens its own picker, such as a sheet, instead of listing `items`. */
+  readonly onPress?: () => void;
 }
 
 export interface AppBarConfirm {

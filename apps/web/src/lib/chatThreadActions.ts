@@ -18,23 +18,10 @@ interface ThreadContextLike {
   projectId: ProjectId;
 }
 
-interface NewThreadHandler {
-  (
-    projectRef: ScopedProjectRef,
-    options?: {
-      branch?: string | null;
-      worktreePath?: string | null;
-      envMode?: DraftThreadEnvMode;
-      startFromOrigin?: boolean;
-    },
-  ): Promise<unknown>;
-}
-
 export interface ChatThreadActionContext {
   readonly activeDraftThread: ThreadContextLike | null;
   readonly activeThread: ThreadContextLike | undefined;
   readonly defaultProjectRef: ScopedProjectRef | null;
-  readonly handleNewThread: NewThreadHandler;
 }
 
 export function resolveNewDraftStartFromOrigin(input: {
@@ -99,16 +86,4 @@ export function resolveThreadActionProjectRef(
     );
   }
   return context.defaultProjectRef;
-}
-
-export async function startNewThreadFromContext(
-  context: ChatThreadActionContext,
-): Promise<boolean> {
-  const projectRef = resolveThreadActionProjectRef(context);
-  if (!projectRef) {
-    return false;
-  }
-
-  await context.handleNewThread(projectRef);
-  return true;
 }
