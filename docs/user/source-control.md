@@ -16,7 +16,7 @@ them. Paths in the diff start at the thread's folder, so the same file name in t
 stays apart. This works when the project folder itself is not a Git repository; the branch
 comparison and uncommitted changes read one repository at a time, chosen from the same picker.
 
-The thread details panel lists each repository the thread has changed, most recent first, with its
+Thread details list each repository the thread has changed, most recent first, with its
 branch and uncommitted changes. Expand one to commit, push, or open a pull request in that
 repository; a pull request opened there, or already open for its branch when a turn ends, is linked
 to the thread. **Other repositories...** adds any other repository of the project to the list until you
@@ -228,7 +228,7 @@ instructions to commits and pull requests.
 
 ## Review and merge
 
-Open **Pull requests** to review changes and comments, request reviewers, check out a branch,
+Open **Pull requests** from the command palette to review changes and comments, request reviewers, check out a branch,
 or merge. You can edit review titles and descriptions and your own comments where the host allows it.
 Where you can edit a description, you can also tick its checkboxes from the Summary tab
 (the Overview tab on mobile).
@@ -392,7 +392,7 @@ failed reads in a row, or when you press Stop on the thread. A rate limit only p
 Settling or archiving a thread also ends all its watches. Unsettle the thread before starting a new
 watch. Watching a pull request again does not repeat check or conflict news its last
 watch already reported; unlinking the pull request clears that. Subagents cannot watch pull requests; the thread that delegated to them does. To start or stop
-it yourself, use the row menu in the **Linked items** panel. In the thread details card, a
+it yourself, use the row menu in the **Linked items** panel. In thread details, a
 watched pull request shows an eye; click it to stop watching.
 
 A watched thread counts as working while the pull request still has checks running, so it stays in
@@ -410,8 +410,8 @@ out from the matching organization and repository.
 ## Issues
 
 The Issues page lists the issues of every project whose remote is on GitHub, GitLab, Azure
-DevOps or Forgejo, grouped per tracker account. Open it from the sidebar's utility row or with
-**Open issues** in the command palette. Filter by open or closed, by your involvement
+DevOps or Forgejo, grouped per tracker account. Open it with **Open issues** in the command
+palette. Filter by open or closed, by your involvement
 (assigned, opened by you, mentioning you), and by tracker. Under **Projects**, uncheck the
 projects you do not want to see; the list remembers them, and a project you add later shows.
 The search box asks the tracker itself where it can search. Press **Load more** at the end of a group to read further back.

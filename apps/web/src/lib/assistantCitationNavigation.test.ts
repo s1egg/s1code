@@ -149,7 +149,7 @@ const sideChatShell = {
 };
 
 function resetRightPanels() {
-  useRightPanelStore.setState({ byThreadKey: {}, threadPanelVisibilityByThreadKey: {} });
+  useRightPanelStore.setState({ byThreadKey: {} });
 }
 
 /** What the route-level ChatView does once the side chat shell is known. */

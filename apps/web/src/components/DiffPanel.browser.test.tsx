@@ -142,7 +142,7 @@ function setup(failedBaseRef: string | null) {
       branchBaseRefByThreadKey: {},
     });
     useDiffPanelSessionStore.setState({ collapsedFileKeysByScopeKey: {} });
-    useRightPanelStore.setState({ byThreadKey: {}, threadPanelVisibilityByThreadKey: {} });
+    useRightPanelStore.setState({ byThreadKey: {} });
   };
   reset();
   state.diffFilesCollapsed = false;

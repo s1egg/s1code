@@ -66,6 +66,7 @@ import { RightPanelTabs } from "~/components/RightPanelTabs";
 import { WorkspaceBreadcrumb, WorkspaceBreadcrumbItem } from "~/components/WorkspaceBreadcrumb";
 import { WorkspacePageContainer } from "~/components/WorkspacePageContainer";
 import { WorkspacePageHeader } from "~/components/WorkspacePageHeader";
+import { MainAppBackButton } from "~/components/sidebar/MainAppBackButton";
 import { PanelLayoutControls } from "~/components/chat/PanelLayoutControls";
 import { Button } from "~/components/ui/button";
 import {
@@ -670,6 +671,7 @@ export function IssuesPage() {
             reserveNativeControls={!rightPanelState.isOpen}
             className="relative bg-background"
           >
+            <MainAppBackButton />
             <WorkspaceBreadcrumb ariaLabel={gt("Issues breadcrumb")}>
               <WorkspaceBreadcrumbItem current>
                 <h1 className="truncate">
@@ -689,7 +691,7 @@ export function IssuesPage() {
                 terminalOpen={false}
                 terminalShortcutLabel={null}
                 threadPanelOpen={false}
-                threadPanelPresentation="inline"
+                threadPanelPresentation="docked"
                 threadPanelShortcutLabel={null}
                 onToggleThreadPanel={() => undefined}
                 rightPanelAvailable={panelSurface !== null}

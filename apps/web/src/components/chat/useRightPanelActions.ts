@@ -19,11 +19,9 @@ import {
 } from "@s1tools/client-runtime/state/runtime";
 import { useDiffPanelStore } from "../../diffPanelStore";
 import { type ThreadPanelPresentation } from "../../rightPanelLayout";
-import {
-  selectThreadPanelOpen,
-  type RightPanelSurface,
-  useRightPanelStore,
-} from "../../rightPanelStore";
+import { type RightPanelSurface, useRightPanelStore } from "../../rightPanelStore";
+import { getClientSettings, updateClientSettings } from "../../hooks/useSettings";
+import { useThreadDetailsStore } from "./threadDetailsStore";
 import { requestWorkspaceContentFocus, requestWorkspaceFocus } from "../../lib/workspaceFocus";
 import { setActivePreviewTab } from "../../previewStateStore";
 import { isBrowserSettingsReadError } from "../../browser/openFileInPreview";
@@ -249,18 +247,16 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
   const toggleRightPanelStable = useStableCallback(toggleRightPanel);
   const toggleThreadPanel = () => {
     if (!activeThreadRef) return;
-    const store = useRightPanelStore.getState();
-    if (threadPanelPresentation === "inline") {
-      const open = selectThreadPanelOpen(
-        store.threadPanelVisibilityByThreadKey,
-        activeThreadRef,
-        "inline",
-      );
-      if (!open) requestWorkspaceFocus({ area: "details" });
-      else if (document.activeElement?.closest('[data-workspace-area="details"]'))
-        requestWorkspaceContentFocus();
+    if (threadPanelPresentation === "popover") {
+      const store = useThreadDetailsStore.getState();
+      store.setPopoverOpen(!store.popoverOpen);
+      return;
     }
-    store.toggleThreadPanel(activeThreadRef, threadPanelPresentation);
+    const open = getClientSettings().threadDetailsOpen;
+    if (!open) requestWorkspaceFocus({ area: "details" });
+    else if (document.activeElement?.closest('[data-workspace-area="details"]'))
+      requestWorkspaceContentFocus();
+    void updateClientSettings({ threadDetailsOpen: !open });
   };
   const toggleThreadPanelStable = useStableCallback(toggleThreadPanel);
   const toggleRightPanelMaximized = () => {
