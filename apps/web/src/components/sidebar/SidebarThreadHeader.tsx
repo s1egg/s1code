@@ -58,7 +58,8 @@ export function SidebarThreadHeader({
               />
             }
           >
-            <PlusIcon />
+            {/* Hover and keyboard focus turn the plus and tint it with the accent; a press stays neutral. */}
+            <PlusIcon className="transition-[rotate,color] duration-200 ease-out motion-reduce:transition-none [button:focus-visible>&]:rotate-90 [button:focus-visible:not(:active)>&]:text-theme-accent [@media(hover:hover)]:[button:hover>&]:rotate-90 [@media(hover:hover)]:[button:hover:not(:active)>&]:text-theme-accent" />
           </TooltipTrigger>
           <TooltipPopup side="top">{newThreadLabel}</TooltipPopup>
         </Tooltip>

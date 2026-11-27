@@ -1,15 +1,17 @@
 import type { ContextMenuSource } from "@s1tools/contracts";
 import { useGT } from "gt-react";
 import { MessagesSquareIcon, PlusIcon } from "lucide-react";
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 
 import { contextMenuSourceOf, openContextMenuFromKeyboard } from "../../contextMenuSource";
+import { useEntranceOnce } from "../../hooks/useEntranceOnce";
 import { cn } from "../../lib/utils";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
 import type { SidebarRailEntry, SidebarRailStatus } from "../Sidebar.logic";
 import { ProjectFavicon } from "../ProjectFavicon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SidebarRailUtilities } from "./SidebarChrome";
+import { SidebarRunGlyph } from "./SidebarRunGlyph";
 
 function RailTile(props: {
   label: string;
@@ -27,6 +29,7 @@ function RailTile(props: {
         ? gt("A thread is working")
         : null;
   const label = statusLabel ? `${props.label} · ${statusLabel}` : props.label;
+  const runEntrance = useEntranceOnce(props.status === "running");
   return (
     <Tooltip>
       <TooltipTrigger
@@ -38,11 +41,7 @@ function RailTile(props: {
             onClick={props.onClick}
             onContextMenu={props.onContextMenu}
             onKeyDown={props.onContextMenu ? openContextMenuFromKeyboard : undefined}
-            className={cn(
-              "group/rail-tile relative grid h-10 w-full shrink-0 cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-              props.selected &&
-                "before:absolute before:top-1/2 before:left-1 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-sidebar-foreground/85",
-            )}
+            className="group/rail-tile relative grid h-10 w-full shrink-0 cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           />
         }
       >
@@ -55,13 +54,17 @@ function RailTile(props: {
           )}
         >
           {props.children}
-          {props.status !== null ? (
+          {props.status === "waiting" ? (
             <span
               aria-hidden
-              className={cn(
-                "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-sidebar",
-                props.status === "waiting" ? "bg-warning" : "bg-sidebar-foreground/65",
-              )}
+              className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-sidebar bg-warning"
+            />
+          ) : props.status === "running" ? (
+            <SidebarRunGlyph
+              waiting={false}
+              twinkle={runEntrance.playing}
+              onAnimationEnd={runEntrance.onAnimationEnd}
+              className="absolute -right-0.75 -bottom-0.75 size-3 stroke-sidebar stroke-4"
             />
           ) : null}
         </span>
@@ -72,8 +75,9 @@ function RailTile(props: {
 }
 
 /**
- * The project rail beside the thread list: one tile per project, the selected one ringed,
- * a badge while one of its threads works or waits on the user, then the utility pages.
+ * The project rail beside the thread list: one tile per project, the selected one ringed and
+ * marked by a bar that slides between tiles, a badge while one of its threads works or waits
+ * on the user, then the utility pages.
  */
 export function SidebarProjectRail(props: {
   entries: ReadonlyArray<SidebarRailEntry<SidebarProjectSnapshot>>;
@@ -87,12 +91,23 @@ export function SidebarProjectRail(props: {
   onAddProject: () => void;
 }) {
   const gt = useGT();
+  const selectedIndex = props.entries.findIndex((entry) => entry.key === props.selectedKey);
   return (
     <nav
       aria-label={gt("Projects")}
       className="flex w-15 shrink-0 flex-col items-center gap-2 pt-1 pb-2"
     >
-      <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1.5 overflow-y-auto pt-1 pb-1 [scrollbar-width:none]">
+      <div className="relative flex min-h-0 w-full flex-1 flex-col items-center gap-1.5 overflow-y-auto pt-1 pb-1 [scrollbar-width:none]">
+        {selectedIndex === -1 ? null : (
+          // One bar for the whole rail, so a selection change slides it instead of swapping it.
+          // Tiles are h-10 with a gap-1.5, so tile N sits N × 2.875rem below the first.
+          <span
+            aria-hidden
+            data-rail-selection-bar={selectedIndex}
+            style={{ "--rail-index": selectedIndex } as CSSProperties}
+            className="pointer-events-none absolute top-4 left-1 h-4 w-0.5 translate-y-[calc(var(--rail-index)*2.875rem)] rounded-full bg-theme-accent transition-transform duration-200 ease-out motion-reduce:transition-none"
+          />
+        )}
         {props.entries.map((entry) => {
           const group = entry.group;
           const selected = entry.key === props.selectedKey;

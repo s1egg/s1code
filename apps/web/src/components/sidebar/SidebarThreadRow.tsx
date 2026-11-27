@@ -7,6 +7,7 @@ import { contextMenuSourceOf } from "../../contextMenuSource";
 import { requestCustomSnooze } from "../CustomSnoozeDialog";
 import { useSupportsMultiplePullRequests } from "~/hooks/useSupportsMultiplePullRequests";
 import { useDeadlinePassed } from "~/hooks/useDeadline";
+import { useEntranceOnce } from "~/hooks/useEntranceOnce";
 import { useDraggable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -109,6 +110,7 @@ import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { getTriggerDisplayModelName } from "../chat/providerIconUtils";
 import { shouldShowInstanceBadge, type ProviderInstanceEntry } from "../../providerInstances";
 import { useThreadRunningTerminalIds } from "../../state/terminalSessions";
+import { SidebarRunGlyph } from "./SidebarRunGlyph";
 import { Kbd } from "../ui/kbd";
 import { Menu, MenuItem, MenuItemDetail, MenuPopup, MenuSeparator, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -803,6 +805,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const needsUser =
     status === "approval" || status === "input" || status === "request" || planReady;
   const isRunning = status === "preparing" || status === "working";
+  const runEntrance = useEntranceOnce(isRunning);
   const detailsTooltip = (
     <SidebarThreadTooltip
       thread={checkoutThread}
@@ -938,6 +941,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
 
   const isSettledRow = variantAction === "unsettle";
   const isSnoozedRow = variantAction === "unsnooze";
+  const showsUnreadDot = isUnread && !isSettledRow && !props.isReviewRow;
+  const unreadEntrance = useEntranceOnce(showsUnreadDot);
   const rowSurfaceClassName = cn(
     "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
     props.isActive
@@ -1090,7 +1095,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     </span>
   ) : isRunning ? (
     <span className="inline-flex items-center gap-1.5 text-2xs text-secondary-label tabular-nums">
-      <SidebarRunGlyph waiting={false} className="size-3.5" />
+      <SidebarRunGlyph
+        waiting={false}
+        twinkle={runEntrance.playing}
+        onAnimationEnd={runEntrance.onAnimationEnd}
+        className="size-3.5"
+      />
       {/* Rows far outside the scroller leave the shared second tick. */}
       {leaseLiveStatus ? (
         <WorkingDuration
@@ -1114,8 +1124,14 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         status === "failed" ? "text-error-foreground" : "text-warning-foreground",
       )}
     />
-  ) : isUnread && !isSettledRow && !props.isReviewRow ? (
-    <span aria-hidden className="mx-0.5 size-1.5 rounded-full bg-sidebar-foreground/45" />
+  ) : showsUnreadDot ? (
+    <span
+      aria-hidden
+      data-unread-dot=""
+      data-pop-in={unreadEntrance.playing ? "" : undefined}
+      onAnimationEnd={unreadEntrance.onAnimationEnd}
+      className="mx-0.5 size-1.5 rounded-full bg-sidebar-foreground/45 data-pop-in:sidebar-pop-in"
+    />
   ) : (
     <span className="text-2xs text-secondary-label">
       <RelativeTimeLabel
@@ -1296,46 +1312,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     </li>
   );
 });
-
-/**
- * A static ring: an open arc while the agent runs, a closed amber ring while it waits on
- * the user. Static on purpose; a spinning glyph would repaint every frame.
- */
-function SidebarRunGlyph(props: { waiting: boolean; className: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      fill="none"
-      className={cn(
-        "shrink-0",
-        props.waiting ? "text-warning-foreground" : "text-sidebar-foreground/65",
-        props.className,
-      )}
-    >
-      {props.waiting ? (
-        <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="2.5" />
-      ) : (
-        <>
-          <circle
-            cx="8"
-            cy="8"
-            r="5.5"
-            stroke="currentColor"
-            strokeOpacity="0.2"
-            strokeWidth="2.5"
-          />
-          <path
-            d="M8 2.5A5.5 5.5 0 1 1 2.5 8"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          />
-        </>
-      )}
-    </svg>
-  );
-}
 
 // Attached only to the highlighted result, so React calls it each time the
 // highlight lands on a different row: a new query, late rows replacing the first
