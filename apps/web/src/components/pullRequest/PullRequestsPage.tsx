@@ -1216,7 +1216,7 @@ export function PullRequestsPage() {
       terminalOpen={false}
       terminalShortcutLabel={null}
       threadPanelOpen={false}
-      threadPanelPresentation="inline"
+      threadPanelPresentation="docked"
       threadPanelShortcutLabel={null}
       onToggleThreadPanel={() => undefined}
       rightPanelAvailable={rightPanelAvailable}

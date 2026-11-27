@@ -1,7 +1,7 @@
 import {
+  ListIcon,
   PanelBottomIcon,
   PanelRightIcon,
-  SquareMenuIcon,
   Maximize2Icon,
   Minimize2Icon,
 } from "lucide-react";
@@ -68,7 +68,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
       variant="ghost"
       size="sm"
     >
-      <SquareMenuIcon className="size-4" />
+      <ListIcon className="size-4" />
     </Toggle>
   );
   const threadPanelControl = (

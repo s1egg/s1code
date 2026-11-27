@@ -1,6 +1,6 @@
 # Usage and limits
 
-Open **Usage** from the sidebar or the command palette, or press `mod+u` on web and
+Open **Usage** from thread details or the command palette, or press `mod+u` on web and
 desktop when the terminal is not focused. Press it again to close Usage. Customize **Usage: Toggle** in
 **Settings → Keybindings**.
 
@@ -150,12 +150,11 @@ current model's limits without leaving the conversation. The result opens above 
 closes when you dismiss it or send your next message. It uses the same snapshot as **Usage → Limits**, so it does not run the agent or refresh
 anything. The command is offered only for providers that appear under **Usage → Limits**.
 
-To keep them in view on web and desktop, turn on **Usage limits** in **Settings → Appearance → Thread details**, or right-click the thread details card.
-The bottom of the thread details card then shows how much is left in each limit window of the
-current provider account. Some windows, such as a weekly Opus limit, count only one model. Hover a
-row to see when it resets and your pace. Turn on **Context window** to also show the thread's
-context use against the model's limit. A tick on the bar marks where the provider compacts
-automatically, when it reports that point.
+On web and desktop, thread details show how much is left in each limit window of the current
+provider account. Some windows, such as a weekly Opus limit, count only one model. Hover a row to
+see when it resets and your pace. Thread details also show the thread's context use against the
+model's limit; click **Context** for the breakdown. To hide either, turn off **Usage** or
+**Context window** in **Settings → Appearance → Thread details**, or right-click thread details.
 
 OpenCode Go reports its session, weekly, and monthly allowance when OpenCode runs locally in
 the environment. S1 cannot report limits for external OpenCode servers because their credentials
@@ -228,7 +227,7 @@ Set `kind` to `session`, `weekly`, `monthly`, or `other`. Use a percentage from 
 omit `resetsAt` when the reset time is unknown. Your quota server handles the upstream provider
 credentials and APIs. Set the optional `providerInstanceId` to the exact instance ID configured for that environment
 in **Settings → Providers**. The account’s quota windows then appear in the
-thread details usage card on web and desktop when that instance is selected. Accounts without
+thread details on web and desktop when that instance is selected. Accounts without
 a binding still appear in **Usage → Limits**.
 
 ## Subscription usage widget

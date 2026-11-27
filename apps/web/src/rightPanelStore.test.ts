@@ -12,7 +12,6 @@ import {
   pullRequestSurfaceId,
   selectActiveRightPanel,
   selectActiveRightPanelSurface,
-  selectThreadPanelVisibility,
   selectThreadRightPanelState,
   useRightPanelStore,
 } from "./rightPanelStore";
@@ -24,7 +23,6 @@ beforeEach(() => {
   useClosedViewStore.setState({ entries: [] });
   useRightPanelStore.setState({
     byThreadKey: {},
-    threadPanelVisibilityByThreadKey: {},
     userActionRevisionByThreadKey: {},
     closeRevisionByThreadKey: {},
   });
@@ -654,7 +652,6 @@ describe("rightPanelStore", () => {
           surfaces: [{ id: "browser:tab-a", kind: "preview", resourceId: "tab-a" }],
         },
       },
-      threadPanelVisibilityByThreadKey: {},
     });
   });
 
@@ -685,7 +682,6 @@ describe("rightPanelStore", () => {
           ],
         },
       },
-      threadPanelVisibilityByThreadKey: {},
     });
   });
 
@@ -729,7 +725,6 @@ describe("rightPanelStore", () => {
           ],
         },
       },
-      threadPanelVisibilityByThreadKey: {},
     });
   });
 
@@ -761,7 +756,6 @@ describe("rightPanelStore", () => {
       }),
     ).toEqual({
       byThreadKey: { "env-1:thread-A": panelState },
-      threadPanelVisibilityByThreadKey: {},
     });
   });
 
@@ -801,51 +795,17 @@ describe("rightPanelStore", () => {
           surfaces: [{ id: "diff", kind: "diff" }],
         },
       },
-      threadPanelVisibilityByThreadKey: {},
     });
   });
 
-  it("persists inline preference without restoring an open popover", () => {
+  it("drops the retired per-thread details card visibility", () => {
     expect(
       migratePersistedRightPanelState({
         threadPanelVisibilityByThreadKey: {
           "env-1:thread-A": { inlineOpen: false, popoverOpen: true },
-          "env-1:thread-B": { inlineOpen: true, popoverOpen: true },
         },
       }),
-    ).toEqual({
-      byThreadKey: {},
-      threadPanelVisibilityByThreadKey: {
-        "env-1:thread-A": { inlineOpen: false, popoverOpen: false },
-      },
-    });
-  });
-
-  it("closes the popover atomically when the real right panel opens", () => {
-    useRightPanelStore.getState().setThreadPanelOpen(refA, "popover", true);
-    useRightPanelStore.getState().open(refA, "diff");
-
-    expect(
-      selectThreadPanelVisibility(
-        useRightPanelStore.getState().threadPanelVisibilityByThreadKey,
-        refA,
-      ),
-    ).toEqual({ inlineOpen: true, popoverOpen: false });
-  });
-
-  it("keeps an open popover visible by promoting it to inline when the real panel closes", () => {
-    const store = useRightPanelStore.getState();
-    store.open(refA, "diff");
-    store.setThreadPanelOpen(refA, "inline", false);
-    store.setThreadPanelOpen(refA, "popover", true);
-    store.close(refA);
-
-    expect(
-      selectThreadPanelVisibility(
-        useRightPanelStore.getState().threadPanelVisibilityByThreadKey,
-        refA,
-      ),
-    ).toEqual({ inlineOpen: true, popoverOpen: true });
+    ).toEqual({ byThreadKey: {} });
   });
 
   it("opens workspace-root links as the singleton files explorer", () => {

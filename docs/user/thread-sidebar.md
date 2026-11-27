@@ -15,8 +15,7 @@ on its plan. Threads started without a project, and threads whose project is gon
 entry at the end of the rail. An archived project stays on the rail while it still has threads or
 drafts. Right-click a project for
 **New thread**, **Copy path**, **Pin project**, and **Project settings**, and use **+** at the
-end of the rail to add a project. Settings, pull requests, issues, and usage sit at the bottom of
-the rail.
+end of the rail to add a project. Settings sits at the bottom of the rail.
 
 On mobile, tap a project icon above the chat list to see its conversations. Open **Switch project**
 to choose a different environment or add a project. Tap a conversation to open it and use Back
@@ -335,7 +334,7 @@ Expand a tool call in the conversation to see its full command and output.
 Summaries shorten shell wrappers and can still describe the latest call after it
 finishes; the call's own result shows its status.
 
-On web and desktop, the thread details card lists the local servers that the
+On web and desktop, thread details list the local servers that the
 thread's terminals or its Claude agent started, with their ports. Not every one
 serves a web page. A server the agent started stays listed after the agent's
 turn ends.
@@ -343,7 +342,15 @@ Select a server to open it in the browser panel. **Stop** ends the server's job
 and keeps the agent, the terminal, and S1 Code running. Stop needs terminal
 access to the environment and is not available on Windows.
 
-To choose what the thread details card shows, right-click the card or open
+Thread details sit in a sidebar to the right of the chat. Toggle it with the list
+button at the top right or `mod+shift+b`. While the right panel is open, or the
+window is narrow, the same button opens thread details as a popover instead. They
+show where the thread runs, its folder, branch, and scripts, its changes, how much
+of the context window it uses, and your usage limits, with a link to **Usage**.
+Click **Context** to see what fills the context window; **Back** or Escape returns.
+App and provider updates appear at the bottom of thread details while one is waiting.
+
+To choose what thread details show, right-click the sidebar or open
 **Settings → Appearance → Thread details**. Hidden rows keep their keyboard
 shortcuts, such as Open in editor and project scripts. **Reset to default** brings
 back the standard rows.

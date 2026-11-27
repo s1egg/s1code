@@ -9,7 +9,8 @@ export function isAppModalPage(pathname: string) {
   return pathname === "/settings" || pathname.startsWith("/settings/") || pathname === "/usage";
 }
 
-export function isSidebarUtilityPage(pathname: string) {
+/** Full pages such as Pull requests and Workflows; their Back leads to the last main-app view. */
+function isUtilityPage(pathname: string) {
   return (
     pathname.startsWith("/projects/") ||
     pathname === "/pull-requests" ||
@@ -43,7 +44,7 @@ export function startMainAppLocationTracking(router: AnyRouter): () => void {
     appModalReturnThreadTarget = resolveThreadRouteTarget(
       router.state.matches.at(-1)?.params ?? {},
     );
-    if (!isSidebarUtilityPage(pathname)) mainAppHref = href;
+    if (!isUtilityPage(pathname)) mainAppHref = href;
   };
   record();
   return router.subscribe("onResolved", record);

@@ -1,9 +1,5 @@
-import type { ScopedThreadRef } from "@s1tools/contracts";
 import { createStore } from "zustand";
-import type { ThreadPanelPresentation } from "../../rightPanelLayout";
-import type { DetailsCardMeasurement } from "./ChatCanvasContext";
 import { resolveChatCanvasLayout, type ChatCanvasPreview } from "./chatCanvasLayout";
-import { resolveThreadDetailsCardLayout } from "./threadDetailsCardLayout";
 
 interface CanvasEdges {
   readonly left: number;
@@ -13,7 +9,6 @@ interface CanvasEdges {
 
 export interface ChatCanvasMeasurements {
   readonly width: number;
-  readonly narrowestWidth?: number;
   readonly height: number;
   readonly padding: number;
   readonly maxChatWidth: number;
@@ -27,9 +22,7 @@ export interface ChatCanvasMeasurements {
 
 interface ChatCanvasStoreState {
   readonly measurements: ChatCanvasMeasurements;
-  readonly detailsCardMeasurement: DetailsCardMeasurement | null;
   readonly setMeasurements: (next: ChatCanvasMeasurements) => void;
-  readonly measureDetailsCard: (next: DetailsCardMeasurement) => void;
 }
 
 const INITIAL_MEASUREMENTS: ChatCanvasMeasurements = {
@@ -50,7 +43,6 @@ const sameEdges = (a: CanvasEdges | null, b: CanvasEdges | null) =>
 
 const sameMeasurements = (a: ChatCanvasMeasurements, b: ChatCanvasMeasurements) =>
   a.width === b.width &&
-  a.narrowestWidth === b.narrowestWidth &&
   a.height === b.height &&
   a.padding === b.padding &&
   a.maxChatWidth === b.maxChatWidth &&
@@ -60,79 +52,25 @@ const sameMeasurements = (a: ChatCanvasMeasurements, b: ChatCanvasMeasurements) 
   a.timelineGutter === b.timelineGutter &&
   sameEdges(a.findBar, b.findBar);
 
-/**
- * One store per chat view: the canvas measures into it, and the chat view's
- * header controls derive the details card presentation from the same inputs.
- */
+/** One store per chat view, so the canvas keeps its measurements across thread switches. */
 export const createChatCanvasStore = () =>
   createStore<ChatCanvasStoreState>()((set) => ({
     measurements: INITIAL_MEASUREMENTS,
-    detailsCardMeasurement: null,
     setMeasurements: (next) =>
       set((state) => (sameMeasurements(state.measurements, next) ? state : { measurements: next })),
-    measureDetailsCard: (next) =>
-      set((state) => {
-        const current = state.detailsCardMeasurement;
-        return current?.threadRef.environmentId === next.threadRef.environmentId &&
-          current.threadRef.threadId === next.threadRef.threadId &&
-          current.width === next.width &&
-          current.fullContentHeight === next.fullContentHeight
-          ? state
-          : { detailsCardMeasurement: next };
-      }),
   }));
 
 export type ChatCanvasStore = ReturnType<typeof createChatCanvasStore>;
 
 export function resolveChatCanvasModel({
   measurements,
-  detailsCardMeasurement,
-  threadRef,
   preview,
-  detailsCardInlineOpen,
 }: {
   measurements: ChatCanvasMeasurements;
-  detailsCardMeasurement: DetailsCardMeasurement | null;
-  /** The thread whose details card sits on the canvas; other threads' measurements are stale. */
-  threadRef: ScopedThreadRef | null;
   preview: ChatCanvasPreview | null;
-  detailsCardInlineOpen: boolean;
 }) {
   const container = { width: measurements.width, height: measurements.height };
-  const { findBar } = measurements;
-  const detailsCardTopInset = findBar?.bottom ?? 0;
   const lane = { padding: measurements.padding, minChatWidth: measurements.minChatWidth };
-  // The preview avoids where an open inline card would sit, whether or not a
-  // preview overlap has pushed the card itself into popover mode.
-  const preferredDetailsCard = resolveThreadDetailsCardLayout({
-    container,
-    narrowestWidth: measurements.narrowestWidth ?? measurements.width,
-    lane,
-    frame: null,
-    topInset: detailsCardTopInset,
-  });
-  // The canvas outlives thread switches, so a measurement only counts for the
-  // thread whose card is shown now.
-  const detailsCardMeasured =
-    threadRef !== null &&
-    detailsCardMeasurement !== null &&
-    detailsCardMeasurement.threadRef.environmentId === threadRef.environmentId &&
-    detailsCardMeasurement.threadRef.threadId === threadRef.threadId
-      ? detailsCardMeasurement
-      : null;
-  const detailsCard =
-    detailsCardInlineOpen &&
-    preferredDetailsCard &&
-    detailsCardMeasured?.width === preferredDetailsCard.width &&
-    detailsCardMeasured.fullContentHeight > 0
-      ? {
-          left: preferredDetailsCard.x,
-          right: preferredDetailsCard.x + preferredDetailsCard.width,
-          bottom:
-            preferredDetailsCard.y +
-            Math.min(detailsCardMeasured.fullContentHeight, preferredDetailsCard.height),
-        }
-      : null;
   const layout = resolveChatCanvasLayout({
     container,
     preview,
@@ -141,25 +79,7 @@ export function resolveChatCanvasModel({
     maxHtmlPreviewWidth: measurements.maxHtmlPreviewWidth,
     minChatWidth: measurements.minChatWidth,
     composerHeight: measurements.composerHeight,
-    detailsCard,
-    findBar,
+    findBar: measurements.findBar,
   });
-  const detailsCardPlacement = resolveThreadDetailsCardLayout({
-    container,
-    narrowestWidth: measurements.narrowestWidth ?? measurements.width,
-    lane,
-    frame: layout.frame,
-    overlapsDetailsCard: layout.overlapsDetailsCard,
-    topInset: detailsCardTopInset,
-  });
-  const detailsCardMode: ThreadPanelPresentation = detailsCardPlacement ? "inline" : "popover";
-  return {
-    container,
-    lane,
-    layout,
-    detailsCardTopInset,
-    preferredDetailsCard,
-    detailsCardPlacement,
-    detailsCardMode,
-  };
+  return { container, lane, layout };
 }

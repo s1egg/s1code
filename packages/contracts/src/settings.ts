@@ -607,9 +607,10 @@ export const ClientSettingsSchema = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed("status" as const)),
   ),
   screenReaderWindowTitle: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-  // Retired Labs toggle. Still read as the default for the Usage item in threadDetailsItems.
-  threadDetailsUsageEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-  // Sparse show/hide overrides for thread details card items. Missing ids use the client's
+  // Whether the thread details sidebar is docked open beside the chat. Its popover form, used
+  // while the right panel is open or the window is narrow, always starts closed.
+  threadDetailsOpen: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  // Sparse show/hide overrides for thread details items. Missing ids use the client's
   // default, so new items appear for everyone and unknown ids survive a downgrade.
   threadDetailsItems: Schema.Record(Schema.String, Schema.Boolean).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
@@ -2234,7 +2235,7 @@ export const ClientSettingsPatch = Schema.Struct({
   toolCallVisibility: Schema.optionalKey(ToolCallVisibility),
   screenReaderAnnouncements: Schema.optionalKey(ScreenReaderAnnouncements),
   screenReaderWindowTitle: Schema.optionalKey(Schema.Boolean),
-  threadDetailsUsageEnabled: Schema.optionalKey(Schema.Boolean),
+  threadDetailsOpen: Schema.optionalKey(Schema.Boolean),
   threadDetailsItems: Schema.optionalKey(Schema.Record(Schema.String, Schema.Boolean)),
   sidebarProjectGroupingMode: Schema.optionalKey(SidebarProjectGroupingMode),
   sidebarProjectGroupingOverrides: Schema.optionalKey(

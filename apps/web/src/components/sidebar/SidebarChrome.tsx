@@ -1,8 +1,7 @@
-import { ArrowLeftIcon, ArrowRightIcon, ChartNoAxesColumnIcon, SettingsIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowLeftIcon, ArrowRightIcon, SettingsIcon } from "lucide-react";
 import { useGT } from "gt-react";
 import { memo } from "react";
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 import { useAtomValue } from "@effect/atom-react";
 import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
@@ -14,7 +13,6 @@ import {
 } from "../../navigationHistory";
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
-import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
 import { S1Wordmark } from "../S1Wordmark";
 import {
   resolveEnvironmentIdentificationPillLabel,
@@ -30,14 +28,7 @@ import {
   useSidebar,
 } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { readPullRequestListPreferences } from "../pullRequest/pullRequestListPreferences";
-import { readIssueListPreferences } from "../issue/issueListPreferences";
-import { IssueGlyph } from "../issue/issuePresentation";
-import { isSidebarUtilityPage, useNavigateToMainApp } from "./mainAppLocation";
 import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
-import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
-import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
-import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { observeResize } from "~/lib/observeResize";
 
 export const SidebarChromeHeader = memo(function SidebarChromeHeader({
@@ -177,104 +168,33 @@ function SidebarBrandMark() {
   );
 }
 
-function SidebarUtilityItem({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <SidebarMenuItem className="shrink-0">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <SidebarMenuButton aria-label={label} onClick={onClick} size="icon">
-              {icon}
-            </SidebarMenuButton>
-          }
-        />
-        <TooltipPopup side="right">{label}</TooltipPopup>
-      </Tooltip>
-    </SidebarMenuItem>
-  );
-}
-
-/** The project rail's foot: the update control above the utility pages. */
+/** The project rail's foot. Pull requests, issues, usage, and updates live in thread details. */
 export const SidebarRailUtilities = memo(function SidebarRailUtilities() {
   const navigate = useNavigate();
-  const navigateToMainApp = useNavigateToMainApp();
   const gt = useGT();
   const { isMobile, setOpenMobile } = useSidebar();
-  const isOnUtilityPage = useLocation({
-    select: (location) => isSidebarUtilityPage(location.pathname),
-  });
-  const pullRequestsSupported = usePullRequestsSupported();
-  const issuesSupported = useIssuesSupported();
-  const closeMobileSidebar = () => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  };
-  const handlePullRequestsClick = () => {
-    closeMobileSidebar();
-    void navigate({
-      to: "/pull-requests",
-      search: readPullRequestListPreferences(),
-    });
-  };
-  const handleIssuesClick = () => {
-    closeMobileSidebar();
-    void navigate({ to: "/issues", search: readIssueListPreferences() });
-  };
-  const handleSettingsClick = () => {
-    closeMobileSidebar();
-    void navigate({ to: "/settings" });
-  };
-  const handleUsageClick = () => {
-    closeMobileSidebar();
-    void navigate({ to: "/usage" });
-  };
-  const handleBackClick = () => {
-    closeMobileSidebar();
-    void navigateToMainApp();
-  };
-
+  const label = gt("Settings");
   return (
     <SidebarMenu className="items-center">
-      <SidebarUpdatePill />
-      {isOnUtilityPage ? (
-        <SidebarUtilityItem icon={<ArrowLeftIcon />} label={gt("Back")} onClick={handleBackClick} />
-      ) : (
-        <>
-          {pullRequestsSupported ? (
-            <SidebarUtilityItem
-              icon={<PullRequestGlyph.pullRequest />}
-              label={gt("Pull requests")}
-              onClick={handlePullRequestsClick}
-            />
-          ) : null}
-          {issuesSupported ? (
-            <SidebarUtilityItem
-              icon={<IssueGlyph.issue />}
-              label={gt("Issues", { $context: "sidebar link to the list of issues" })}
-              onClick={handleIssuesClick}
-            />
-          ) : null}
-          <SidebarUtilityItem
-            icon={<ChartNoAxesColumnIcon />}
-            label={gt("Usage")}
-            onClick={handleUsageClick}
+      <SidebarMenuItem className="shrink-0">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <SidebarMenuButton
+                aria-label={label}
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                  void navigate({ to: "/settings" });
+                }}
+                size="icon"
+              >
+                <SettingsIcon />
+              </SidebarMenuButton>
+            }
           />
-          <SidebarUtilityItem
-            icon={<SettingsIcon />}
-            label={gt("Settings")}
-            onClick={handleSettingsClick}
-          />
-        </>
-      )}
+          <TooltipPopup side="right">{label}</TooltipPopup>
+        </Tooltip>
+      </SidebarMenuItem>
     </SidebarMenu>
   );
 });
@@ -283,8 +203,6 @@ export const SidebarRailUtilities = memo(function SidebarRailUtilities() {
 export const SidebarNotices = memo(function SidebarNotices() {
   return (
     <div className="flex flex-col gap-2 px-2 pt-1 pb-2 empty:hidden">
-      <SidebarProviderUpdatePill />
-      <SidebarUpdateArchitectureWarning />
       <SidebarThreadUndoNotice />
     </div>
   );

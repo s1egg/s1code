@@ -63,7 +63,7 @@ const clientSettings: ClientSettings = {
   },
   sidebarProjectSortOrder: "manual",
   sidebarThreadSortOrder: "created_at",
-  threadDetailsUsageEnabled: false,
+  threadDetailsOpen: true,
   threadDetailsItems: {},
   loadBalancingEnabled: false,
   loadBalancingWeights: { "environment-1": 75, "environment-2": 0 },

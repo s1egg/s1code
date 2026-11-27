@@ -7,7 +7,7 @@ import {
 } from "@s1tools/contracts";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 const SCRATCH_ROOT = "/home/user/.s1/scratch";
 
@@ -122,19 +122,19 @@ vi.mock(import("~/state/vcs"), async (importOriginal) => {
   };
 });
 
-import { render } from "../../../test/render";
-import { useRightPanelStore } from "../../rightPanelStore";
+import { DEFAULT_CLIENT_SETTINGS } from "@s1tools/contracts/settings";
+import type { ContextWindowSnapshot } from "@s1tools/client-runtime/state/context-window";
+import { act, render } from "../../../test/render";
+import { __setClientSettingsForTests } from "../../hooks/useSettings";
+import type { ThreadPanelPresentation } from "../../rightPanelLayout";
 import { PopoverCreateHandle } from "../ui/popover";
-import { ChatCanvasContext } from "./ChatCanvasContext";
-import { resolveChatCanvasLayout } from "./chatCanvasLayout";
-import { ThreadDetailsPanel } from "./ThreadDetailsPanel";
+import { ThreadDetailsSidebar } from "./ThreadDetailsSidebar";
+import { useThreadDetailsStore } from "./threadDetailsStore";
 
 const threadRef: ScopedThreadRef = {
   environmentId: EnvironmentId.make("environment"),
   threadId: ThreadId.make("thread"),
 };
-const container = { width: 1200, height: 800 };
-const placement = { x: 908, y: 0, right: 12, width: 280, height: 400 } as const;
 const linkedPullRequest: ThreadPullRequestLink = {
   host: "github.com",
   repository: "s1egg/s1code",
@@ -145,18 +145,30 @@ const linkedPullRequest: ThreadPullRequestLink = {
   snapshot: null,
   stack: null,
 };
+const contextWindow = {
+  usedTokens: 24_000,
+  maxTokens: 200_000,
+  usedPercentage: 12,
+  inputTokens: 20_000,
+  outputTokens: 4_000,
+} as ContextWindowSnapshot;
 
 function setup(input: {
   workspaceRoot: string;
   folder: string;
   pullRequests?: ThreadPullRequestLink[];
   configLoaded?: boolean;
+  dockedOpen?: boolean;
 }) {
   state.configLoaded = input.configLoaded ?? true;
   state.workspaceRoot = input.workspaceRoot;
   state.folder = input.folder;
   state.pullRequests = input.pullRequests ?? [];
-  useRightPanelStore.setState({ threadPanelVisibilityByThreadKey: {} });
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    threadDetailsOpen: input.dockedOpen ?? true,
+  });
+  useThreadDetailsStore.setState({ popoverOpen: false, drillIn: null });
   const anchor = document.createElement("div");
   document.body.append(anchor);
   return {
@@ -176,69 +188,120 @@ const machines = (["This Mac", "Server"] as const).map((label, index) => ({
 
 function Panel({
   fixture,
+  presentation = "docked",
   draftEnvMode,
   onMachines = false,
   withScripts = false,
+  withContext = false,
 }: {
   fixture: ReturnType<typeof setup>;
+  presentation?: ThreadPanelPresentation;
   /** Renders an unsent draft in this mode instead of a started thread. */
   draftEnvMode?: "local" | "worktree";
   onMachines?: boolean;
   withScripts?: boolean;
+  withContext?: boolean;
 }) {
   const noop = () => {};
   const scriptResult = async () => ({ ok: true }) as never;
   return (
-    <ChatCanvasContext
-      value={{
-        container,
-        lane: { padding: 48, minChatWidth: 640 },
-        layout: resolveChatCanvasLayout({ container, preview: null }),
-        previewKey: null,
-        registerTimeline: noop,
-        measureDetailsCard: noop,
-        detailsCardTopInset: 0,
-        preferredDetailsCard: placement,
-        detailsCardPlacement: placement,
+    <ThreadDetailsSidebar
+      presentation={presentation}
+      anchor={fixture.anchor}
+      handle={fixture.handle}
+      environmentId={threadRef.environmentId}
+      threadId={threadRef.threadId}
+      projectId={ProjectId.make("project")}
+      composerDraftTarget={threadRef}
+      worktreePath={draftEnvMode === undefined ? state.folder : null}
+      isServerThread={draftEnvMode === undefined}
+      activeProjectName={state.workspaceRoot === SCRATCH_ROOT ? "No project" : "plain"}
+      activeProjectScripts={withScripts ? [] : undefined}
+      preferredScriptId={null}
+      keybindings={[]}
+      availableEditors={[]}
+      showOpenInPicker={false}
+      openInShortcutEnabled={false}
+      gitCwd={state.folder}
+      workspaceMutationId={null}
+      isGitRepo={false}
+      offersWorkspaceModes={false}
+      envLocked={draftEnvMode === undefined}
+      availableEnvironments={onMachines ? machines : []}
+      {...(onMachines ? { onEnvironmentChange: noop } : {})}
+      onEnvModeChange={noop}
+      envMode={draftEnvMode ?? "local"}
+      startFromOrigin={false}
+      onStartFromOriginChange={noop}
+      onComposerFocusRequest={noop}
+      onRunProjectScript={noop}
+      onAddProjectScript={scriptResult}
+      onUpdateProjectScript={scriptResult}
+      onDeleteProjectScript={scriptResult}
+      usage={{
+        providerInstanceId: null,
+        model: null,
+        providers: [],
+        sources: {} as never,
+        contextWindow: withContext ? contextWindow : null,
       }}
-    >
-      <ThreadDetailsPanel
-        anchor={fixture.anchor}
-        handle={fixture.handle}
-        environmentId={threadRef.environmentId}
-        threadId={threadRef.threadId}
-        projectId={ProjectId.make("project")}
-        composerDraftTarget={threadRef}
-        worktreePath={draftEnvMode === undefined ? state.folder : null}
-        isServerThread={draftEnvMode === undefined}
-        activeProjectName={state.workspaceRoot === SCRATCH_ROOT ? "No project" : "plain"}
-        activeProjectScripts={withScripts ? [] : undefined}
-        preferredScriptId={null}
-        keybindings={[]}
-        availableEditors={[]}
-        showOpenInPicker={false}
-        openInShortcutEnabled={false}
-        gitCwd={state.folder}
-        workspaceMutationId={null}
-        isGitRepo={false}
-        offersWorkspaceModes={false}
-        envLocked={draftEnvMode === undefined}
-        availableEnvironments={onMachines ? machines : []}
-        {...(onMachines ? { onEnvironmentChange: noop } : {})}
-        onEnvModeChange={noop}
-        envMode={draftEnvMode ?? "local"}
-        startFromOrigin={false}
-        onStartFromOriginChange={noop}
-        onComposerFocusRequest={noop}
-        onRunProjectScript={noop}
-        onAddProjectScript={scriptResult}
-        onUpdateProjectScript={scriptResult}
-        onDeleteProjectScript={scriptResult}
-        usage={{} as never}
-      />
-    </ChatCanvasContext>
+    />
   );
 }
+
+const docked = () => document.querySelector('[data-thread-details-panel="docked"]');
+
+it("docks beside the chat while open", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using _screen = await render(<Panel fixture={fixture} />);
+  await expect.element(page.getByRole("region", { name: "Thread details" })).toBeVisible();
+  await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
+});
+
+it("renders nothing docked once closed", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain", dockedOpen: false });
+  await using _screen = await render(<Panel fixture={fixture} />);
+  expect(docked()).toBeNull();
+});
+
+it("opens as a popover while the right panel is open, and closes it when it docks again", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using screen = await render(<Panel fixture={fixture} presentation="popover" />);
+  expect(docked()).toBeNull();
+  expect(document.querySelector('[data-thread-details-panel="popover"]')).toBeNull();
+
+  await act(() => useThreadDetailsStore.getState().setPopoverOpen(true));
+  await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
+  await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
+
+  await screen.rerender(<Panel fixture={fixture} />);
+  await expect.element(page.getByRole("region", { name: "Thread details" })).toBeVisible();
+  expect(useThreadDetailsStore.getState().popoverOpen).toBe(false);
+  await screen.rerender(<Panel fixture={fixture} presentation="popover" />);
+  expect(document.querySelector('[data-thread-details-panel="popover"]')).toBeNull();
+});
+
+it("drills into the context window and returns to the sections with back or Escape", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using _screen = await render(<Panel fixture={fixture} withContext />);
+  const contextRow = page.getByRole("button", { name: /^Context\s?12%$/ });
+  await contextRow.click();
+  const back = page.getByRole("button", { name: "Back" });
+  await expect.element(back).toHaveFocus();
+  await expect.element(page.getByRole("heading", { name: "Context window" })).toBeVisible();
+  await expect.element(page.getByText("Output tokens")).toBeVisible();
+  await expect.element(page.getByRole("heading", { name: "Environment" })).not.toBeInTheDocument();
+
+  await back.click();
+  await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
+  await expect.element(contextRow).toHaveFocus();
+
+  await contextRow.click();
+  await expect.element(back).toHaveFocus();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
+  await expect.element(contextRow).toHaveFocus();
+});
 
 it("offers no git controls in a No project thread, but shows its linked pull request", async () => {
   using fixture = setup({
@@ -277,7 +340,7 @@ it("shows a linked pull request in a folder that is not a git repository", async
     pullRequests: [linkedPullRequest],
   });
   await using _screen = await render(<Panel fixture={fixture} />);
-  await expect.element(page.getByRole("region", { name: "Workspace" })).toBeVisible();
+  await expect.element(page.getByRole("region", { name: "Environment" })).toBeVisible();
   await expect.element(page.getByText("#27513")).toBeVisible();
   await expect.element(page.getByRole("button", { name: "Initialize Git" })).toBeVisible();
 });
@@ -289,7 +352,7 @@ it("offers no Initialize Git before the server config says where No project live
     configLoaded: false,
   });
   await using _screen = await render(<Panel fixture={fixture} />);
-  await expect.element(page.getByRole("region", { name: "Workspace" })).toBeVisible();
+  await expect.element(page.getByRole("region", { name: "Environment" })).toBeVisible();
   await expect
     .element(page.getByRole("button", { name: "Initialize Git" }))
     .not.toBeInTheDocument();

@@ -427,6 +427,8 @@ it("a new draft's control row names its machine and keeps labels at a normal wid
   __setClientSettingsForTests({
     ...DEFAULT_CLIENT_SETTINGS,
     onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+    // The composer's own width, without the docked thread details beside it.
+    threadDetailsOpen: false,
   });
   const draftId = DraftId.make("draft-composer-row");
   useComposerDraftStore
@@ -1042,6 +1044,47 @@ it("a shortcut conditioned on rightPanelOpen sees the thread's open right panel"
   await userEvent.keyboard("{Control>}t{/Control}");
   await expect.element(page.getByRole("menuitem", { name: /Files/ })).toBeVisible();
   await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+});
+
+it("thread details dock beside the chat, toggle with their shortcut, and open as a popover beside the right panel", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  await page.viewport(1400, 900);
+  const thread = threadWithHistory("thread-details-toggle", 1);
+  using _environment = installFakeEnvironment([thread]);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, {
+    // AppRoot brings its own router.
+    router: false,
+  });
+  const details = page.getByRole("region", { name: "Thread details" });
+  const toggle = page.getByRole("button", { name: "Toggle thread details panel" });
+  await expect.element(details).toBeVisible();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  // The chat canvas makes room for the sidebar instead of sitting under it.
+  const canvas = document.querySelector("[data-chat-canvas]")!.getBoundingClientRect();
+  expect(canvas.right).toBeLessThanOrEqual(details.element().getBoundingClientRect().left);
+
+  await page.getByTestId("composer-editor").click();
+  await userEvent.keyboard("{ControlOrMeta>}{Shift>}b{/Shift}{/ControlOrMeta}");
+  await expect.element(details).not.toBeInTheDocument();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  await userEvent.keyboard("{ControlOrMeta>}{Shift>}b{/Shift}{/ControlOrMeta}");
+  await expect.element(details).toBeVisible();
+
+  await page.getByRole("button", { name: "Toggle right panel", exact: true }).click();
+  await expect.element(details).not.toBeInTheDocument();
+  await toggle.click();
+  await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
 });
 
 it("selecting a side-chat tab focuses that side chat's composer", async () => {

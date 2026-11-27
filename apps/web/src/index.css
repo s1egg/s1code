@@ -132,7 +132,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(s1-mobil
   --workspace-titlebar-scroll-fade-height: 1.5rem;
   --chat-content-max-width: 46rem;
   --html-preview-max-width: var(--chat-content-max-width);
-  --thread-details-panel-width: 17.5rem;
+  --thread-details-panel-width: 18.75rem;
   /* The prompt on phones: iOS zooms into any input under 16px on focus. */
   --font-size-prompt-touch: max(var(--font-size-prompt, 1rem), 16px);
   /* Horizontal gutter shared by the page header and the chat column, clear of
