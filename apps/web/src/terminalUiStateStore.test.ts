@@ -287,4 +287,29 @@ describe("terminalUiStateStore actions", () => {
     ]);
     expect(layout().activeTerminalId).toBe("pending");
   });
+
+  it("imports a pre-pane terminal tab's shells as their own split and shows its active shell", () => {
+    const store = useTerminalUiStateStore.getState();
+    store.newTerminal(THREAD_REF, "drawer-1");
+    store.closeTerminal(THREAD_REF, "tab-2");
+    store.importTerminalGroup(THREAD_REF, {
+      terminalIds: ["tab-1", "tab-2", "drawer-1"],
+      activeTerminalId: "tab-2",
+      splitDirection: "vertical",
+    });
+    expect(layout()).toMatchObject({
+      terminalIds: ["drawer-1", "tab-1", "tab-2"],
+      activeTerminalId: "tab-2",
+      terminalGroups: [
+        { id: "group-drawer-1", terminalIds: ["drawer-1"] },
+        { id: "group-tab-1", terminalIds: ["tab-1", "tab-2"], splitDirection: "vertical" },
+      ],
+    });
+    // The imported shells are the pane's own now, so the server listing keeps them.
+    expect(
+      useTerminalUiStateStore.getState().suppressedTerminalIdsByThreadKey[
+        scopedThreadKey(THREAD_REF)
+      ],
+    ).toBeUndefined();
+  });
 });

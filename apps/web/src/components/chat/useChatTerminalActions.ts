@@ -67,6 +67,8 @@ interface ChatTerminalActionsInput {
   readonly activeProject: EnvironmentProject | null;
   /** The terminal pane is on screen. */
   readonly terminalOpen: boolean;
+  /** The terminal pane floats as a small window over the chat. */
+  readonly terminalFloating: boolean;
   readonly runningTerminalIds: ReadonlyArray<string>;
   readonly activeServerOrderedTerminalIds: ReadonlyArray<string>;
   readonly activeTerminalLabelsById: ReadonlyMap<string, string>;
@@ -90,6 +92,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     activeThreadRef,
     activeProject,
     terminalOpen,
+    terminalFloating,
     runningTerminalIds,
     activeServerOrderedTerminalIds,
     activeTerminalLabelsById,
@@ -129,9 +132,12 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     composerRef.current?.addTerminalContext(selection);
   };
   const addTerminalContextToDraftStable = useStableCallback(addTerminalContextToDraft);
-  /** Shows the terminal pane, placing it where it last sat or by the default placement. */
+  /**
+   * Shows the terminal pane, placing it where it last sat or by the default placement. A pane
+   * already on screen, tiled or floating, stays as it is.
+   */
   const showTerminalPane = () => {
-    if (!activeThreadRef) return;
+    if (!activeThreadRef || terminalOpen || terminalFloating) return;
     useRightPanelStore.getState().open(activeThreadRef, "terminal");
   };
   const toggleTerminalVisibility = () => {
@@ -158,7 +164,8 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
         })?.result;
       }
     }
-    showTerminalPane();
+    // A floating terminal comes back into the layout.
+    useRightPanelStore.getState().open(activeThreadRef, "terminal");
     focusActiveTerminal(activeThreadRef);
   };
   const toggleTerminalVisibilityStable = useStableCallback(toggleTerminalVisibility);
@@ -359,9 +366,10 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
       if (!hasTerminalWriteAccess()) return false;
       splitTerminal("vertical");
     },
-    "terminal.close": () => {
+    "terminal.close": ({ terminalFocused }) => {
       if (!hasTerminalWriteAccess()) return false;
-      if (terminalOpen) requestCloseTerminal(terminalUiState.activeTerminalId);
+      // A focused terminal is on screen even when its pane floats rather than tiles.
+      if (terminalOpen || terminalFocused) requestCloseTerminal(terminalUiState.activeTerminalId);
     },
     "terminal.new": () => {
       if (!hasTerminalWriteAccess()) return false;

@@ -6,8 +6,10 @@ import { useClosedViewStore } from "./closedViewStore";
 import { linkedThreadTitle } from "./linkedThreadSurface";
 import { reopenClosedView } from "./reopenClosedView";
 import {
+  floatingPanes,
   hostRightPanel,
   migratePersistedRightPanelState,
+  sheetPane,
   paneKindOf,
   pullRequestSurface,
   pullRequestSurfaceId,
@@ -698,6 +700,7 @@ describe("rightPanelStore", () => {
         },
       }),
     ).toEqual({
+      terminalGroups: expect.any(Object),
       byThreadKey: { "env-1:thread-A": migratedPane({ id: "terminal", kind: "terminal" }) },
     });
   });
@@ -727,6 +730,7 @@ describe("rightPanelStore", () => {
         },
       }),
     ).toEqual({
+      terminalGroups: expect.any(Object),
       byThreadKey: {
         "env-1:thread-A": migratedPane({
           id,
@@ -761,6 +765,7 @@ describe("rightPanelStore", () => {
         },
       }),
     ).toEqual({
+      terminalGroups: expect.any(Object),
       byThreadKey: { "env-1:thread-A": migratedPane(surface) },
     });
   });
@@ -777,6 +782,7 @@ describe("rightPanelStore", () => {
         },
       }),
     ).toEqual({
+      terminalGroups: expect.any(Object),
       byThreadKey: {
         "env-1:thread-A": migratedPane({ id: "diff", kind: "diff" }, { isOpen: false }),
       },
@@ -807,6 +813,7 @@ describe("rightPanelStore", () => {
         },
       }),
     ).toEqual({
+      terminalGroups: expect.any(Object),
       byThreadKey: {
         "env-1:thread-B": migratedPane({ id: "diff", kind: "diff" }, { isOpen }),
       },
@@ -820,7 +827,7 @@ describe("rightPanelStore", () => {
           "env-1:thread-A": { inlineOpen: false, popoverOpen: true },
         },
       }),
-    ).toEqual({ byThreadKey: {} });
+    ).toEqual({ byThreadKey: {}, terminalGroups: {} });
   });
 
   it("opens workspace-root links as the singleton files explorer", () => {
@@ -1428,30 +1435,34 @@ describe("rightPanelStore", () => {
     );
   });
 
-  it("does not replace a stale surface with a hidden tab, but preserves explicit opens", () => {
+  it("adds pages opened elsewhere as waiting items that never take over the pane", () => {
     const store = useRightPanelStore.getState();
+    const state = () =>
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
     store.openBrowser(refA, "stale-tab");
-    store.reconcileBrowserSurfaces(refA, ["hidden-tab"], new Set(["hidden-tab"]));
-    expect(
-      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA),
-    ).toMatchObject({
+    store.reconcileBrowserSurfaces(refA, ["hidden-tab"]);
+    expect(state()).toMatchObject({
+      isOpen: false,
+      layout: null,
       activeSurfaceId: null,
-      surfaces: [],
+      surfaces: [{ id: "browser:hidden-tab" }],
+      waitingSurfaceIds: ["browser:hidden-tab"],
     });
 
-    store.openBrowser(refA, "hidden-tab");
-    store.reconcileBrowserSurfaces(
-      refA,
-      ["hidden-tab", "other-tab"],
-      new Set(["hidden-tab", "other-tab"]),
-    );
-    expect(
-      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA),
-    ).toMatchObject({
+    store.openBrowser(refA, "shown-tab");
+    store.openBrowser(refA, "gone-tab");
+    store.reconcileBrowserSurfaces(refA, ["hidden-tab", "shown-tab", "other-tab"]);
+    expect(state()).toMatchObject({
       isOpen: true,
-      activeSurfaceId: "browser:hidden-tab",
-      surfaces: [{ id: "browser:hidden-tab", kind: "preview", resourceId: "hidden-tab" }],
+      activeSurfaceId: "browser:shown-tab",
+      paneSurfaceIds: { browser: "browser:shown-tab" },
+      waitingSurfaceIds: ["browser:hidden-tab", "browser:other-tab"],
     });
+    expect(state().surfaces.map((surface) => surface.id)).toEqual([
+      "browser:hidden-tab",
+      "browser:shown-tab",
+      "browser:other-tab",
+    ]);
   });
 
   it("removes the browser pane when reconciliation removes its last session tab", () => {
@@ -1468,5 +1479,201 @@ describe("rightPanelStore", () => {
     expect(
       selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA),
     ).toMatchObject({ isOpen: true, activeSurfaceId: "diff" });
+  });
+  it("opens a new pane under the pane focused before it, not under the last one", () => {
+    const store = useRightPanelStore.getState();
+    store.open(refA, "diff");
+    store.open(refA, "files");
+    store.focusPane(refA, "diff");
+    store.open(refA, "terminal");
+    expect(layoutOf()).toMatchObject({
+      children: [
+        { type: "chat" },
+        {
+          direction: "column",
+          children: [{ pane: "diff" }, { pane: "terminal" }, { pane: "files" }],
+        },
+      ],
+    });
+  });
+
+  it("moves focus to a pane still on screen when the focused one hides", () => {
+    const store = useRightPanelStore.getState();
+    store.open(refA, "diff");
+    store.open(refA, "files");
+    store.hidePane(refA, "files");
+    expect(selectActiveRightPanelSurface(useRightPanelStore.getState().byThreadKey, refA)?.id).toBe(
+      "diff",
+    );
+  });
+
+  it("keeps focus on a filled pane when an automatic open adds a pane behind it", () => {
+    const store = useRightPanelStore.getState();
+    store.open(refA, "files");
+    store.setFill(refA, "files");
+    store.openProactive(
+      refA,
+      { id: "pull-requests", kind: "pull-requests" },
+      store.getUserActionRevision(refA),
+    );
+    expect(selectActiveRightPanelSurface(useRightPanelStore.getState().byThreadKey, refA)?.id).toBe(
+      "files",
+    );
+  });
+
+  it("minimizes a pane to a floating window and restores it to the spot it left", async () => {
+    const store = useRightPanelStore.getState();
+    store.open(refA, "diff");
+    store.open(refA, "terminal");
+    const before = layoutOf();
+    store.minimizePane(refA, "terminal");
+    let state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(visiblePanes(state)).toEqual(["diff"]);
+    expect(floatingPanes(state)).toEqual(["terminal"]);
+    expect(state.activeSurfaceId).toBe("diff");
+    store.minimizePane(refA, "diff");
+    state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    // Floating windows stack upward in the order they were minimized.
+    expect(floatingPanes(state)).toEqual(["terminal", "diff"]);
+    expect(state.isOpen).toBe(false);
+
+    await reloadRightPanelStore();
+    expect(
+      floatingPanes(selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA)),
+    ).toEqual(["terminal", "diff"]);
+
+    useRightPanelStore.getState().showPane(refA, "diff");
+    useRightPanelStore.getState().showPane(refA, "terminal");
+    state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(state.layout).toEqual(before);
+    expect(floatingPanes(state)).toEqual([]);
+    expect(state.activeSurfaceId).toBe("terminal");
+  });
+
+  it("hides floating windows while a pane fills the window, and closing one drops it", () => {
+    const store = useRightPanelStore.getState();
+    store.open(refA, "diff");
+    store.open(refA, "terminal");
+    store.minimizePane(refA, "terminal");
+    store.setFill(refA, "diff");
+    let state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(floatingPanes(state)).toEqual([]);
+    expect(state.minimized).toEqual(["terminal"]);
+    store.setFill(refA, null);
+    store.closeSurface(refA, "terminal");
+    state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(state.minimized).toBeUndefined();
+  });
+
+  it("floats a browser page, leaving a pane on screen alone when an agent opened it", () => {
+    const store = useRightPanelStore.getState();
+    store.floatSurface(refA, { id: "browser:tab-a", kind: "preview", resourceId: "tab-a" }, true);
+    let state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(floatingPanes(state)).toEqual(["browser"]);
+    expect(state.paneSurfaceIds.browser).toBe("browser:tab-a");
+
+    store.openBrowser(refA, "tab-a");
+    store.floatSurface(refA, { id: "browser:tab-b", kind: "preview", resourceId: "tab-b" }, true);
+    state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(visiblePanes(state)).toEqual(["browser"]);
+    expect(state.paneSurfaceIds.browser).toBe("browser:tab-a");
+    expect(state.waitingSurfaceIds).toEqual(["browser:tab-b"]);
+  });
+
+  it("marks pages opened elsewhere as waiting until the user looks at them", () => {
+    const store = useRightPanelStore.getState();
+    store.openBrowser(refA, "tab-a");
+    store.reconcileBrowserSurfaces(refA, ["tab-a", "tab-b"]);
+    let state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(state.paneSurfaceIds.browser).toBe("browser:tab-a");
+    expect(state.waitingSurfaceIds).toEqual(["browser:tab-b"]);
+    store.activateSurface(refA, "browser:tab-b");
+    state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(state.waitingSurfaceIds).toBeUndefined();
+  });
+
+  it("floats the panes hiding every pane hands off, and puts them back with the layout", () => {
+    const store = useRightPanelStore.getState();
+    store.open(refA, "diff");
+    store.openBrowser(refA, "tab-a");
+    const before = layoutOf();
+    store.hideAll(refA, ["browser", "device"]);
+    let state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(state.isOpen).toBe(false);
+    expect(floatingPanes(state)).toEqual(["browser"]);
+    store.show(refA);
+    state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    expect(state.layout).toEqual(before);
+    expect(floatingPanes(state)).toEqual([]);
+    expect(state.floatedOnHide).toBeUndefined();
+  });
+
+  it.each([{ fill: false }, { fill: true }])(
+    "hiding every pane and showing it again keeps the layout, fill=$fill",
+    ({ fill }) => {
+      const store = useRightPanelStore.getState();
+      store.openDevice(refA, {
+        hostId: "local",
+        deviceId: "pixel",
+        platform: "android",
+        name: "Pixel",
+      });
+      store.openBrowser(refA, "tab-a");
+      store.movePane(refA, "browser", "device", "top");
+      if (fill) store.setFill(refA, "browser");
+      const before = layoutOf();
+      store.hideAll(refA, ["browser", "device"]);
+      store.show(refA);
+      const state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+      expect(state.layout).toEqual(before);
+      expect(state.fill).toBe(fill ? "browser" : undefined);
+    },
+  );
+
+  it("moves a pre-pane terminal tab's shells into the terminal store", () => {
+    const migrated = migratePersistedRightPanelState({
+      byThreadKey: {
+        "env-1:thread-A": {
+          isOpen: true,
+          activeSurfaceId: "terminal:term-3",
+          surfaces: [
+            {
+              id: "terminal:term-3",
+              kind: "terminal",
+              resourceId: "term-3",
+              terminalIds: ["term-3", "term-4"],
+              activeTerminalId: "term-4",
+              splitDirection: "vertical",
+            },
+          ],
+        },
+      },
+    });
+    expect(migrated.terminalGroups).toEqual({
+      "env-1:thread-A": {
+        terminalIds: ["term-3", "term-4"],
+        activeTerminalId: "term-4",
+        splitDirection: "vertical",
+      },
+    });
+  });
+
+  it("hands off only the pane a narrow window's sheet shows when the sheet closes", () => {
+    const store = useRightPanelStore.getState();
+    store.openBrowser(refA, "tab-a");
+    store.open(refA, "diff");
+    const state = () =>
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+    // The sheet shows Diff, so closing it floats nothing even though a browser is in the layout.
+    expect(sheetPane(state())).toBe("diff");
+    store.hideAll(
+      refA,
+      [sheetPane(state())!].filter((pane) => pane === "browser"),
+    );
+    expect(floatingPanes(state())).toEqual([]);
+    store.show(refA);
+    store.focusPane(refA, "browser");
+    store.hideAll(refA, [sheetPane(state())!]);
+    expect(floatingPanes(state())).toEqual(["browser"]);
   });
 });

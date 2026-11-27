@@ -20,7 +20,8 @@ arrow next to the pane's name. Double-click the name or choose **Rename** from t
 menu to rename it. Only the device on screen streams video; switching keeps both devices running.
 Choose **Float device over chat** in the toolbar to keep watching and tapping the
 device in a small window while its pane is hidden; drag the window by its handle, resize it from
-any edge, and use **Open in a pane** to bring it back.
+any edge, and use **Open in a pane** to bring it back. Closing the small window closes the device's
+pane item too.
 Turn off **Use devices** in **Settings → Devices** to stop the
 helper processes; simulators and emulators keep running until you power them
 off.

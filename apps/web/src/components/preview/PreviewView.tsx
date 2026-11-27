@@ -59,13 +59,13 @@ import {
 import { previewEnvironment } from "~/state/preview";
 import { usePreviewStreamAccess } from "~/state/previewStream";
 import { useAtomCommand } from "~/state/use-atom-command";
-import {
-  browserMiniPlayerSource,
-  selectThreadPreviewMiniPlayerTabId,
-  usePreviewMiniPlayerStore,
-} from "~/previewMiniPlayerStore";
 import { readEnvironmentScope, useEnvironmentScope } from "~/state/session";
-import { useRightPanelStore } from "~/rightPanelStore";
+import {
+  paneSurface,
+  rightPanelHostRef,
+  selectThreadRightPanelState,
+  useRightPanelStore,
+} from "~/rightPanelStore";
 
 import { effectiveShortcutsForCommand, shortcutLabelForCommand } from "~/keybindings";
 import { randomUUID } from "~/lib/utils";
@@ -198,9 +198,15 @@ export function PreviewView({
     threadRef,
     BROWSER_HISTORY_MAX_ENTRIES_PER_PROJECT,
   );
-  const miniPlayerTabId = usePreviewMiniPlayerStore((state) =>
-    selectThreadPreviewMiniPlayerTabId(state.byThreadKey, threadRef),
-  );
+  const floating = useRightPanelStore((state) => {
+    const panel = selectThreadRightPanelState(state.byThreadKey, rightPanelHostRef(threadRef));
+    const shown = paneSurface(panel, "browser");
+    return (
+      panel.minimized?.includes("browser") === true &&
+      shown?.kind === "preview" &&
+      shown.resourceId === tabId
+    );
+  });
   const addPreviewAnnotation = useComposerDraftStore((store) => store.addPreviewAnnotation);
   const addImage = useComposerDraftStore((store) => store.addImage);
   const environmentHttpBaseUrl = useEnvironmentHttpBaseUrl(threadRef.environmentId);
@@ -510,12 +516,9 @@ export function PreviewView({
 
   const handlePictureInPicture = () => {
     if (!tabId) return;
-    if (miniPlayerTabId === tabId) {
-      usePreviewMiniPlayerStore.getState().close(threadRef);
-      return;
-    }
-    usePreviewMiniPlayerStore.getState().open(threadRef, browserMiniPlayerSource(tabId));
-    useRightPanelStore.getState().hidePane(threadRef, "browser");
+    const store = useRightPanelStore.getState();
+    if (floating) store.showPane(threadRef, "browser");
+    else store.minimizePane(threadRef, "browser");
   };
 
   const desktopCall = (op: ((tabId: string) => Promise<void>) | undefined) => () => {
@@ -1025,7 +1028,7 @@ export function PreviewView({
         onPictureInPicture={
           tabId && (isServerTab || previewBridge) ? handlePictureInPicture : undefined
         }
-        pictureInPicture={miniPlayerTabId === tabId}
+        pictureInPicture={floating}
         pictureInPictureDisabled={
           isUnreachable || (!isServerTab && !desktopOverlay?.hasWebContents)
         }

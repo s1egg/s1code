@@ -38,6 +38,7 @@ import {
   planWebviewCrashRecovery,
   type WebviewCrashRecoveryState,
 } from "./webviewCrashRecovery";
+import { reportBrowserGuestFocus } from "./browserGuestFocus";
 
 interface ElectronWebview extends HTMLElement {
   src: string;
@@ -196,6 +197,7 @@ export function HostedBrowserWebview(props: {
       webview.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse" }),
       );
+      reportBrowserGuestFocus(runtimeTabId);
     };
     const guestPointerDown = (event: Event) => {
       // Mirrors POINTER_DOWN_HOST_CHANNEL in apps/desktop/src/preview/GuestProtocol.ts.

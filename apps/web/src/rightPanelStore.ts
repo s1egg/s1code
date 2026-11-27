@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { useClosedViewStore } from "./closedViewStore";
+import { useTerminalUiStateStore } from "./terminalUiStateStore";
 import { m } from "./i18n/messages";
 import { resolveStorage } from "./lib/storage";
 import type { LinkedThreadTarget } from "@s1tools/client-runtime/linked-thread";
@@ -29,6 +30,7 @@ import {
   type PaneSide,
   type TileId,
 } from "./paneLayout";
+import type { PreviewMiniPlayerSource } from "./previewMiniPlayerStore";
 import type { ChatFileAttachment } from "./types";
 
 const RIGHT_PANEL_KINDS = [
@@ -170,6 +172,12 @@ export interface ThreadRightPanelState {
   fill?: PaneKind;
   /** Where each pane last sat, so showing or reopening it puts it back. */
   placements?: Partial<Record<PaneKind, PanePlacement>>;
+  /** Panes floating as small windows over the chat, bottom one first; `placements` keeps their spot. */
+  minimized?: PaneKind[];
+  /** Panes that hiding every pane floated, so showing the layout again puts them back. */
+  floatedOnHide?: PaneKind[];
+  /** Browser pages an agent or another client opened that the user has not looked at yet. */
+  waitingSurfaceIds?: string[];
   dismissedDeviceSurfaceIds?: string[];
   proactiveDiffTurnId?: RunId;
 }
@@ -242,6 +250,23 @@ interface RightPanelStoreState {
   showPane: (ref: ScopedThreadRef, pane: PaneKind) => boolean;
   /** Takes a pane out of the layout, keeping its items and where it sat. */
   hidePane: (ref: ScopedThreadRef, pane: PaneKind) => void;
+  /** Floats a pane as a small window over the chat; showing it puts it back where it sat. */
+  minimizePane: (ref: ScopedThreadRef, pane: PaneKind) => void;
+  /**
+   * Floats `surface` in its pane's small window, adding it when new. An automatic one leaves a
+   * pane that is on screen alone and only adds the item, which then waits to be looked at.
+   */
+  floatSurface: (
+    ref: ScopedThreadRef,
+    surface: RightPanelSurface,
+    automatic?: boolean,
+    /** Shows a new item in its pane even when that pane is on screen with another. */
+    force?: boolean,
+  ) => void;
+  /** Stops floating a pane without showing it, as when the device it streams went away. */
+  dismissFloatingPane: (ref: ScopedThreadRef, pane: PaneKind) => void;
+  /** Hides every pane, floating `float` meanwhile; showing the layout puts those back. */
+  hideAll: (ref: ScopedThreadRef, float: readonly PaneKind[]) => void;
   /** Hides a visible pane, or shows it, opening `create` when the pane has nothing yet. */
   togglePane: (ref: ScopedThreadRef, pane: PaneKind, create?: RightPanelSurface) => void;
   movePane: (ref: ScopedThreadRef, pane: PaneKind, target: TileId, side: PaneSide) => void;
@@ -250,11 +275,12 @@ interface RightPanelStoreState {
   resetDivider: (ref: ScopedThreadRef, path: readonly number[], index: number) => void;
   /** Null restores the layout. A pane not shown yet fills once it opens. */
   setFill: (ref: ScopedThreadRef, pane: PaneKind | null) => void;
-  reconcileBrowserSurfaces: (
-    ref: ScopedThreadRef,
-    tabIds: readonly string[],
-    hiddenTabIds?: ReadonlySet<string>,
-  ) => void;
+  /**
+   * Keeps the Browser pane's items in step with the thread's pages. Pages opened elsewhere,
+   * revealed or not, wait as items that never take over the pane; the pane leaves the layout
+   * when only waiting ones remain.
+   */
+  reconcileBrowserSurfaces: (ref: ScopedThreadRef, tabIds: readonly string[]) => void;
   reconcileFileSurfaces: (ref: ScopedThreadRef, workspaceAvailable: boolean) => void;
   show: (ref: ScopedThreadRef) => void;
   close: (ref: ScopedThreadRef) => void;
@@ -286,10 +312,16 @@ const singletonSurface = (kind: SingletonKind): RightPanelSurface => {
   }
 };
 
-const browserSurface = (tabId: string | null): RightPanelSurface =>
+export const browserSurface = (tabId: string | null): RightPanelSurface =>
   tabId
     ? { id: `browser:${tabId}`, kind: "preview", resourceId: tabId }
     : { id: "browser:new", kind: "preview", resourceId: null };
+
+export const deviceSurface = (target: DeviceTabTarget): RightPanelSurface => ({
+  id: `device:${encodeURIComponent(target.hostId)}:${encodeURIComponent(target.deviceId)}`,
+  kind: "device",
+  target,
+});
 
 const fileSurface = (
   relativePath: string,
@@ -396,22 +428,48 @@ const focusedPaneOf = (state: ThreadRightPanelState): PaneKind | null => {
   return active ? paneOf(active) : null;
 };
 
+type PaneListKey = "minimized" | "floatedOnHide";
+
+/** Sets one of the thread's pane lists, leaving the key out while it is empty. */
+function withPaneList(
+  state: ThreadRightPanelState,
+  key: PaneListKey,
+  panes: readonly PaneKind[],
+): ThreadRightPanelState {
+  const current = state[key] ?? [];
+  if (current.length === panes.length && current.every((pane, index) => panes[index] === pane)) {
+    return state;
+  }
+  const { [key]: _previous, ...rest } = state;
+  return panes.length === 0 ? rest : { ...rest, [key]: [...panes] };
+}
+
+const withoutPaneIn = (state: ThreadRightPanelState, key: PaneListKey, pane: PaneKind) =>
+  withPaneList(
+    state,
+    key,
+    (state[key] ?? []).filter((entry) => entry !== pane),
+  );
+
 /**
- * Puts a pane in the layout, where it last sat or by the default placement. A user's open
- * leaves another pane's fill so the pane can be seen; an automatic one does not disturb it.
+ * Puts a pane in the layout, where it last sat or by the default placement, below the pane
+ * that was focused before. A user's open leaves another pane's fill so the pane can be seen;
+ * an automatic one does not disturb it. A floating pane stops floating.
  */
 function placed(
   state: ThreadRightPanelState,
   pane: PaneKind,
   leaveFill: boolean,
+  focused: PaneKind | null = focusedPaneOf(state),
 ): ThreadRightPanelState {
   const layout = placePane(state.layout, pane, {
-    focused: focusedPaneOf(state),
+    focused,
     placement: state.placements?.[pane],
   });
   const fill = !leaveFill || state.fill === pane ? state.fill : undefined;
   const { fill: _fill, ...rest } = state;
-  return { ...rest, layout, isOpen: true, ...(fill === undefined ? {} : { fill }) };
+  const shown = { ...rest, layout, isOpen: true, ...(fill === undefined ? {} : { fill }) };
+  return withoutPaneIn(withoutPaneIn(shown, "minimized", pane), "floatedOnHide", pane);
 }
 
 /** Takes a pane out of the layout, remembering where it was. */
@@ -446,8 +504,21 @@ const upsertSurface = (
     paneSurfaceIds: { ...current.paneSurfaceIds, [pane]: surface.id },
     activeSurfaceId: surface.id,
   };
-  return placed(withItem, pane, !automatic);
+  return placed(withItem, pane, !automatic, focusedPaneOf(current));
 };
+
+/** Floats a pane that has something to show, moving focus to a pane still in the layout. */
+function minimized(state: ThreadRightPanelState, pane: PaneKind): ThreadRightPanelState {
+  if (state.paneSurfaceIds[pane] === undefined || state.minimized?.includes(pane)) return state;
+  const removed = withPaneList(unplaced(state, pane), "minimized", [
+    ...(state.minimized ?? []),
+    pane,
+  ]);
+  if (focusedPaneOf(state) !== pane) return removed;
+  const remaining = visiblePanes(removed).at(-1);
+  const next = remaining === undefined ? undefined : removed.paneSurfaceIds[remaining];
+  return next === undefined ? removed : { ...removed, activeSurfaceId: next };
+}
 
 const sameRecord = (
   left: Partial<Record<string, string>>,
@@ -479,14 +550,34 @@ function settle(state: ThreadRightPanelState): ThreadRightPanelState {
         : state.surfaces.findLast((surface) => paneOf(surface) === pane)!.id;
   }
   if (!sameRecord(paneSurfaceIds, state.paneSurfaceIds)) next = { ...next, paneSurfaceIds };
-  if (
-    next.activeSurfaceId !== null &&
-    !state.surfaces.some((surface) => surface.id === next.activeSurfaceId)
-  ) {
-    const lastPane = layoutPanes(next.layout).at(-1);
-    next = { ...next, activeSurfaceId: lastPane ? (paneSurfaceIds[lastPane] ?? null) : null };
+  const inLayout = new Set(layoutPanes(next.layout));
+  for (const key of ["minimized", "floatedOnHide"] as const) {
+    const panes = [...new Set(next[key] ?? [])].filter(
+      (pane) => paneKinds.has(pane) && !inLayout.has(pane),
+    );
+    next = withPaneList(next, key, panes);
   }
-  if (next.isOpen && layoutPanes(next.layout).length === 0) next = { ...next, isOpen: false };
+  if (next.isOpen && inLayout.size === 0) next = { ...next, isOpen: false };
+  // The focused pane is one on screen whenever any is, so pane commands never reach past it.
+  const onScreen = panesOnScreen(next);
+  const focused = focusedPaneOf(next);
+  const lostItem = next.activeSurfaceId !== null && focused === null;
+  if (lostItem || (onScreen.length > 0 && (focused === null || !onScreen.includes(focused)))) {
+    const target = onScreen.at(-1) ?? layoutPanes(next.layout).at(-1);
+    next = {
+      ...next,
+      activeSurfaceId: target === undefined ? null : (paneSurfaceIds[target] ?? null),
+    };
+  }
+  const waiting = next.waitingSurfaceIds?.filter(
+    (id) =>
+      next.surfaces.some((surface) => surface.id === id) &&
+      !onScreen.some((pane) => paneSurfaceIds[pane] === id),
+  );
+  if (waiting !== undefined && waiting.length !== next.waitingSurfaceIds!.length) {
+    const { waitingSurfaceIds: _waiting, ...rest } = next;
+    next = waiting.length === 0 ? rest : { ...rest, waitingSurfaceIds: waiting };
+  }
   return next;
 }
 
@@ -503,6 +594,7 @@ const updateThreadStateMap = (
     next.surfaces.length === 0 &&
     next.layout === null &&
     next.placements === undefined &&
+    next.minimized === undefined &&
     next.fill === undefined &&
     !next.dismissedDeviceSurfaceIds?.length &&
     next.proactiveDiffTurnId === undefined
@@ -700,30 +792,69 @@ function decodeSurface(raw: unknown): RightPanelSurface | null {
   return surface;
 }
 
+/** A terminal tab's own shells, which builds before version 18 kept apart from the drawer's. */
+export interface MigratedTerminalGroup {
+  readonly terminalIds: string[];
+  readonly activeTerminalId: string;
+  readonly splitDirection?: "horizontal" | "vertical";
+}
+
+function migratedTerminalGroup(raw: unknown): MigratedTerminalGroup | null {
+  const saved = raw as Record<string, unknown>;
+  const ids = Array.isArray(saved.terminalIds)
+    ? saved.terminalIds.filter((id): id is string => typeof id === "string" && id.trim() !== "")
+    : [];
+  const terminalIds =
+    ids.length > 0 ? ids : typeof saved.resourceId === "string" ? [saved.resourceId] : [];
+  if (terminalIds.length === 0) return null;
+  const activeTerminalId =
+    typeof saved.activeTerminalId === "string" && terminalIds.includes(saved.activeTerminalId)
+      ? saved.activeTerminalId
+      : terminalIds[0]!;
+  return {
+    terminalIds,
+    activeTerminalId,
+    ...(saved.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : {}),
+  };
+}
+
 /**
  * Builds before version 18 kept a row of tabs. The tab that was showing becomes the one pane,
  * beside the chat; the rest are dropped, since a row of tabs has no layout to restore them to.
+ * A terminal tab's shells move to the terminal store, which the drawer state never listed.
  */
-function migrateTabbedThread(saved: Record<string, unknown>): ThreadRightPanelState | null {
+function migrateTabbedThread(saved: Record<string, unknown>): {
+  state: ThreadRightPanelState | null;
+  terminal: MigratedTerminalGroup | null;
+} {
   const savedActiveId =
     typeof saved.activeSurfaceId === "string" && saved.activeSurfaceId.startsWith("side-chat:")
       ? `thread:${saved.activeSurfaceId.slice("side-chat:".length)}`
       : saved.activeSurfaceId;
   const decoded = (Array.isArray(saved.surfaces) ? saved.surfaces : []).flatMap((raw) => {
     const surface = decodeSurface(raw);
-    return surface === null ? [] : [{ rawId: (raw as { id?: unknown }).id, surface }];
+    return surface === null ? [] : [{ raw, rawId: (raw as { id?: unknown }).id, surface }];
   });
+  const savedActiveEntry = decoded.find(
+    ({ rawId, surface }) => surface.id === savedActiveId || rawId === savedActiveId,
+  );
   const savedActive =
-    decoded.find(({ rawId, surface }) => surface.id === savedActiveId || rawId === savedActiveId)
-      ?.surface ??
+    savedActiveEntry?.surface ??
     (savedActiveId === "pull-request"
       ? decoded.find(({ surface }) => surface.kind === "pull-request")?.surface
       : undefined) ??
     null;
   const isOpen =
     decoded.length > 0 && (typeof saved.isOpen === "boolean" ? saved.isOpen : savedActive !== null);
-  const active =
-    savedActive ?? (isOpen || savedActiveId === "agents" ? (decoded[0]?.surface ?? null) : null);
+  const activeEntry =
+    savedActive !== null
+      ? (decoded.find((entry) => entry.surface === savedActive) ?? savedActiveEntry)
+      : isOpen || savedActiveId === "agents"
+        ? decoded[0]
+        : undefined;
+  const active = savedActive ?? activeEntry?.surface ?? null;
+  const terminal =
+    active?.kind === "terminal" && activeEntry ? migratedTerminalGroup(activeEntry.raw) : null;
   const extras = {
     ...(typeof saved.proactiveDiffTurnId === "string"
       ? { proactiveDiffTurnId: RunId.make(saved.proactiveDiffTurnId) }
@@ -737,24 +868,34 @@ function migrateTabbedThread(saved: Record<string, unknown>): ThreadRightPanelSt
       : {}),
   };
   if (active === null) {
-    return Object.keys(extras).length === 0 ? null : { ...EMPTY_THREAD_STATE, ...extras };
+    return {
+      state: Object.keys(extras).length === 0 ? null : { ...EMPTY_THREAD_STATE, ...extras },
+      terminal: null,
+    };
   }
   const pane = paneOf(active);
   return {
-    isOpen,
-    layout: placePane(null, pane, { focused: null, placement: undefined }),
-    surfaces: [active],
-    activeSurfaceId: active.id,
-    paneSurfaceIds: { [pane]: active.id },
-    ...(saved.maximized === true ? { fill: pane } : {}),
-    ...extras,
+    state: {
+      isOpen,
+      layout: placePane(null, pane, { focused: null, placement: undefined }),
+      surfaces: [active],
+      activeSurfaceId: active.id,
+      paneSurfaceIds: { [pane]: active.id },
+      ...(saved.maximized === true ? { fill: pane } : {}),
+      ...extras,
+    },
+    terminal,
   };
 }
 
 export function migratePersistedRightPanelState(persistedState: unknown): {
   byThreadKey: Record<string, ThreadRightPanelState>;
+  terminalGroups: Record<string, MigratedTerminalGroup>;
 } {
-  if (!persistedState || typeof persistedState !== "object") return { byThreadKey: {} };
+  const terminalGroups: Record<string, MigratedTerminalGroup> = {};
+  if (!persistedState || typeof persistedState !== "object") {
+    return { byThreadKey: {}, terminalGroups };
+  }
   const saved =
     "byThreadKey" in persistedState &&
     persistedState.byThreadKey &&
@@ -767,9 +908,10 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
     if (threadKey.endsWith(":pull-requests-panel") || threadKey.endsWith(":issues-panel")) continue;
     if (!threadState || typeof threadState !== "object") continue;
     const migrated = migrateTabbedThread(threadState as Record<string, unknown>);
-    if (migrated !== null) byThreadKey[threadKey] = migrated;
+    if (migrated.state !== null) byThreadKey[threadKey] = migrated.state;
+    if (migrated.terminal !== null) terminalGroups[threadKey] = migrated.terminal;
   }
-  return { byThreadKey };
+  return { byThreadKey, terminalGroups };
 }
 
 /** Rebuilds a version 18 thread, dropping what does not fit together any more. */
@@ -804,14 +946,25 @@ function decodeThreadState(raw: unknown): ThreadRightPanelState | null {
         placement.ratio > 0 &&
         placement.ratio < 1
       ) {
+        const group = Array.isArray(placement.group)
+          ? placement.group.filter((tile): tile is TileId => tile === "chat" || isPaneKind(tile))
+          : [];
         placements[pane] = {
           neighbor: placement.neighbor,
           side: placement.side,
           ratio: placement.ratio,
+          ...(group.length > 1 ? { group } : {}),
         };
       }
     }
   }
+  const paneList = (value: unknown): PaneKind[] =>
+    Array.isArray(value) ? value.filter((pane): pane is PaneKind => isPaneKind(pane)) : [];
+  const minimizedPanes = paneList(saved.minimized);
+  const floatedOnHide = paneList(saved.floatedOnHide);
+  const waitingSurfaceIds = Array.isArray(saved.waitingSurfaceIds)
+    ? saved.waitingSurfaceIds.filter((id): id is string => typeof id === "string")
+    : [];
   const state: ThreadRightPanelState = {
     isOpen: saved.isOpen === true,
     layout: decodeLayout(saved.layout),
@@ -820,6 +973,9 @@ function decodeThreadState(raw: unknown): ThreadRightPanelState | null {
     paneSurfaceIds,
     ...(isPaneKind(saved.fill) ? { fill: saved.fill } : {}),
     ...(Object.keys(placements).length > 0 ? { placements } : {}),
+    ...(minimizedPanes.length > 0 ? { minimized: minimizedPanes } : {}),
+    ...(floatedOnHide.length > 0 ? { floatedOnHide } : {}),
+    ...(waitingSurfaceIds.length > 0 ? { waitingSurfaceIds } : {}),
     ...(typeof saved.proactiveDiffTurnId === "string"
       ? { proactiveDiffTurnId: RunId.make(saved.proactiveDiffTurnId) }
       : {}),
@@ -907,10 +1063,9 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
       openDevice: (ref, target, automatic = false) =>
         set((state) =>
           (automatic ? automaticUpdate : userAction)(state, scopedThreadKey(ref), (current) => {
-            const id =
-              `device:${encodeURIComponent(target.hostId)}:${encodeURIComponent(target.deviceId)}` as const;
+            const surface = deviceSurface(target);
+            const id = surface.id;
             if (automatic && current.dismissedDeviceSurfaceIds?.includes(id)) return current;
-            const surface: RightPanelSurface = { id, kind: "device", target };
             const existing = current.surfaces.find((entry) => entry.id === id);
             const surfaces = existing
               ? current.surfaces.filter((entry) => entry.id !== "device")
@@ -1168,6 +1323,62 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         set((state) =>
           userAction(state, scopedThreadKey(ref), (current) => unplaced(current, pane)),
         ),
+      minimizePane: (ref, pane) =>
+        set((state) =>
+          userAction(state, scopedThreadKey(ref), (current) => minimized(current, pane)),
+        ),
+      floatSurface: (ref, surface, automatic = false, force = false) =>
+        set((state) =>
+          (automatic ? automaticUpdate : userAction)(state, scopedThreadKey(ref), (current) => {
+            const pane = paneOf(surface);
+            const known = current.surfaces.some((entry) => entry.id === surface.id);
+            const withItem: ThreadRightPanelState = known
+              ? current
+              : { ...current, surfaces: [...current.surfaces, surface] };
+            if (force && isPaneVisible(current, pane))
+              return upsertSurface(withItem, surface, true);
+            if (automatic && !force && panesOnScreen(current).includes(pane)) {
+              if (known || current.paneSurfaceIds[pane] === surface.id) return withItem;
+              return {
+                ...withItem,
+                waitingSurfaceIds: [...(current.waitingSurfaceIds ?? []), surface.id],
+              };
+            }
+            const shown = {
+              ...withItem,
+              paneSurfaceIds: { ...withItem.paneSurfaceIds, [pane]: surface.id },
+            };
+            return current.minimized?.includes(pane)
+              ? shown
+              : minimized(
+                  { ...shown, ...(automatic ? {} : { activeSurfaceId: surface.id }) },
+                  pane,
+                );
+          }),
+        ),
+      dismissFloatingPane: (ref, pane) =>
+        set((state) =>
+          automaticUpdate(state, scopedThreadKey(ref), (current) =>
+            withoutPaneIn(current, "minimized", pane),
+          ),
+        ),
+      hideAll: (ref, float) =>
+        set((state) =>
+          userAction(state, scopedThreadKey(ref), (current) => {
+            let next: ThreadRightPanelState = current;
+            for (const pane of float) {
+              if (isPaneVisible(next, pane)) next = minimized(next, pane);
+            }
+            const floated = float.filter((pane) => next.minimized?.includes(pane));
+            // Floating the filled pane drops its fill; showing the layout again brings it back.
+            const { fill: _fill, ...rest } = withPaneList(next, "floatedOnHide", floated);
+            return {
+              ...rest,
+              isOpen: false,
+              ...(current.fill === undefined ? {} : { fill: current.fill }),
+            };
+          }),
+        ),
       togglePane: (ref, pane, create) =>
         set((state) =>
           userAction(state, scopedThreadKey(ref), (current) => toggled(current, pane, create)),
@@ -1216,7 +1427,7 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             return pane === null ? rest : { ...rest, fill: pane, isOpen: true };
           }),
         ),
-      reconcileBrowserSurfaces: (ref, tabIds, hiddenTabIds) =>
+      reconcileBrowserSurfaces: (ref, tabIds) =>
         set((state) =>
           automaticUpdate(state, scopedThreadKey(ref), (current) => {
             const validIds = new Set(tabIds.map((tabId) => `browser:${tabId}`));
@@ -1227,10 +1438,27 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             );
             const knownIds = new Set(kept.map((surface) => surface.id));
             const added = tabIds
-              .filter((tabId) => !knownIds.has(`browser:${tabId}`) && !hiddenTabIds?.has(tabId))
+              .filter((tabId) => !knownIds.has(`browser:${tabId}`))
               .map((tabId) => browserSurface(tabId));
             if (added.length === 0 && kept.length === current.surfaces.length) return current;
-            return { ...current, surfaces: [...kept, ...added] };
+            const waiting = [
+              ...(current.waitingSurfaceIds ?? []),
+              ...added.map((surface) => surface.id),
+            ];
+            const next: ThreadRightPanelState = {
+              ...current,
+              surfaces: [...kept, ...added],
+              ...(waiting.length === 0 ? {} : { waitingSurfaceIds: waiting }),
+            };
+            const shown = current.paneSurfaceIds.browser;
+            if (shown === undefined || validIds.has(shown)) return next;
+            const fallback = kept.findLast(
+              (surface) => surface.kind === "preview" && !waiting.includes(surface.id),
+            );
+            if (fallback) {
+              return { ...next, paneSurfaceIds: { ...next.paneSurfaceIds, browser: fallback.id } };
+            }
+            return withoutPaneIn(unplaced(next, "browser"), "minimized", "browser");
           }),
         ),
       reconcileFileSurfaces: (ref, workspaceAvailable) =>
@@ -1248,9 +1476,16 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         ),
       show: (ref) =>
         set((state) =>
-          userAction(state, scopedThreadKey(ref), (current) =>
-            current.isOpen ? current : { ...current, isOpen: true },
-          ),
+          userAction(state, scopedThreadKey(ref), (current) => {
+            let next: ThreadRightPanelState = current.isOpen
+              ? current
+              : { ...current, isOpen: true };
+            // Each placement was recorded against the layout left by the ones before it.
+            for (const pane of (current.floatedOnHide ?? []).toReversed()) {
+              next = placed(next, pane, false);
+            }
+            return next;
+          }),
         ),
       close: (ref) =>
         set((state) =>
@@ -1311,7 +1546,14 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
           ]),
         ),
       }),
-      migrate: migratePersistedRightPanelState,
+      migrate: (persistedState) => {
+        const { byThreadKey, terminalGroups } = migratePersistedRightPanelState(persistedState);
+        for (const [threadKey, group] of Object.entries(terminalGroups)) {
+          const threadRef = parseScopedThreadKey(threadKey);
+          if (threadRef) useTerminalUiStateStore.getState().importTerminalGroup(threadRef, group);
+        }
+        return { byThreadKey };
+      },
       merge: (persisted, current) => {
         const saved =
           persisted && typeof persisted === "object" && "byThreadKey" in persisted
@@ -1362,6 +1604,26 @@ export function selectThreadRightPanelState(
   return byThreadKey[scopedThreadKey(ref)] ?? EMPTY_THREAD_STATE;
 }
 
+/**
+ * The floating pane the preview player draws: the newest of `panes` showing a live page or
+ * device. Others float as plain windows.
+ */
+export function floatingPreviewSource(
+  state: ThreadRightPanelState,
+  panes: readonly PaneKind[],
+): { pane: PaneKind; source: PreviewMiniPlayerSource } | null {
+  for (const pane of panes.toReversed()) {
+    const surface = paneSurface(state, pane);
+    if (surface?.kind === "preview" && surface.resourceId !== null) {
+      return { pane, source: { kind: "browser", tabId: surface.resourceId } };
+    }
+    if (surface?.kind === "device" && surface.target) {
+      return { pane, source: { kind: "device", ...surface.target } };
+    }
+  }
+  return null;
+}
+
 /** The panes on screen: none while hidden, only the filled one while one fills. */
 export function visiblePanes(state: ThreadRightPanelState): PaneKind[] {
   if (!state.isOpen) return [];
@@ -1371,6 +1633,28 @@ export function visiblePanes(state: ThreadRightPanelState): PaneKind[] {
 
 export function isPaneVisible(state: ThreadRightPanelState, pane: PaneKind): boolean {
   return visiblePanes(state).includes(pane);
+}
+
+/** The pane a narrow window's sheet shows: the focused one, else the first in the layout. */
+export function sheetPane(state: ThreadRightPanelState): PaneKind | null {
+  const panes = visiblePanes(state);
+  const focused = focusedPaneOf(state);
+  return focused !== null && panes.includes(focused) ? focused : (panes[0] ?? null);
+}
+
+/** The floating panes on screen: none while a pane fills the window. */
+export function floatingPanes(state: ThreadRightPanelState): PaneKind[] {
+  const minimizedPanes = state.minimized ?? [];
+  if (minimizedPanes.length === 0) return minimizedPanes;
+  const fill = state.fill;
+  return state.isOpen && fill !== undefined && layoutHasTile(state.layout, fill)
+    ? []
+    : minimizedPanes;
+}
+
+/** Every pane the user can see, floating ones first. */
+function panesOnScreen(state: ThreadRightPanelState): PaneKind[] {
+  return [...floatingPanes(state), ...visiblePanes(state)];
 }
 
 /** The item a pane shows, whether or not the pane is on screen. */
@@ -1397,7 +1681,7 @@ export function selectActiveRightPanelSurface(
 ): RightPanelSurface | null {
   const state = selectThreadRightPanelState(byThreadKey, ref);
   const pane = focusedPaneOf(state);
-  return pane !== null && isPaneVisible(state, pane) ? paneSurface(state, pane) : null;
+  return pane !== null && panesOnScreen(state).includes(pane) ? paneSurface(state, pane) : null;
 }
 
 export function selectSelectedRightPanelSurface(

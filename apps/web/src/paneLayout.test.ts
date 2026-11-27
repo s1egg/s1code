@@ -5,7 +5,9 @@ import {
   computeTileRects,
   cornerTile,
   decodeLayout,
+  dividerMinimums,
   hasPaneRightOfChat,
+  minNodeSize,
   movePane,
   placePane,
   removeTile,
@@ -56,6 +58,61 @@ describe("paneLayout", () => {
       withTerminal,
     );
     expect(removeTile(chatWithDiff, "diff").layout).toBeNull();
+  });
+
+  it("puts a pane back beside the whole split it sat next to", () => {
+    // Chat above Terminal, with a full-height Diff on the right.
+    const nested: LayoutNode = {
+      type: "split",
+      direction: "row",
+      children: [
+        {
+          type: "split",
+          direction: "column",
+          children: [{ type: "chat" }, { type: "pane", pane: "terminal" }],
+          sizes: [0.5, 0.5],
+        },
+        { type: "pane", pane: "diff" },
+      ],
+      sizes: [0.6, 0.4],
+    };
+    const removed = removeTile(nested, "diff");
+    expect(removed.placement).toEqual({
+      neighbor: "chat",
+      side: "right",
+      ratio: 0.4,
+      group: ["chat", "terminal"],
+    });
+    expect(
+      placePane(removed.layout, "diff", { focused: null, placement: removed.placement! }),
+    ).toEqual(nested);
+    // A neighbour split that lost a tile still takes the pane back beside what is left of it.
+    const withFiles = splitTile(nested, "terminal", "files", "bottom", 0.5);
+    const removedBeside = removeTile(withFiles, "diff");
+    expect(
+      placePane(removeTile(removedBeside.layout, "files").layout, "diff", {
+        focused: null,
+        placement: removedBeside.placement!,
+      }),
+    ).toMatchObject({ direction: "row", children: [{ direction: "column" }, { pane: "diff" }] });
+  });
+
+  it("needs the room every tile of a split needs before a divider can shrink it", () => {
+    const layout = splitTile(chatWithDiff, "diff", "terminal", "right", 0.5);
+    expect(minNodeSize(layout, "width")).toBe(320 + 220 + 220);
+    expect(minNodeSize(splitTile(null, "chat", "terminal", "bottom", 0.5), "height")).toBe(
+      240 + 120,
+    );
+    expect(minNodeSize(layout, "height")).toBe(240);
+  });
+
+  it("keeps both neighbors' minimums while they fit, and shares the room when they do not", () => {
+    // The larger subtree needs more than half the pair; the divider must still respect it.
+    expect(dividerMinimums(0.6, 0.2, 1)).toEqual([0.6, 0.2]);
+    expect(dividerMinimums(0.2, 0.7, 1)).toEqual([0.2, 0.7]);
+    const [before, after] = dividerMinimums(0.8, 0.4, 0.9);
+    expect(before + after).toBeCloseTo(0.9);
+    expect(before / after).toBeCloseTo(2);
   });
 
   it("places by default beside the chat first and under the focused pane after", () => {

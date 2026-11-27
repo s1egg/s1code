@@ -419,6 +419,33 @@ function closeThreadTerminal(
   });
 }
 
+/** Adds shells kept elsewhere as their own split, showing the one that was active there. */
+function importThreadTerminalGroup(
+  state: ThreadTerminalUiState,
+  group: TerminalGroupImport,
+): ThreadTerminalUiState {
+  const normalized = normalizeThreadTerminalUiState(state);
+  const added = normalizeTerminalIds([...group.terminalIds]).filter(
+    (id) => !normalized.terminalIds.includes(id),
+  );
+  if (added.length === 0) return normalized;
+  const groups: ThreadTerminalGroup[] = [];
+  for (let index = 0; index < added.length; index += MAX_TERMINALS_PER_GROUP) {
+    const terminalIds = added.slice(index, index + MAX_TERMINALS_PER_GROUP);
+    groups.push({
+      id: fallbackGroupId(terminalIds[0]!),
+      terminalIds,
+      ...(group.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : {}),
+    });
+  }
+  return normalizeThreadTerminalUiState({
+    terminalIds: [...normalized.terminalIds, ...added],
+    terminalGroups: [...normalized.terminalGroups, ...groups],
+    activeTerminalId: added.includes(group.activeTerminalId) ? group.activeTerminalId : added[0]!,
+    activeTerminalGroupId: "",
+  });
+}
+
 function reconcileThreadTerminalSessionIds(
   state: ThreadTerminalUiState,
   serverIds: string[],
@@ -554,6 +581,12 @@ function forgetObservedTerminalId(
   return { ...serverObservationsByThreadKey, [threadKey]: { ...observation, ids } };
 }
 
+export interface TerminalGroupImport {
+  readonly terminalIds: readonly string[];
+  readonly activeTerminalId: string;
+  readonly splitDirection?: "horizontal" | "vertical";
+}
+
 interface TerminalUiStateStoreState {
   serverObservationsByThreadKey: Record<string, TerminalServerObservation>;
   terminalUiStateByThreadKey: Record<string, ThreadTerminalUiState>;
@@ -573,6 +606,8 @@ interface TerminalUiStateStoreState {
     serverIds: string[],
     snapshotId?: string | symbol,
   ) => void;
+  /** Takes in shells this store never listed, such as a pre-pane terminal tab's. */
+  importTerminalGroup: (threadRef: ScopedThreadRef, group: TerminalGroupImport) => void;
   clearTerminalUiState: (threadRef: ScopedThreadRef) => void;
   removeTerminalUiState: (threadRef: ScopedThreadRef) => void;
   removeOrphanedTerminalUiStates: (activeThreadKeys: Set<string>) => void;
@@ -746,6 +781,30 @@ export const useTerminalUiStateStore = create<TerminalUiStateStoreState>()(
             set({ terminalUiStateByThreadKey, serverObservationsByThreadKey });
           }
         },
+        importTerminalGroup: (threadRef, group) =>
+          set((state) => {
+            const threadKey = terminalThreadKey(threadRef);
+            const terminalUiStateByThreadKey = updateTerminalUiStateByThreadKey(
+              state.terminalUiStateByThreadKey,
+              threadRef,
+              (current) => importThreadTerminalGroup(current, group),
+            );
+            const suppressed = state.suppressedTerminalIdsByThreadKey[threadKey] ?? [];
+            const remaining = suppressed.filter((id) => !group.terminalIds.includes(id));
+            if (
+              terminalUiStateByThreadKey === state.terminalUiStateByThreadKey &&
+              remaining.length === suppressed.length
+            ) {
+              return state;
+            }
+            return {
+              terminalUiStateByThreadKey,
+              suppressedTerminalIdsByThreadKey:
+                remaining.length === 0
+                  ? removeRecordEntry(state.suppressedTerminalIdsByThreadKey, threadKey)
+                  : { ...state.suppressedTerminalIdsByThreadKey, [threadKey]: remaining },
+            };
+          }),
         clearTerminalUiState: removeTerminalUiState,
         removeTerminalUiState,
         removeOrphanedTerminalUiStates: (activeThreadKeys) =>

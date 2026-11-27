@@ -1,6 +1,6 @@
 import type { ScopedThreadRef } from "@s1tools/contracts";
 import { useGT, useMessages } from "gt-react";
-import { XIcon } from "lucide-react";
+import { PictureInPicture2Icon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useTheme } from "~/hooks/useTheme";
@@ -9,6 +9,7 @@ import { workspaceAreaProps } from "~/lib/workspaceFocus";
 import {
   paneKindOf,
   paneSurface,
+  sheetPane,
   useRightPanelStore,
   visiblePanes,
   type RightPanelSurface,
@@ -17,12 +18,13 @@ import {
 
 import { RightPanelSheet } from "../RightPanelSheet";
 import { Button } from "../ui/button";
-import type { PaneHeaderContext } from "./PaneHeader";
+import { PaneItemSwitcher, type PaneHeaderContext } from "./PaneHeader";
 import { previewFaviconOf, SurfaceIcon, surfaceTitle } from "./paneSurfacePresentation";
 
 /**
  * Narrow windows have no room to tile: the panes open one at a time in a sheet, with a row of
- * chips to pick which one shows. The layout is kept for when the window widens again.
+ * chips to pick which one shows. Minimized panes are chips too, and picking one shows it. The
+ * layout is kept for when the window widens again.
  */
 export function PaneSheet(props: {
   readonly threadRef: ScopedThreadRef;
@@ -37,11 +39,13 @@ export function PaneSheet(props: {
   const { resolvedTheme } = useTheme();
   const { panelState, header, threadRef } = props;
   const panes = visiblePanes(panelState);
-  const active = panelState.surfaces.find((surface) => surface.id === panelState.activeSurfaceId);
-  const focused =
-    active && panes.includes(paneKindOf(active.kind)) ? paneKindOf(active.kind) : null;
-  const shownPane = focused ?? panes[0] ?? null;
+  const minimizedPanes = panelState.minimized ?? [];
+  const shownPane = sheetPane(panelState);
   const surface = shownPane === null ? null : paneSurface(panelState, shownPane);
+  const shownItems =
+    shownPane === null
+      ? []
+      : panelState.surfaces.filter((entry) => paneKindOf(entry.kind) === shownPane);
   return (
     <RightPanelSheet
       animationDurationMs={props.animationDurationMs}
@@ -58,11 +62,12 @@ export function PaneSheet(props: {
           aria-label={gt("Panes")}
           data-pane-sheet-picker
         >
-          {panes.map((pane) => {
+          {[...panes, ...minimizedPanes].map((pane) => {
             const item = paneSurface(panelState, pane);
             if (!item) return null;
             const favicon = previewFaviconOf(item, header.previewSessions, header.desktopByTabId);
             const selected = pane === shownPane;
+            const minimized = minimizedPanes.includes(pane);
             return (
               <button
                 key={pane}
@@ -70,13 +75,18 @@ export function PaneSheet(props: {
                 role="tab"
                 aria-selected={selected}
                 data-pane-sheet-tab={pane}
+                data-minimized={minimized ? "true" : undefined}
                 className={cn(
                   "flex h-7 max-w-40 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-sm",
                   selected
                     ? "bg-background text-foreground shadow-xs ring-1 ring-border"
                     : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                 )}
-                onClick={() => useRightPanelStore.getState().focusPane(threadRef, pane)}
+                onClick={() => {
+                  const store = useRightPanelStore.getState();
+                  if (minimized) store.showPane(threadRef, pane);
+                  else store.focusPane(threadRef, pane);
+                }}
               >
                 <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
                   <SurfaceIcon
@@ -90,9 +100,23 @@ export function PaneSheet(props: {
                 <span className="truncate">
                   {surfaceTitle(item, header.previewSessions, messages)}
                 </span>
+                {minimized ? (
+                  <PictureInPicture2Icon
+                    aria-label={gt("Minimized")}
+                    className="size-3 shrink-0 opacity-70"
+                  />
+                ) : null}
               </button>
             );
           })}
+          {surface !== null && shownItems.length > 1 ? (
+            <PaneItemSwitcher
+              items={shownItems}
+              current={surface}
+              context={header}
+              onClose={() => header.onCloseSurface(surface)}
+            />
+          ) : null}
           <div className="min-w-0 flex-1" />
           {shownPane !== null ? (
             <Button

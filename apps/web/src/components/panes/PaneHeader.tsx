@@ -9,6 +9,8 @@ import {
   EllipsisIcon,
   Maximize2Icon,
   Minimize2Icon,
+  PictureInPicture2Icon,
+  Volume2Icon,
   XIcon,
 } from "lucide-react";
 import { type PointerEvent as ReactPointerEvent, type ReactNode, useState } from "react";
@@ -54,7 +56,10 @@ export interface PaneHeaderContext {
   readonly previewSessions: Readonly<Record<string, PreviewSessionSnapshot>>;
   readonly desktopByTabId: Readonly<Record<string, DesktopPreviewOverlay>>;
   readonly pendingSurfaceIds: ReadonlySet<string>;
+  /** Browser pages opened elsewhere that the user has not looked at yet. */
+  readonly waitingSurfaceIds: ReadonlySet<string>;
   readonly onActivateSurface: (surface: RightPanelSurface) => void;
+  readonly onMinimizePane: (pane: PaneKind) => void;
   readonly onCloseSurface: (surface: RightPanelSurface) => void;
   readonly onClosePane: (pane: PaneKind) => void;
   readonly onRenameDevice: (surfaceId: string, title: string) => void;
@@ -77,6 +82,8 @@ export function PaneHeader(props: {
   readonly filled: boolean;
   readonly topRow: boolean;
   readonly topLeft: boolean;
+  /** Meets the window's top-right corner, where Windows draws its window controls. */
+  readonly topRight: boolean;
   readonly trailing: ReactNode;
   readonly onChipPointerDown: (event: ReactPointerEvent<HTMLElement>, title: string) => void;
   readonly onMove: (side: PaneSide) => void;
@@ -92,6 +99,11 @@ export function PaneHeader(props: {
   const favicon = previewFaviconOf(surface, context.previewSessions, context.desktopByTabId);
   const ownsTitleBar = isElectron && props.topRow;
   const menuItems = context.paneMenuItems(props.pane, surface);
+  const waitingCount = props.items.filter((item) => context.waitingSurfaceIds.has(item.id)).length;
+  const audible =
+    surface.kind === "preview" && surface.resourceId !== null
+      ? (context.desktopByTabId[surface.resourceId]?.audible ?? false)
+      : false;
   const icon = (
     <span className="relative inline-flex size-3.5 shrink-0 items-center justify-center">
       <SurfaceIcon
@@ -123,7 +135,7 @@ export function PaneHeader(props: {
           ? "h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)]"
           : "h-9 min-h-9",
         ownsTitleBar && "drag-region",
-        ownsTitleBar && props.trailing !== null && "wco:pr-(--workspace-native-controls-inset)",
+        ownsTitleBar && props.topRight && "wco:pr-(--workspace-native-controls-inset)",
         props.topLeft && props.topRow && COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
       )}
     >
@@ -185,6 +197,25 @@ export function PaneHeader(props: {
                 <span className="min-w-0 truncate group-hover/chip:[mask-image:linear-gradient(to_right,black_calc(100%-1.25rem),transparent)] group-focus-within/chip:[mask-image:linear-gradient(to_right,black_calc(100%-1.25rem),transparent)]">
                   {title}
                 </span>
+                {audible ? (
+                  <Volume2Icon
+                    aria-label={gt("Playing audio")}
+                    className="size-3.5 shrink-0 text-muted-foreground"
+                    data-pane-audio
+                  />
+                ) : null}
+                {waitingCount > 0 ? (
+                  <span
+                    aria-label={gt(
+                      "{count, plural, one {{count} page waiting} other {{count} pages waiting}}",
+                      { count: waitingCount },
+                    )}
+                    className="shrink-0 rounded-full bg-primary px-1.5 font-medium text-3xs text-primary-foreground leading-4 tabular-nums"
+                    data-pane-waiting={waitingCount}
+                  >
+                    {waitingCount}
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   aria-label={gt("Close {title}", { title })}
@@ -255,6 +286,23 @@ export function PaneHeader(props: {
           <MenuItem onClick={() => context.onClosePane(props.pane)}>{gt("Close pane")}</MenuItem>
         </MenuPopup>
       </Menu>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label={gt("Minimize {title}", { title })}
+              className="shrink-0 [-webkit-app-region:no-drag]"
+              size="icon-xs"
+              variant="ghost-muted"
+              onClick={() => context.onMinimizePane(props.pane)}
+              data-pane-minimize={props.pane}
+            />
+          }
+        >
+          <PictureInPicture2Icon className="size-3.5" />
+        </TooltipTrigger>
+        <TooltipPopup side="bottom">{gt("Minimize")}</TooltipPopup>
+      </Tooltip>
       {props.filled ? (
         <Button
           size="xs"
@@ -289,7 +337,70 @@ export function PaneHeader(props: {
   );
 }
 
-function PaneItemSwitcher(props: {
+/** The floating window's header: what it shows, and buttons to put it back or close it. */
+export function FloatingPaneHeader(props: {
+  readonly pane: PaneKind;
+  readonly surface: RightPanelSurface;
+  readonly context: PaneHeaderContext;
+  readonly onRestore: () => void;
+}) {
+  const gt = useGT();
+  const messages = useMessages();
+  const { resolvedTheme } = useTheme();
+  const { surface, context } = props;
+  const { title } = usePaneSurfaceTitle(
+    surface,
+    surfaceTitle(surface, context.previewSessions, messages),
+    context.environmentId,
+  );
+  const favicon = previewFaviconOf(surface, context.previewSessions, context.desktopByTabId);
+  return (
+    <div
+      data-floating-pane-header={props.pane}
+      className="flex h-8 shrink-0 items-center gap-1.5 pr-1 pl-2.5 text-sm"
+    >
+      <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
+        <SurfaceIcon
+          surface={surface}
+          previewUrl={favicon.url}
+          previewCapturedUrl={favicon.capturedUrl}
+          theme={resolvedTheme}
+          environmentId={context.environmentId}
+        />
+      </span>
+      <span className="min-w-0 flex-1 truncate">{title}</span>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label={gt("Restore {title}", { title })}
+              className="shrink-0"
+              size="icon-xs"
+              variant="ghost-muted"
+              onClick={props.onRestore}
+              data-floating-pane-restore={props.pane}
+            />
+          }
+        >
+          <Maximize2Icon className="size-3.5" />
+        </TooltipTrigger>
+        <TooltipPopup side="top">{gt("Restore")}</TooltipPopup>
+      </Tooltip>
+      <Button
+        aria-label={gt("Close {title}", { title })}
+        className="shrink-0"
+        size="icon-xs"
+        variant="ghost-muted"
+        onClick={() => context.onClosePane(props.pane)}
+        data-floating-pane-close={props.pane}
+      >
+        <XIcon className="size-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+export function PaneItemSwitcher(props: {
   readonly items: readonly RightPanelSurface[];
   readonly current: RightPanelSurface;
   readonly context: PaneHeaderContext;
@@ -321,6 +432,13 @@ function PaneItemSwitcher(props: {
               onClick={() => context.onActivateSurface(item)}
             >
               <PaneItemTitle item={item} context={context} />
+              {context.waitingSurfaceIds.has(item.id) ? (
+                <span
+                  aria-label={gt("Waiting")}
+                  className="ms-auto size-1.5 shrink-0 rounded-full bg-primary"
+                  data-pane-item-waiting
+                />
+              ) : null}
             </MenuRadioItem>
           ))}
         </MenuRadioGroup>

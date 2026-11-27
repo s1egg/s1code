@@ -3,7 +3,7 @@ import { thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import { useGT, useMessages } from "gt-react";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
 import { draftSupportedRuntimeModes } from "./chat/runtimeModeConfig";
-import { workspaceAreaProps } from "../lib/workspaceFocus";
+import { requestWorkspaceFocus, workspaceAreaProps } from "../lib/workspaceFocus";
 import { sourceControlClients } from "@s1tools/client-runtime/source-control-clients";
 import { resolveNewThreadModelSelection } from "@s1tools/shared/usageLimits";
 import { queuedRunEditBlockedReason } from "@s1tools/client-runtime/queued-run-edit";
@@ -153,6 +153,7 @@ import {
 import type { AssistantCitationSourceAnchor } from "~/lib/assistantTextSelection";
 import { shallow } from "zustand/vanilla/shallow";
 import { useShallow } from "zustand/react/shallow";
+import { useStore } from "zustand";
 import {
   isAtomCommandInterrupted,
   mapAtomCommandResult,
@@ -185,6 +186,8 @@ import {
 } from "../rightPanelLayout";
 import { PopoverCreateHandle } from "./ui/popover";
 import {
+  floatingPanes,
+  floatingPreviewSource,
   paneKindOf,
   paneSurface,
   selectActiveRightPanelSurface,
@@ -216,13 +219,15 @@ import {
   ThreadPreviewMiniPlayer,
   useThreadPreviewCanvasSource,
 } from "./preview/ThreadPreviewMiniPlayer";
-import { createChatCanvasStore } from "./chat/canvasStore";
+import { createChatCanvasStore, resolveChatCanvasModel } from "./chat/canvasStore";
+import { KeptThreadTerminals } from "./PersistentThreadTerminals";
+import { subscribeBrowserGuestFocus } from "../browser/browserGuestFocus";
 import { usePreviewSession } from "./preview/usePreviewSession";
 import { getConfiguredPreviewUrls } from "./preview/previewEmptyStateLogic";
 
 import {
   previewMiniPlayerSourceKey,
-  selectThreadPreviewMiniPlayer,
+  selectThreadPreviewMiniPlayerGeometry,
   usePreviewMiniPlayerStore,
 } from "../previewMiniPlayerStore";
 import { threadPullRequestPanelTarget } from "./pullRequest/pullRequestDetail.logic";
@@ -392,7 +397,6 @@ import {
   deriveCommittedServerUserMessageIds,
   deriveTimelineWorking,
   dismissBranchMismatchForSession,
-  shouldRenderPreviewMiniPlayer,
   deriveLockedProvider,
   resolveFileAttachmentUrl,
   resolveComposerProviderSelection,
@@ -480,6 +484,9 @@ type ChatViewProps =
 const DismissedFallbackWindowSchema = Schema.NullOr(Schema.String);
 
 const ignoreComposerFocus = () => {};
+
+/** How close to the chat's right edge the preview player must sit to be under the floating stack. */
+const FLOATING_EDGE_SLOP_PX = 32;
 
 export default function ChatView(props: ChatViewProps) {
   const gt = useGT();
@@ -1153,10 +1160,6 @@ export default function ChatView(props: ChatViewProps) {
   );
   // An embedded side chat has no panes of its own; its panel actions open in its host's.
   const shownPanes = embedded ? [] : visiblePanes(rightPanelState);
-  const shownPaneSurfaces = shownPanes.flatMap((pane) => {
-    const surface = paneSurface(rightPanelState, pane);
-    return surface ? [surface] : [];
-  });
   // A fill names a pane that may not be open yet; it only covers the chat once that pane shows.
   const paneFilled = rightPanelState.fill !== undefined && shownPanes[0] === rightPanelState.fill;
   const diffOpen = shownPanes.includes("diff");
@@ -1166,8 +1169,8 @@ export default function ChatView(props: ChatViewProps) {
   const resolvePreviewRuntimeTabId = activeThreadRef
     ? (tabId: string) => previewRuntimeTabId(activeThreadRef, activePreviewServerEpoch, tabId)
     : undefined;
-  const activePreviewMiniPlayer = usePreviewMiniPlayerStore((state) =>
-    selectThreadPreviewMiniPlayer(state.byThreadKey, activeThreadRef),
+  const previewMiniPlayerGeometry = usePreviewMiniPlayerStore((state) =>
+    selectThreadPreviewMiniPlayerGeometry(state.byThreadKey, activeThreadRef),
   );
   const canReuseTerminal = activeThreadKnownSessionsRaw !== null;
   const previewPanelOpen = shownPanes.includes("browser") && browserAvailable;
@@ -1176,10 +1179,13 @@ export default function ChatView(props: ChatViewProps) {
     usePanelAnimationSettings();
   // Narrow windows have no room to tile, so panes open one at a time in a sheet.
   const paneSheet = prefersPlanSidebarSheet;
-  const previewMiniPlayerVisible = shouldRenderPreviewMiniPlayer(
-    activePreviewMiniPlayer?.source ?? null,
-    shownPaneSurfaces,
-  );
+  // Floating windows hide while a pane fills the window, chat included.
+  const chatFilledAway = !paneSheet && paneFilled;
+  const floatingPaneKinds = embedded
+    ? []
+    : paneSheet
+      ? (rightPanelState.minimized ?? [])
+      : floatingPanes(rightPanelState);
   const [threadPanelPopoverHandle] = useState(PopoverCreateHandle);
   const [chatCanvasStore] = useState(createChatCanvasStore);
 
@@ -1979,6 +1985,26 @@ export default function ChatView(props: ChatViewProps) {
     () => (embedded ? undefined : subscribeSnapShotComposerFocus(focusComposerStable)),
     [embedded, focusComposerStable],
   );
+  const focusBrowserPaneForGuest = useStableCallback((runtimeTabId: string) => {
+    if (!activeThreadRef) return;
+    const store = useRightPanelStore.getState();
+    const shown = paneSurface(
+      selectThreadRightPanelState(store.byThreadKey, activeThreadRef),
+      "browser",
+    );
+    if (
+      shown?.kind === "preview" &&
+      shown.resourceId !== null &&
+      resolvePreviewRuntimeTabId?.(shown.resourceId) === runtimeTabId
+    ) {
+      store.focusPane(activeThreadRef, "browser");
+    }
+  });
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- a desktop page's clicks and focus land in its own webview, which reports them here so pane commands follow
+  useEffect(
+    () => (embedded ? undefined : subscribeBrowserGuestFocus(focusBrowserPaneForGuest)),
+    [embedded, focusBrowserPaneForGuest],
+  );
   const insertArtifactTemplate = (template: CodexArtifactTemplate) => {
     const composer = composerRef.current;
     if (!composer) return;
@@ -2036,6 +2062,7 @@ export default function ChatView(props: ChatViewProps) {
     activeThreadRef,
     activeProject,
     terminalOpen,
+    terminalFloating: floatingPaneKinds.includes("terminal"),
     runningTerminalIds,
     activeServerOrderedTerminalIds,
     activeTerminalLabelsById,
@@ -2058,14 +2085,26 @@ export default function ChatView(props: ChatViewProps) {
     activeThreadRef?.environmentId ?? null,
     AuthPreviewOperateScope,
   );
+  const floatingPreview = floatingPreviewSource(
+    rightPanelState,
+    floatingPaneKinds.filter((pane) =>
+      pane === "browser" ? canOperatePreview && browserAvailable : true,
+    ),
+  );
   const shownPreviewMiniPlayer =
-    activeThreadRef &&
-    activePreviewMiniPlayer &&
-    previewMiniPlayerVisible &&
-    (activePreviewMiniPlayer.source.kind === "device" || canOperatePreview)
-      ? activePreviewMiniPlayer
+    activeThreadRef && floatingPreview
+      ? { ...previewMiniPlayerGeometry, source: floatingPreview.source }
       : null;
   const canvasPreview = useThreadPreviewCanvasSource(activeThreadRef, shownPreviewMiniPlayer);
+  // Floating pane windows stack above the composer, and above the preview player when it sits
+  // in its corner below them.
+  const floatingPreviewTop = useStore(chatCanvasStore, (state) => {
+    if (!canvasPreview) return 0;
+    const { measurements } = state;
+    const frame = resolveChatCanvasModel({ measurements, preview: canvasPreview }).layout.frame;
+    if (!frame || frame.x + frame.width < measurements.width - FLOATING_EDGE_SLOP_PX) return 0;
+    return Math.max(0, measurements.height - frame.y - FLOATING_EDGE_SLOP_PX / 2);
+  });
   // Thread details dock at the window's right edge only while no pane sits right of the chat.
   const threadPanelPresentation: ThreadPanelPresentation =
     prefersPlanSidebarSheet ||
@@ -2498,6 +2537,7 @@ export default function ChatView(props: ChatViewProps) {
     openFileSurfaceStable,
     toggleFilesPaneStable,
     toggleFillStable,
+    togglePaneStable,
     togglePreviewPanelStable,
     togglePullRequestPaneStable,
     toggleRightPanelStable,
@@ -2520,6 +2560,7 @@ export default function ChatView(props: ChatViewProps) {
     diffOpen,
     previewPanelOpen,
     rightPanelOpen,
+    paneSheet,
     supportsPullRequests,
     pullRequestsSurfaceAvailable: linkedItemsSurfaceAvailable,
     gitCwd,
@@ -3415,15 +3456,6 @@ export default function ChatView(props: ChatViewProps) {
         onSendAnnotation={sendPreviewAnnotationStable}
         onCloseSurface={closeRightPanelSurface}
         sideChatParentPanel={sideChatParentPanel}
-        terminal={{
-          launchContext: activeTerminalLaunchContext ?? null,
-          keybindings,
-          onAddTerminalContext: addTerminalContextToDraftStable,
-          splitShortcutLabel: splitTerminalShortcutLabel ?? undefined,
-          splitVerticalShortcutLabel: splitTerminalVerticalShortcutLabel ?? undefined,
-          newShortcutLabel: newTerminalShortcutLabel ?? undefined,
-          closeShortcutLabel: closeTerminalShortcutLabel ?? undefined,
-        }}
         pullRequest={{
           capabilityKnown: pullRequestsCapabilityKnown,
           supported: supportsPullRequests,
@@ -3449,11 +3481,7 @@ export default function ChatView(props: ChatViewProps) {
     );
   const paneShown = (pane: PaneKind) => shownPanes.includes(pane);
   const paneHasItems = (pane: PaneKind) => rightPanelState.paneSurfaceIds[pane] !== undefined;
-  const togglePaneOr = (pane: PaneKind, open: () => void) => {
-    if (activeThreadRef && paneHasItems(pane)) {
-      useRightPanelStore.getState().togglePane(activeThreadRef, pane);
-    } else open();
-  };
+  const togglePaneOr = (pane: PaneKind, open: () => void) => togglePaneStable(pane, open);
   const titlebarControls = embedded ? null : (
     <PanelLayoutControls
       threadPanelOpen={threadPanelOpen}
@@ -3653,11 +3681,23 @@ export default function ChatView(props: ChatViewProps) {
         return [];
     }
   };
+  const restoreFloatingPane = (pane: PaneKind) => {
+    if (!activeThreadRef) return;
+    if (useRightPanelStore.getState().showPane(activeThreadRef, pane)) {
+      requestWorkspaceFocus({ area: "panel" });
+    }
+  };
   const paneHeaderContext: PaneHeaderContext = {
     environmentId: activeThread.environmentId,
     previewSessions: activePreviewState.sessions,
     desktopByTabId: activePreviewState.desktopByTabId,
     pendingSurfaceIds: pendingFileSurfaceIds,
+    waitingSurfaceIds: new Set(rightPanelState.waitingSurfaceIds ?? []),
+    onMinimizePane: (pane) => {
+      if (!activeThreadRef) return;
+      useRightPanelStore.getState().minimizePane(activeThreadRef, pane);
+      focusComposerStable();
+    },
     onActivateSurface: activateRightPanelSurfaceStable,
     onCloseSurface: closeRightPanelSurface,
     onClosePane: closePaneStable,
@@ -3668,12 +3708,12 @@ export default function ChatView(props: ChatViewProps) {
     },
     paneMenuItems,
   };
-  // The chat's own header meets the title bar corners only where the layout puts it there.
-  const chatFilledAway = !paneSheet && paneFilled;
+  // The chat's own header meets the title bar corners only where the layout puts it there, but
+  // it keeps the title bar icons whenever it shows, so they never crowd a pane's header.
   const tiledLayout =
     embedded || paneSheet || !rightPanelOpen || paneFilled ? null : rightPanelState.layout;
-  const chatOwnsTitlebarControls =
-    !chatFilledAway && cornerTile(tiledLayout, "top-right") === "chat";
+  const chatOwnsTitlebarControls = !chatFilledAway;
+  const chatAtTopRight = cornerTile(tiledLayout, "top-right") === "chat";
   const chatHeaderAtTop = topRowTiles(tiledLayout).has("chat");
   const chatHeaderAtLeft = cornerTile(tiledLayout, "top-left") === "chat";
   const workspaceFileDropHandlers = makeWorkspaceFileDropHandlers({
@@ -3779,7 +3819,7 @@ export default function ChatView(props: ChatViewProps) {
                   "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-2 px-3 sm:px-5",
                   chatHeaderAtTop && "drag-region",
                   reserveTitleBarControlInset &&
-                    chatOwnsTitlebarControls &&
+                    chatAtTopRight &&
                     "wco:pr-(--workspace-native-controls-inset)",
                 )
               : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center gap-2 pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
@@ -4258,11 +4298,13 @@ export default function ChatView(props: ChatViewProps) {
           {canOperatePreview && activeThreadRef && activeEnvironmentServerBrowser && !embedded ? (
             <PreviewSessionSync threadRef={activeThreadRef} />
           ) : null}
-          {activeThreadRef && shownPreviewMiniPlayer && !embedded ? (
+          {activeThreadRef && shownPreviewMiniPlayer && floatingPreview && !embedded ? (
             <ThreadPreviewMiniPlayer
               key={`${activeThreadKey}:${previewMiniPlayerSourceKey(shownPreviewMiniPlayer.source)}`}
               threadRef={activeThreadRef}
               miniPlayer={shownPreviewMiniPlayer}
+              onRestore={() => restoreFloatingPane(floatingPreview.pane)}
+              onClose={() => closePaneStable(floatingPreview.pane)}
             />
           ) : null}
 
@@ -4373,6 +4415,20 @@ export default function ChatView(props: ChatViewProps) {
           state={deviceState}
         />
       )}
+      {embedded ? null : (
+        <KeptThreadTerminals
+          activeThreadKey={activeThreadKey}
+          active={{
+            launchContext: activeTerminalLaunchContext ?? null,
+            keybindings,
+            onAddTerminalContext: addTerminalContextToDraftStable,
+            splitShortcutLabel: splitTerminalShortcutLabel ?? undefined,
+            splitVerticalShortcutLabel: splitTerminalVerticalShortcutLabel ?? undefined,
+            newShortcutLabel: newTerminalShortcutLabel ?? undefined,
+            closeShortcutLabel: closeTerminalShortcutLabel ?? undefined,
+          }}
+        />
+      )}
       {embedded || paneSheet || activeThreadRef === null ? (
         chatColumn
       ) : (
@@ -4382,6 +4438,15 @@ export default function ChatView(props: ChatViewProps) {
           chat={chatColumn}
           titlebarControls={titlebarControls}
           header={paneHeaderContext}
+          floating={floatingPaneKinds.filter((pane) => pane !== floatingPreview?.pane)}
+          floatingInset={Math.max(composerReservedHeight, floatingPreviewTop)}
+          floatingEndInset={
+            threadPanelPresentation === "docked" && threadDetailsDockedOpen
+              ? "calc(var(--thread-details-panel-width) + 1px)"
+              : "0px"
+          }
+          onRestoreFloating={restoreFloatingPane}
+          onReleaseFocus={focusComposerStable}
           renderContent={renderPaneContent}
         />
       )}

@@ -31,6 +31,8 @@ export interface PanePlacement {
   side: PaneSide;
   /** The pane's share of the space it and its neighbor took. */
   ratio: number;
+  /** Every tile of the neighbor when it was a split, so the pane goes back beside all of it. */
+  group?: TileId[];
 }
 
 export interface TileRect {
@@ -52,6 +54,11 @@ export interface LayoutDivider {
 
 /** The pane's share of the chat row when the first pane opens. */
 const DEFAULT_PANE_RATIO = 0.4;
+/** Below these a header overlaps its controls or the composer row runs out of room. */
+const MIN_TILE_SIZE = {
+  chat: { width: 320, height: 240 },
+  pane: { width: 220, height: 120 },
+} as const;
 const CHAT_LEAF: LayoutNode = { type: "chat" };
 
 export const isPaneKind = (value: unknown): value is PaneKind =>
@@ -149,7 +156,17 @@ export function splitTile(
 ): LayoutNode {
   const root = layout ?? CHAT_LEAF;
   const path = findPath(root, target);
-  if (path === null) return root;
+  return path === null ? root : splitAt(root, path, pane, side, ratio);
+}
+
+/** Puts `pane` beside the node at `path`, a tile or a whole split. */
+function splitAt(
+  root: LayoutNode,
+  path: readonly number[],
+  pane: PaneKind,
+  side: PaneSide,
+  ratio: number,
+): LayoutNode {
   const leaf: LayoutNode = { type: "pane", pane };
   const before = sideBefore(side);
   const share = Math.min(0.9, Math.max(0.1, ratio));
@@ -173,12 +190,31 @@ export function splitTile(
       return { ...node, children, sizes };
     });
   }
-  return replaceAt(root, path, (targetNode) => ({
+  const wrapped = replaceAt(root, path, (targetNode) => ({
     type: "split",
     direction,
     children: before ? [leaf, targetNode] : [targetNode, leaf],
     sizes: before ? [share, 1 - share] : [1 - share, share],
   }));
+  // Wrapping a whole split that runs the same way would nest it in itself.
+  const target = nodeAt(root, path);
+  return target?.type === "split" && target.direction === direction ? simplify(wrapped) : wrapped;
+}
+
+/** The node whose tiles are exactly `tiles`, if the layout still keeps them together. */
+function findGroupPath(
+  node: LayoutNode,
+  tiles: ReadonlySet<TileId>,
+  path: number[] = [],
+): number[] | null {
+  const own = layoutTiles(node);
+  if (own.length === tiles.size && own.every((tile) => tiles.has(tile))) return path;
+  if (node.type !== "split" || !own.some((tile) => tiles.has(tile))) return null;
+  for (const [index, child] of node.children.entries()) {
+    const found = findGroupPath(child, tiles, [...path, index]);
+    if (found) return found;
+  }
+  return null;
 }
 
 function firstLeaf(node: LayoutNode): TileId {
@@ -207,6 +243,7 @@ export function removeTile(
     neighbor: firstLeaf(sibling),
     side: parent.direction === "row" ? (after ? "right" : "left") : after ? "bottom" : "top",
     ratio: paneSize + siblingSize > 0 ? paneSize / (paneSize + siblingSize) : 0.5,
+    ...(sibling.type === "split" ? { group: layoutTiles(sibling) } : {}),
   };
   const next = simplify(
     replaceAt(layout, parentPath, (node) => {
@@ -233,6 +270,12 @@ export function placePane(
 ): LayoutNode {
   if (layoutHasTile(layout, pane)) return layout!;
   const { placement } = options;
+  const surviving = placement?.group?.filter((tile) => layoutHasTile(layout, tile)) ?? [];
+  if (placement && surviving.length > 1) {
+    const root = layout ?? CHAT_LEAF;
+    const path = findGroupPath(root, new Set(surviving));
+    if (path !== null) return splitAt(root, path, pane, placement.side, placement.ratio);
+  }
   if (placement && layoutHasTile(layout, placement.neighbor)) {
     return splitTile(layout, placement.neighbor, pane, placement.side, placement.ratio);
   }
@@ -255,6 +298,30 @@ export function movePane(
   }
   const removed = removeTile(layout, pane).layout;
   return splitTile(removed, target, pane, side, 0.5);
+}
+
+/** The least room a tile or split needs along `axis` before its contents overlap. */
+export function minNodeSize(node: LayoutNode, axis: "width" | "height"): number {
+  if (node.type === "chat") return MIN_TILE_SIZE.chat[axis];
+  if (node.type === "pane") return MIN_TILE_SIZE.pane[axis];
+  const mins = node.children.map((child) => minNodeSize(child, axis));
+  return (node.direction === "row") === (axis === "width")
+    ? mins.reduce((sum, size) => sum + size, 0)
+    : Math.max(...mins);
+}
+
+/**
+ * The least share a divider leaves each neighbor of a pair taking `available`: what each needs
+ * while both fit, and otherwise the room split in proportion to those needs.
+ */
+export function dividerMinimums(
+  before: number,
+  after: number,
+  available: number,
+): readonly [number, number] {
+  const needed = before + after;
+  if (needed <= available) return [before, after];
+  return [(available * before) / needed, (available * after) / needed];
 }
 
 export function setSplitSizes(

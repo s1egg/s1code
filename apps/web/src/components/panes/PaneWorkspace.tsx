@@ -10,13 +10,16 @@ import {
 } from "react";
 
 import { useTheme } from "~/hooks/useTheme";
+import { observeResize } from "~/lib/observeResize";
 import { cn } from "~/lib/utils";
 import { workspaceAreaProps } from "~/lib/workspaceFocus";
 import {
   computeDividers,
   computeTileRects,
   cornerTile,
+  dividerMinimums,
   layoutPanes,
+  minNodeSize,
   PANE_KINDS,
   setSplitSizes,
   topRowTiles,
@@ -35,17 +38,35 @@ import {
   type ThreadRightPanelState,
 } from "~/rightPanelStore";
 
+import { Button } from "../ui/button";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { dispatchPreviewAction } from "../preview/previewActionBus";
 import { preventThumbButtonFocus, takeThumbButtonNavigation } from "../preview/thumbButtons";
-import { PaneHeader, type PaneHeaderContext } from "./PaneHeader";
+import { FloatingPaneHeader, PaneHeader, type PaneHeaderContext } from "./PaneHeader";
 import { usePaneDragStore } from "./paneDragStore";
 import { SurfaceIcon, previewFaviconOf, surfaceTitle } from "./paneSurfacePresentation";
 
 /** A pane is pulled out of the layout only after the pointer travels this far. */
 const DRAG_THRESHOLD_PX = 4;
-const MIN_TILE_WIDTH_PX = 220;
-const MIN_TILE_HEIGHT_PX = 120;
-const MIN_CHAT_WIDTH_PX = 320;
+/** A minimized pane's window, anchored to the chat's bottom-right corner above the composer. */
+const FLOATING_WIDTH_PX = 340;
+const FLOATING_HEIGHT_PX = 210;
+const FLOATING_EDGE_GAP_PX = 12;
+const FLOATING_STACK_GAP_PX = 8;
+/** Room left free at the chat's top for its header. */
+const FLOATING_TOP_CLEARANCE_PX = 48;
+const FLOATING_OVERFLOW_HEIGHT_PX = 28;
+
+/**
+ * How many floating windows stack in a chat tile `chatHeight` tall above `inset`. When they do
+ * not all fit, the ones above fold into a picker that needs its own row.
+ */
+function floatingWindowsThatFit(chatHeight: number, inset: number, count: number): number {
+  const room = chatHeight - inset - FLOATING_EDGE_GAP_PX - FLOATING_TOP_CLEARANCE_PX;
+  const slot = FLOATING_HEIGHT_PX + FLOATING_STACK_GAP_PX;
+  if (count * slot - FLOATING_STACK_GAP_PX <= room) return count;
+  return Math.max(0, Math.floor((room - FLOATING_OVERFLOW_HEIGHT_PX) / slot));
+}
 
 export interface PaneDropTarget {
   readonly tile: TileId;
@@ -93,6 +114,29 @@ const dividerKey = (divider: Pick<LayoutDivider, "path" | "index">) =>
 const FULL_RECT: TileRect = { x: 0, y: 0, width: 1, height: 1 };
 
 /**
+ * The `index`th floating window from the bottom, kept inside the chat column's corner: above
+ * `inset` and left of `endInset`, the docked thread details.
+ */
+function floatingStyle(
+  chat: TileRect,
+  index: number,
+  inset: number,
+  endInset: string,
+  height = FLOATING_HEIGHT_PX,
+): CSSProperties {
+  return {
+    left: "auto",
+    top: "auto",
+    right: `calc(${percent(1 - chat.x - chat.width)} + ${endInset} + ${FLOATING_EDGE_GAP_PX}px)`,
+    bottom: `calc(${percent(1 - chat.y - chat.height)} + ${
+      inset + FLOATING_EDGE_GAP_PX + index * (FLOATING_HEIGHT_PX + FLOATING_STACK_GAP_PX)
+    }px)`,
+    width: `min(${FLOATING_WIDTH_PX}px, calc(${percent(chat.width)} - ${endInset} - ${FLOATING_EDGE_GAP_PX * 2}px))`,
+    height: `${height}px`,
+  };
+}
+
+/**
  * The thread's content area: the chat and its panes tiled by the layout tree. Every tile is a
  * sibling positioned from the tree, so rearranging only restyles tiles and never remounts the
  * chat, a terminal or a page. Tiles keep a fixed DOM order for the same reason: moving an
@@ -102,9 +146,18 @@ export function PaneWorkspace(props: {
   readonly threadRef: ScopedThreadRef;
   readonly panelState: ThreadRightPanelState;
   readonly chat: ReactNode;
-  /** Shown in the header that meets the window's top-right corner, when that is a pane's. */
+  /** The title bar icons; the chat's header keeps them unless a pane fills the window. */
   readonly titlebarControls: ReactNode;
   readonly header: PaneHeaderContext;
+  /** Minimized panes drawn here as small windows, bottom one first. */
+  readonly floating: readonly PaneKind[];
+  /** Room the composer, or a preview floating under the windows, takes at the chat's bottom. */
+  readonly floatingInset: number;
+  /** Room docked thread details take at the chat's right edge, as a CSS length. */
+  readonly floatingEndInset: string;
+  readonly onRestoreFloating: (pane: PaneKind) => void;
+  /** Hands keyboard focus back to the chat, as Escape in a floating window does. */
+  readonly onReleaseFocus: () => void;
   readonly renderContent: (surface: RightPanelSurface, visible: boolean) => ReactNode;
 }) {
   const gt = useGT();
@@ -133,14 +186,41 @@ export function PaneWorkspace(props: {
   const topRow = fill === null ? topRowTiles(layout) : new Set<TileId>([fill]);
   const topRight = fill ?? cornerTile(layout, "top-right");
   const topLeft = fill ?? cornerTile(layout, "top-left");
+  const floating = fill === null ? props.floating : [];
+  const chatRect = rects.get("chat") ?? FULL_RECT;
+  const [floatingFit, setFloatingFit] = useState(Number.POSITIVE_INFINITY);
+  const shownFloating = floating.slice(0, floatingFit);
+  const foldedFloating = floating.slice(shownFloating.length);
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- counts the floating windows the chat tile has room for as the workspace resizes
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container || floating.length === 0) return;
+    const count = floating.length;
+    const fit = () =>
+      setFloatingFit(
+        floatingWindowsThatFit(
+          container.getBoundingClientRect().height * chatRect.height,
+          props.floatingInset,
+          count,
+        ),
+      );
+    fit();
+    return observeResize(container, fit);
+  }, [chatRect.height, floating.length, props.floatingInset]);
   const focusedPane = (() => {
     const active = panelState.surfaces.find((surface) => surface.id === panelState.activeSurfaceId);
     return active ? paneKindOf(active.kind) : null;
   })();
   const renderedPanes = PANE_KINDS.filter((pane) =>
-    fill === null ? panes.includes(pane) : pane === fill,
+    fill === null ? panes.includes(pane) || floating.includes(pane) : pane === fill,
   );
-  const layoutKey = JSON.stringify([layout, fill]);
+  const layoutKey = JSON.stringify([
+    layout,
+    fill,
+    shownFloating,
+    props.floatingInset,
+    props.floatingEndInset,
+  ]);
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- a tile can move without resizing; desktop browser views are placed again from the committed layout
   useLayoutEffect(() => {
     bumpLayoutRevision();
@@ -184,13 +264,12 @@ export function PaneWorkspace(props: {
     const before = startSizes.slice(0, divider.index).reduce((sum, size) => sum + size, 0);
     const pair = startSizes[divider.index]! + startSizes[divider.index + 1]!;
     const minFor = (child: LayoutNode) =>
-      (horizontal
-        ? child.type === "chat"
-          ? MIN_CHAT_WIDTH_PX
-          : MIN_TILE_WIDTH_PX
-        : MIN_TILE_HEIGHT_PX) / splitLength;
-    const minLeft = Math.min(minFor(split.children[divider.index]!), pair / 2);
-    const minRight = Math.min(minFor(split.children[divider.index + 1]!), pair / 2);
+      minNodeSize(child, horizontal ? "width" : "height") / splitLength;
+    const [minLeft, minRight] = dividerMinimums(
+      minFor(split.children[divider.index]!),
+      minFor(split.children[divider.index + 1]!),
+      pair,
+    );
     let sizes = startSizes;
     const move = (moveEvent: PointerEvent) => {
       const position = horizontal ? moveEvent.clientX : moveEvent.clientY;
@@ -260,7 +339,9 @@ export function PaneWorkspace(props: {
         }
         dragging = true;
         tiles = [...tileElements.current].flatMap(([id, element]) =>
-          id === pane ? [] : [{ id, rect: element.getBoundingClientRect() }],
+          id === pane || (id !== "chat" && floating.includes(id))
+            ? []
+            : [{ id, rect: element.getBoundingClientRect() }],
         );
         setDrag({ pane, title, x: moveEvent.clientX, y: moveEvent.clientY });
         usePaneDragStore.getState().setDragging(pane);
@@ -343,32 +424,72 @@ export function PaneWorkspace(props: {
       {renderedPanes.map((pane) => {
         const surface = paneSurface(panelState, pane);
         if (!surface) return null;
+        const floatingIndex = floating.indexOf(pane);
         const rect = fill === pane ? FULL_RECT : (rects.get(pane) ?? FULL_RECT);
         const items = panelState.surfaces.filter((entry) => paneKindOf(entry.kind) === pane);
         const label = surfaceTitle(surface, header.previewSessions, messages);
+        const focusThisPane = () => {
+          if (focusedPane !== pane) useRightPanelStore.getState().focusPane(threadRef, pane);
+        };
         return (
           <section
             key={pane}
             ref={(element) => {
               if (!element) return;
               tileElements.current.set(pane, element);
+              // Content rendered through a portal owned elsewhere, like the terminal's views, sits
+              // in this tile's DOM but not its React tree, so only native events see it.
+              const focusFromDom = () => {
+                if (element.dataset.paneFocused !== "true") {
+                  useRightPanelStore.getState().focusPane(threadRef, pane);
+                }
+              };
+              element.addEventListener("focusin", focusFromDom);
+              element.addEventListener("pointerdown", focusFromDom, true);
               return () => {
                 tileElements.current.delete(pane);
+                element.removeEventListener("focusin", focusFromDom);
+                element.removeEventListener("pointerdown", focusFromDom, true);
               };
             }}
             {...workspaceAreaProps("panel", 4, gt("Workspace panel: {title}", { title: label }))}
-            data-pane-tile={pane}
+            data-pane-tile={floatingIndex < 0 ? pane : undefined}
+            data-pane-floating={floatingIndex < 0 ? undefined : pane}
+            hidden={foldedFloating.includes(pane)}
             data-pane-surface
             data-pane-focused={focusedPane === pane ? "true" : undefined}
             data-workspace-focus-key={`panel:${header.environmentId}:${surface.id}`}
             className={cn(
               "absolute flex min-h-0 min-w-0 flex-col overflow-hidden bg-background surface-glow",
-              rect.x > 1e-6 && "border-l border-border",
-              rect.y > 1e-6 && "border-t border-border",
+              floatingIndex >= 0
+                ? "z-30 rounded-xl shadow-lg/20 ring-1 ring-border"
+                : [
+                    rect.x > 1e-6 && "border-l border-border",
+                    rect.y > 1e-6 && "border-t border-border",
+                  ],
             )}
-            style={tileStyle(rect)}
-            onPointerDownCapture={() => {
-              if (focusedPane !== pane) useRightPanelStore.getState().focusPane(threadRef, pane);
+            style={
+              floatingIndex < 0
+                ? tileStyle(rect)
+                : floatingStyle(
+                    chatRect,
+                    floatingIndex,
+                    props.floatingInset,
+                    props.floatingEndInset,
+                  )
+            }
+            // Keyboard focus arriving by Tab or F6 makes this the pane that pane commands act on.
+            onFocusCapture={focusThisPane}
+            onPointerDownCapture={focusThisPane}
+            onKeyDown={(event) => {
+              if (floatingIndex < 0 || event.key !== "Escape" || event.defaultPrevented) return;
+              if (
+                event.target instanceof HTMLElement &&
+                event.target.closest("input, textarea, [contenteditable='true']")
+              )
+                return;
+              event.preventDefault();
+              props.onReleaseFocus();
             }}
             onMouseDown={preventThumbButtonFocus}
             onMouseUp={(event) =>
@@ -378,30 +499,82 @@ export function PaneWorkspace(props: {
               )
             }
           >
-            <PaneHeader
-              pane={pane}
-              surface={surface}
-              items={items}
-              context={header}
-              focused={focusedPane === pane}
-              filled={fill === pane}
-              topRow={topRow.has(pane)}
-              topLeft={topLeft === pane}
-              trailing={topRight === pane ? props.titlebarControls : null}
-              onChipPointerDown={(event, title) => startPaneDrag(event, pane, title)}
-              onMove={(side) =>
-                useRightPanelStore.getState().movePane(threadRef, pane, "chat", side)
-              }
-              onToggleFill={() =>
-                useRightPanelStore.getState().setFill(threadRef, fill === pane ? null : pane)
-              }
-            />
+            {floatingIndex >= 0 ? (
+              <FloatingPaneHeader
+                pane={pane}
+                surface={surface}
+                context={header}
+                onRestore={() => props.onRestoreFloating(pane)}
+              />
+            ) : (
+              <PaneHeader
+                pane={pane}
+                surface={surface}
+                items={items}
+                context={header}
+                focused={focusedPane === pane}
+                filled={fill === pane}
+                topRow={topRow.has(pane)}
+                topLeft={topLeft === pane}
+                topRight={topRight === pane}
+                trailing={fill === pane ? props.titlebarControls : null}
+                onChipPointerDown={(event, title) => startPaneDrag(event, pane, title)}
+                onMove={(side) =>
+                  useRightPanelStore.getState().movePane(threadRef, pane, "chat", side)
+                }
+                onToggleFill={() =>
+                  useRightPanelStore.getState().setFill(threadRef, fill === pane ? null : pane)
+                }
+              />
+            )}
             <div className="flex min-h-0 flex-1 flex-col" data-right-panel-surface-content>
               {props.renderContent(surface, true)}
             </div>
           </section>
         );
       })}
+      {foldedFloating.length > 0 ? (
+        <div
+          className="pointer-events-none absolute z-30 flex items-end justify-end"
+          style={floatingStyle(
+            chatRect,
+            shownFloating.length,
+            props.floatingInset,
+            props.floatingEndInset,
+            FLOATING_OVERFLOW_HEIGHT_PX,
+          )}
+          data-pane-floating-overflow
+        >
+          <div className="pointer-events-auto">
+            <Menu>
+              <MenuTrigger
+                render={
+                  <Button
+                    aria-label={gt(
+                      "{count, plural, one {{count} more minimized pane} other {{count} more minimized panes}}",
+                      { count: foldedFloating.length },
+                    )}
+                    size="xs"
+                    variant="outline"
+                  />
+                }
+              >
+                +{foldedFloating.length}
+              </MenuTrigger>
+              <MenuPopup align="end" side="top" sideOffset={6} className="min-w-44">
+                {foldedFloating.map((pane) => {
+                  const surface = paneSurface(panelState, pane);
+                  return surface ? (
+                    <MenuItem key={pane} onClick={() => props.onRestoreFloating(pane)}>
+                      {surfaceTitle(surface, header.previewSessions, messages)}
+                    </MenuItem>
+                  ) : null;
+                })}
+              </MenuPopup>
+            </Menu>
+          </div>
+        </div>
+      ) : null}
       {dividers.map((divider) => (
         <div
           key={dividerKey(divider)}

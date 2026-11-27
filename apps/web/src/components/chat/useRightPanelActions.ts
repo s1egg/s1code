@@ -21,9 +21,12 @@ import { useDiffPanelStore } from "../../diffPanelStore";
 import { type ThreadPanelPresentation } from "../../rightPanelLayout";
 import type { PaneKind } from "../../paneLayout";
 import {
+  isPaneVisible,
   paneKindOf,
   paneSurface,
   selectThreadRightPanelState,
+  sheetPane,
+  visiblePanes,
   type RightPanelSurface,
   useRightPanelStore,
 } from "../../rightPanelStore";
@@ -35,8 +38,7 @@ import { isBrowserSettingsReadError } from "../../browser/openFileInPreview";
 import { addBrowserSurface } from "../preview/addBrowserSurface";
 import { focusActiveTerminal } from "../../lib/terminalFocus";
 import { subscribePreviewAction } from "../preview/previewActionBus";
-import { floatDeviceSurface } from "../preview/agentOpenedPreviews";
-import { browserMiniPlayerSource, usePreviewMiniPlayerStore } from "../../previewMiniPlayerStore";
+import { deviceSessionLive } from "../preview/agentOpenedPreviews";
 import type { threadPullRequestPanelTarget } from "../pullRequest/pullRequestDetail.logic";
 import type { useDeviceState } from "../../state/device";
 import { stackedThreadToast, toastManager } from "../ui/toast";
@@ -63,6 +65,8 @@ interface RightPanelActionsInput {
   readonly diffOpen: boolean;
   readonly previewPanelOpen: boolean;
   readonly rightPanelOpen: boolean;
+  /** Narrow windows show one pane at a time in a sheet. */
+  readonly paneSheet: boolean;
   readonly supportsPullRequests: boolean;
   readonly pullRequestsSurfaceAvailable: boolean;
   readonly gitCwd: string | null;
@@ -96,6 +100,7 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     diffOpen,
     previewPanelOpen,
     rightPanelOpen,
+    paneSheet,
     supportsPullRequests,
     pullRequestsSurfaceAvailable,
     gitCwd,
@@ -175,39 +180,44 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     useRightPanelStore.getState().openFile(activeThreadRef, relativePath);
   };
   const openFileSurfaceStable = useStableCallback(openFileSurface);
-  /** A browser or device leaving the screen keeps playing in the floating mini player. */
-  const floatLeavingSurface = (surface: RightPanelSurface | null) => {
-    if (!activeThreadRef || !surface) return;
-    if (surface.kind === "preview" && surface.resourceId) {
-      usePreviewMiniPlayerStore
-        .getState()
-        .open(activeThreadRef, browserMiniPlayerSource(surface.resourceId));
-    } else if (surface.kind === "device" && surface.target) {
-      floatDeviceSurface(
-        activeThreadRef,
-        { kind: "device", ...surface.target },
-        deviceStateLoaded ? deviceState : null,
-      );
-    }
-  };
-  const visiblePaneSurface = (pane: PaneKind) => {
-    if (!activeThreadRef) return null;
-    const state = selectThreadRightPanelState(
-      useRightPanelStore.getState().byThreadKey,
-      activeThreadRef,
+  const panelState = () =>
+    selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, activeThreadRef);
+  /** A live page or device leaving the screen keeps playing in a floating window. */
+  const floatsWhenHidden = (pane: PaneKind) => {
+    if (!activeThreadRef) return false;
+    const surface = paneSurface(panelState(), pane);
+    if (surface?.kind === "preview") return surface.resourceId !== null && canOperatePreview;
+    return (
+      surface?.kind === "device" &&
+      surface.target !== undefined &&
+      deviceSessionLive(activeThreadRef, surface.target, deviceStateLoaded ? deviceState : null)
     );
-    return paneSurface(state, pane);
   };
   const hidePane = (pane: PaneKind) => {
     if (!activeThreadRef) return;
-    floatLeavingSurface(visiblePaneSurface(pane));
-    useRightPanelStore.getState().hidePane(activeThreadRef, pane);
+    const store = useRightPanelStore.getState();
+    if (floatsWhenHidden(pane)) store.minimizePane(activeThreadRef, pane);
+    else store.hidePane(activeThreadRef, pane);
   };
+  /** Hides a pane on screen, or shows it, opening `create` when it has nothing yet. */
+  const togglePane = (pane: PaneKind, create?: () => void) => {
+    if (!activeThreadRef) return;
+    if (isPaneVisible(panelState(), pane)) {
+      hidePane(pane);
+      return;
+    }
+    if (useRightPanelStore.getState().showPane(activeThreadRef, pane)) return;
+    create?.();
+  };
+  const togglePaneStable = useStableCallback(togglePane);
   const hideAllPanes = () => {
     if (!activeThreadRef) return;
-    if (previewPanelOpen) floatLeavingSurface(visiblePaneSurface("browser"));
-    useRightPanelStore.getState().setFill(activeThreadRef, null);
-    useRightPanelStore.getState().close(activeThreadRef);
+    const state = panelState();
+    // The sheet shows one pane, so only that one is on screen to hand off.
+    const shown = paneSheet
+      ? [sheetPane(state)].filter((pane) => pane !== null)
+      : visiblePanes(state);
+    useRightPanelStore.getState().hideAll(activeThreadRef, shown.filter(floatsWhenHidden));
   };
   const hideAllPanesStable = useStableCallback(hideAllPanes);
   const togglePreviewPanel = () => {
@@ -387,6 +397,7 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     openFileSurfaceStable,
     toggleFilesPaneStable,
     toggleFillStable,
+    togglePaneStable,
     togglePreviewPanelStable,
     togglePullRequestPaneStable,
     toggleRightPanelStable,

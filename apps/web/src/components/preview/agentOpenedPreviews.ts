@@ -14,16 +14,17 @@ import { AsyncResult } from "effect/reactivity";
 
 import { getClientSettings } from "../../hooks/useSettings";
 import {
-  browserMiniPlayerSource,
-  type PreviewMiniPlayerSource,
-  usePreviewMiniPlayerStore,
-} from "../../previewMiniPlayerStore";
-import {
   previewStateAtom,
   previewThreadRefsAtom,
   type ThreadPreviewState,
 } from "../../previewStateStore";
-import { useRightPanelStore } from "../../rightPanelStore";
+import {
+  browserSurface,
+  deviceSurface,
+  paneSurface,
+  useRightPanelStore,
+  type DeviceTabTarget,
+} from "../../rightPanelStore";
 import { RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY } from "../../rightPanelLayout";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { deviceEnvironment } from "../../state/device";
@@ -32,7 +33,7 @@ import { environmentSummaries } from "../../state/presentation";
 
 /**
  * Shows browsers an agent or another client revealed for a thread: floating
- * over chat, or focusing an existing panel tab when the reveal is forced.
+ * over chat, or, when the reveal is forced, in the Browser pane that shows.
  */
 export function revealServerTabs(
   threadRef: ScopedThreadRef,
@@ -51,31 +52,24 @@ export function revealServerTabs(
     if (surface && force) {
       useRightPanelStore.getState().revealSurface(threadRef, surface.id);
     } else if (!surface) {
-      usePreviewMiniPlayerStore.getState().open(threadRef, browserMiniPlayerSource(session.tabId));
+      useRightPanelStore
+        .getState()
+        .floatSurface(threadRef, browserSurface(session.tabId), true, force);
     }
   }
 }
 
 /**
- * Keeps a thread's browser panel tabs and floating browser in step with its
+ * Keeps a thread's browser pane items, floating ones included, in step with its
  * preview sessions. Server-hosted sessions are only complete once the first
  * list has loaded; before that, a missing session is not a closed one.
  */
 export function followPreviewSessions(threadRef: ScopedThreadRef, state: ThreadPreviewState): void {
   if (readEnvironmentSupportsServerBrowser(threadRef.environmentId) && !state.listLoaded) return;
-  const sessions = Object.values(state.sessions);
   useRightPanelStore.getState().reconcileBrowserSurfaces(
     threadRef,
-    sessions.map((session) => session.tabId),
-    new Set(
-      sessions
-        .filter((session) => session.runtime === "server" && session.reveal === false)
-        .map((session) => session.tabId),
-    ),
+    Object.values(state.sessions).map((session) => session.tabId),
   );
-  const miniPlayer = usePreviewMiniPlayerStore.getState();
-  const source = miniPlayer.byThreadKey[scopedThreadKey(threadRef)]?.source;
-  if (source?.kind === "browser" && !state.sessions[source.tabId]) miniPlayer.close(threadRef);
 }
 
 /**
@@ -144,10 +138,10 @@ function hasLiveSession(
 }
 
 /**
- * A device the agent opens floats over its thread's chat, or becomes a panel tab
+ * A device the agent opens floats over its thread's chat, or becomes a pane item
  * when floating previews are off; sheet layouts get neither. A session without a
  * device summary yet stays out of the baseline so a later snapshot opens it.
- * Floating devices whose session ended close here.
+ * A floating device whose session ended stops floating here.
  */
 export function applyDeviceSnapshot(
   environmentId: EnvironmentId,
@@ -157,12 +151,19 @@ export function applyDeviceSnapshot(
   const deviceFor = (session: DeviceServiceState["sessions"][number]) =>
     state.devices.find((entry) => entry.hostId === session.hostId && entry.id === session.deviceId);
 
-  const miniPlayer = usePreviewMiniPlayerStore.getState();
-  for (const [threadKey, entry] of Object.entries(miniPlayer.byThreadKey)) {
-    if (entry.source.kind !== "device") continue;
+  const panels = useRightPanelStore.getState();
+  for (const [threadKey, panel] of Object.entries(panels.byThreadKey)) {
+    if (!panel.minimized?.includes("device")) continue;
+    const target = paneSurface(panel, "device");
     const ref = parseScopedThreadKey(threadKey);
-    if (ref?.environmentId === environmentId && !hasLiveSession(state, ref.threadId, entry.source))
-      miniPlayer.close(ref);
+    if (
+      ref?.environmentId === environmentId &&
+      target?.kind === "device" &&
+      target.target !== undefined &&
+      !hasLiveSession(state, ref.threadId, target.target)
+    ) {
+      panels.dismissFloatingPane(ref, "device");
+    }
   }
 
   const previous = deviceSessionBaselines.get(environmentId);
@@ -183,7 +184,7 @@ export function applyDeviceSnapshot(
       name: device.name,
     };
     if (options.autoShowFloatingPreview) {
-      usePreviewMiniPlayerStore.getState().open(threadRef, { kind: "device", ...target });
+      useRightPanelStore.getState().floatSurface(threadRef, deviceSurface(target), true);
       continue;
     }
     const existing = useRightPanelStore
@@ -200,17 +201,15 @@ export function applyDeviceSnapshot(
 }
 
 /**
- * Floats a device panel tab over chat. A tab whose device session already
- * ended has nothing to stream, so it only closes the panel. Before the first
- * device snapshot the tab floats, and that snapshot closes it if needed.
+ * Whether a device pane leaving the screen has a stream to keep floating. Before the first
+ * device snapshot it does, and that snapshot stops the float if the session already ended.
  */
-export function floatDeviceSurface(
+export function deviceSessionLive(
   threadRef: ScopedThreadRef,
-  source: Extract<PreviewMiniPlayerSource, { kind: "device" }>,
+  target: DeviceTabTarget,
   state: DeviceServiceState | null,
-): void {
-  if (state !== null && !hasLiveSession(state, threadRef.threadId, source)) return;
-  usePreviewMiniPlayerStore.getState().open(threadRef, source);
+): boolean {
+  return state === null || hasLiveSession(state, threadRef.threadId, target);
 }
 
 export function resetDeviceSessionBaselinesForTests(): void {

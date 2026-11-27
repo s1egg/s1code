@@ -1,7 +1,11 @@
 import { toServerClock } from "@s1tools/client-runtime/clock";
 import { msg } from "gt-react";
 import { m, type MessageResolver } from "../i18n/messages";
-import { type OrchestrationV2ProviderTurn, type RunAttemptId } from "@s1tools/contracts";
+import {
+  type OrchestrationV2ProviderTurn,
+  type PreviewSessionSnapshot,
+  type RunAttemptId,
+} from "@s1tools/contracts";
 import {
   deriveLatestThreadRun,
   deriveThreadRuntime,
@@ -98,7 +102,6 @@ import type { DraftThreadEnvMode } from "../composerDraftStore";
 import { type ComposerSubmissionIntent } from "../composer-logic";
 import type { ReviewCommentContext } from "../reviewCommentContext";
 import { derivePhase, type TimelineEntry } from "../session-logic";
-import type { PreviewMiniPlayerSource } from "../previewMiniPlayerStore";
 import type { DesktopPreviewOverlay } from "../previewStateStore";
 import type { RightPanelSurface } from "../rightPanelStore";
 import {
@@ -114,16 +117,32 @@ export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "s1code:last-invoked-script-by
 
 export const ENVIRONMENT_RECONNECT_WARNING_GRACE_MS = 2_000;
 
+/**
+ * Asks before closing pages an agent is using: a desktop tab it controls, or a server tab it
+ * owns. Server ownership is in every client's session list, so a remote client asks too.
+ */
 export function agentControlledBrowserCloseConfirmation(
   surfaces: readonly RightPanelSurface[],
-  desktopByTabId: Readonly<Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>>,
+  browsers: {
+    readonly desktopByTabId: Readonly<
+      Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>
+    >;
+    readonly sessions: Readonly<
+      Record<string, Pick<PreviewSessionSnapshot, "runtime" | "automationOwner"> | undefined>
+    >;
+  },
   resolve: MessageResolver = m,
 ): string | null {
+  const agentUsing = (tabId: string) => {
+    const session = browsers.sessions[tabId];
+    return (
+      browsers.desktopByTabId[tabId]?.controller === "agent" ||
+      (session?.runtime === "server" && session.automationOwner !== undefined)
+    );
+  };
   const activeBrowserCount = surfaces.filter(
     (surface) =>
-      surface.kind === "preview" &&
-      surface.resourceId !== null &&
-      desktopByTabId[surface.resourceId]?.controller === "agent",
+      surface.kind === "preview" && surface.resourceId !== null && agentUsing(surface.resourceId),
   ).length;
   if (activeBrowserCount === 0) return null;
   if (activeBrowserCount === 1) {
@@ -149,20 +168,6 @@ export function agentControlledBrowserCloseConfirmation(
       ),
     ),
   ].join("\n");
-}
-
-export function shouldRenderPreviewMiniPlayer(
-  source: PreviewMiniPlayerSource | null,
-  shownPaneSurfaces: readonly RightPanelSurface[],
-): boolean {
-  if (source === null) return false;
-  return !shownPaneSurfaces.some((surface) =>
-    source.kind === "browser"
-      ? surface.kind === "preview" && surface.resourceId === source.tabId
-      : surface.kind === "device" &&
-        surface.target?.hostId === source.hostId &&
-        surface.target.deviceId === source.deviceId,
-  );
 }
 
 export function shouldOpenProactivePullRequest(

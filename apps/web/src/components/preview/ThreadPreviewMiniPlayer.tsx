@@ -3,7 +3,7 @@ import { m } from "~/i18n/messages";
 import { FILL_PREVIEW_VIEWPORT, type ScopedThreadRef } from "@s1tools/contracts";
 import { previewPdfAssetUrl } from "@s1tools/shared/preview";
 import { useEnvironmentHttpBaseUrl } from "~/state/environments";
-import { PanelRightIcon, PictureInPicture2, XIcon } from "lucide-react";
+import { Maximize2Icon, PictureInPicture2, XIcon } from "lucide-react";
 import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -51,7 +51,6 @@ import {
   previewMiniPlayerSourceKey,
   usePreviewMiniPlayerStore,
 } from "~/previewMiniPlayerStore";
-import { useRightPanelStore } from "~/rightPanelStore";
 import { useDeviceState } from "~/state/device";
 
 import { DeviceStreamView } from "../device/DeviceStreamView";
@@ -79,6 +78,10 @@ import {
 interface Props {
   readonly threadRef: ScopedThreadRef;
   readonly miniPlayer: PreviewMiniPlayerState;
+  /** Puts the floating pane back where it sat in the layout. */
+  readonly onRestore: () => void;
+  /** Closes what floats, as closing its pane would. */
+  readonly onClose: () => void;
 }
 
 const frameCornerRadius = () => PREVIEW_MINI_PLAYER_CORNER_RADIUS;
@@ -201,26 +204,23 @@ export function useThreadPreviewCanvasSource(
   };
 }
 
-export function ThreadPreviewMiniPlayer({ threadRef, miniPlayer }: Props) {
-  const { source } = miniPlayer;
+/** The floating window of a minimized Browser or Device pane: a live page or device stream. */
+export function ThreadPreviewMiniPlayer(props: Props) {
+  const { source } = props.miniPlayer;
   return source.kind === "browser" ? (
-    <BrowserMiniPlayer
-      key={source.tabId}
-      threadRef={threadRef}
-      tabId={source.tabId}
-      miniPlayer={miniPlayer}
-    />
+    <BrowserMiniPlayer key={source.tabId} {...props} tabId={source.tabId} />
   ) : (
-    <DeviceMiniPlayer
-      key={previewMiniPlayerSourceKey(source)}
-      threadRef={threadRef}
-      source={source}
-      miniPlayer={miniPlayer}
-    />
+    <DeviceMiniPlayer key={previewMiniPlayerSourceKey(source)} {...props} source={source} />
   );
 }
 
-function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly tabId: string }) {
+function BrowserMiniPlayer({
+  threadRef,
+  tabId,
+  miniPlayer,
+  onRestore,
+  onClose,
+}: Props & { readonly tabId: string }) {
   const gt = useGT();
   const httpBaseUrl = useEnvironmentHttpBaseUrl(threadRef.environmentId);
   const { serverEpoch, snapshot, desktopOverlay, serverTab, sourceSize } =
@@ -237,11 +237,6 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
     threadRef,
     previewMiniPlayerSourceKey(browserMiniPlayerSource(tabId)),
   );
-
-  const openInPanel = () => {
-    usePreviewMiniPlayerStore.getState().close(threadRef);
-    useRightPanelStore.getState().openBrowser(threadRef, tabId);
-  };
 
   const toggleNativePictureInPicture = async () => {
     try {
@@ -288,7 +283,8 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
       sourceSize={sourceSize}
       label={gt("Floating browser preview")}
       recording={recording}
-      onOpenInPanel={openInPanel}
+      onRestore={onRestore}
+      onClose={onClose}
       pillActions={
         canPopOut ? (
           <Tooltip>
@@ -383,6 +379,8 @@ function DeviceMiniPlayer({
   threadRef,
   source,
   miniPlayer,
+  onRestore,
+  onClose,
 }: Props & { readonly source: Extract<PreviewMiniPlayerSource, { kind: "device" }> }) {
   const gt = useGT();
   const { state: deviceState } = useDeviceState(threadRef.environmentId);
@@ -397,23 +395,14 @@ function DeviceMiniPlayer({
   const cornerRadius = (player: PreviewMiniPlayerSize) =>
     resolveDeviceMiniPlayerCornerRadius(source.platform, player);
 
-  const openInPanel = () => {
-    usePreviewMiniPlayerStore.getState().close(threadRef);
-    useRightPanelStore.getState().openDevice(threadRef, {
-      hostId: source.hostId,
-      deviceId: source.deviceId,
-      platform: source.platform,
-      name: source.name,
-    });
-  };
-
   return (
     <MiniPlayerShell
       threadRef={threadRef}
       miniPlayer={miniPlayer}
       sourceSize={sourceSize}
       label={gt("Floating device preview")}
-      onOpenInPanel={openInPanel}
+      onRestore={onRestore}
+      onClose={onClose}
       cornerRadius={cornerRadius}
     >
       {() => (
@@ -444,7 +433,8 @@ function MiniPlayerShell({
   miniPlayer,
   sourceSize,
   label,
-  onOpenInPanel,
+  onRestore,
+  onClose,
   pillActions,
   recording = false,
   cornerRadius = frameCornerRadius,
@@ -454,7 +444,8 @@ function MiniPlayerShell({
   readonly miniPlayer: PreviewMiniPlayerState;
   readonly sourceSize: PreviewMiniPlayerSize;
   readonly label: string;
-  readonly onOpenInPanel: () => void;
+  readonly onRestore: () => void;
+  readonly onClose: () => void;
   readonly pillActions?: ReactNode;
   readonly recording?: boolean;
   readonly cornerRadius?: (frame: PreviewMiniPlayerSize) => number;
@@ -486,10 +477,6 @@ function MiniPlayerShell({
   const radius = frame ? cornerRadius(frame) : PREVIEW_MINI_PLAYER_CORNER_RADIUS;
   const pillInset = Math.max(8, Math.round(radius * 0.55));
 
-  const close = () => {
-    usePreviewMiniPlayerStore.getState().close(threadRef);
-  };
-
   /** Every way a gesture stops comes through here; returns the gesture it ended. */
   const finishGesture = () => {
     const gesture = gestureRef.current;
@@ -516,7 +503,7 @@ function MiniPlayerShell({
     if (settled) {
       usePreviewMiniPlayerStore
         .getState()
-        .resize(threadRef, sourceKey, settled.width, { x: settled.x, y: settled.y });
+        .resize(threadRef, settled.width, { x: settled.x, y: settled.y });
     }
     return gesture;
   };
@@ -569,10 +556,10 @@ function MiniPlayerShell({
     if (!gesture.moved) gestureRef.current = { ...gesture, moved: true };
     const store = usePreviewMiniPlayerStore.getState();
     if (step.kind === "move") {
-      store.move(threadRef, sourceKey, step.position);
+      store.move(threadRef, step.position);
       return;
     }
-    store.resize(threadRef, sourceKey, step.frame.width, { x: step.frame.x, y: step.frame.y });
+    store.resize(threadRef, step.frame.width, { x: step.frame.x, y: step.frame.y });
   };
 
   const endGesture = (event: ReactPointerEvent<HTMLElement>) => {
@@ -655,11 +642,11 @@ function MiniPlayerShell({
                       size="icon-xs"
                       aria-label={gt("Open in a pane")}
                       onPointerDown={(event) => event.stopPropagation()}
-                      onClick={onOpenInPanel}
+                      onClick={onRestore}
                     />
                   }
                 >
-                  <PanelRightIcon />
+                  <Maximize2Icon />
                 </TooltipTrigger>
                 <TooltipPopup side="top">
                   <T>Open in a pane</T>
@@ -672,16 +659,16 @@ function MiniPlayerShell({
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      aria-label={gt("Close floating preview")}
+                      aria-label={gt("Close pane")}
                       onPointerDown={(event) => event.stopPropagation()}
-                      onClick={close}
+                      onClick={onClose}
                     />
                   }
                 >
                   <XIcon />
                 </TooltipTrigger>
                 <TooltipPopup side="top">
-                  <T>Close floating preview</T>
+                  <T>Close pane</T>
                 </TooltipPopup>
               </Tooltip>
             </div>

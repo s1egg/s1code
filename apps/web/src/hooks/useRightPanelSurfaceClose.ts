@@ -25,6 +25,7 @@ import {
 import { readThreadShell } from "../state/entities";
 import { previewEnvironment } from "../state/preview";
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
+import { useKnownTerminalSessions } from "../state/terminalSessions";
 import { threadEnvironment } from "../state/threads";
 import { useAtomCommand } from "../state/use-atom-command";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
@@ -51,9 +52,21 @@ export function useRightPanelSurfaceClose(input: {
   const surfaces = useRightPanelStore(
     (state) => selectThreadRightPanelState(state.byThreadKey, threadRef).surfaces,
   );
-  const terminalIds = useTerminalUiStateStore(
+  const localTerminalIds = useTerminalUiStateStore(
     (state) => selectThreadTerminalUiState(state.terminalUiStateByThreadKey, threadRef).terminalIds,
   );
+  // Local ids follow the server only while the terminal pane shows, so a shell an agent
+  // started since then is known only to the server's list.
+  const serverSessions = useKnownTerminalSessions({
+    environmentId: threadRef?.environmentId ?? null,
+    threadId: threadRef?.threadId ?? null,
+  });
+  const terminalIds = [
+    ...new Set([
+      ...localTerminalIds,
+      ...(serverSessions ?? []).map((session) => session.target.terminalId),
+    ]),
+  ];
 
   const releaseSurfaceResources = (ref: ScopedThreadRef, surface: RightPanelSurface) => {
     // Without preview access, server state remains until an authorized close or restart.
@@ -93,7 +106,7 @@ export function useRightPanelSurfaceClose(input: {
     toClose: readonly RightPanelSurface[],
     closeSurfaces: () => void,
   ) => {
-    const message = agentControlledBrowserCloseConfirmation(toClose, previewState.desktopByTabId);
+    const message = agentControlledBrowserCloseConfirmation(toClose, previewState);
     if (!message) {
       closeSurfaces();
       return;

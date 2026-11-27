@@ -10,7 +10,6 @@ import { useAtomMount } from "@effect/atom-react";
 import { T, useGT, Var } from "gt-react";
 import { type ReactNode, useState } from "react";
 
-import { usePreviewMiniPlayerStore } from "~/previewMiniPlayerStore";
 import {
   selectThreadRightPanelState,
   useRightPanelStore,
@@ -134,14 +133,7 @@ export function DevicePanel(props: {
 
   const floatActive = () => {
     if (!activeDevice) return;
-    usePreviewMiniPlayerStore.getState().open(props.threadRef, {
-      kind: "device",
-      hostId: activeDevice.hostId,
-      deviceId: activeDevice.id,
-      platform: activeDevice.platform,
-      name: activeDevice.name,
-    });
-    useRightPanelStore.getState().hidePane(props.threadRef, "device");
+    useRightPanelStore.getState().minimizePane(props.threadRef, "device");
   };
 
   const closeSurface = () => {

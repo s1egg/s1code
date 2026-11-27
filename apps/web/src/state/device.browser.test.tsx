@@ -17,7 +17,7 @@ import {
   startAgentOpenedPreviews,
   resetDeviceSessionBaselinesForTests,
 } from "../components/preview/agentOpenedPreviews";
-import { usePreviewMiniPlayerStore } from "../previewMiniPlayerStore";
+import { floatingPreviewSource, useRightPanelStore } from "../rightPanelStore";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { deviceEnvironment, useDeviceState } from "./device";
 
@@ -88,7 +88,7 @@ it("baselines the first device snapshot without reopening dismissed devices", as
   const stateAtom = Atom.make<AsyncResult.AsyncResult<DeviceServiceState>>(AsyncResult.initial());
   using _subscription = vi.spyOn(deviceEnvironment, "state").mockReturnValue(stateAtom);
   using _store = {
-    [Symbol.dispose]: () => usePreviewMiniPlayerStore.getState().removeThread(threadRef),
+    [Symbol.dispose]: () => useRightPanelStore.getState().removeThread(threadRef),
   };
   using _following = { [Symbol.dispose]: startAgentOpenedPreviews() };
   let loaded = false;
@@ -106,7 +106,7 @@ it("baselines the first device snapshot without reopening dismissed devices", as
   );
   const initiallyLoaded = loaded;
   await act(() => registry.set(stateAtom, AsyncResult.success(snapshot)));
-  expect(usePreviewMiniPlayerStore.getState().byThreadKey[threadKey]).toBeUndefined();
+  expect(useRightPanelStore.getState().byThreadKey[threadKey]).toBeUndefined();
   expect(initiallyLoaded).toBe(false);
   expect(loaded).toBe(true);
 
@@ -125,7 +125,8 @@ it("baselines the first device snapshot without reopening dismissed devices", as
       }),
     ),
   );
-  expect(usePreviewMiniPlayerStore.getState().byThreadKey[threadKey]?.source).toEqual({
+  const panel = useRightPanelStore.getState().byThreadKey[threadKey]!;
+  expect(floatingPreviewSource(panel, panel.minimized ?? [])?.source).toEqual({
     kind: "device",
     hostId: "local",
     deviceId: "tablet",

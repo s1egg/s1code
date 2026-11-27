@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { scopedThreadKey } from "@s1tools/client-runtime/environment";
 import { useDiffPanelStore } from "../diffPanelStore";
-import { browserMiniPlayerSource, usePreviewMiniPlayerStore } from "../previewMiniPlayerStore";
+import { usePreviewMiniPlayerStore } from "../previewMiniPlayerStore";
 import { useRightPanelStore } from "../rightPanelStore";
 
 function deferred<T>() {
@@ -207,7 +207,7 @@ import { useThreadActions } from "./useThreadActions";
 function seedThreadPanelState(ref: ScopedThreadRef) {
   useRightPanelStore.getState().open(ref, "diff");
   useDiffPanelStore.getState().selectGitScope(ref, "branch");
-  usePreviewMiniPlayerStore.getState().open(ref, browserMiniPlayerSource("tab"));
+  usePreviewMiniPlayerStore.getState().move(ref, { x: 10, y: 10 });
 }
 
 function threadPanelStatePresence(ref: ScopedThreadRef) {

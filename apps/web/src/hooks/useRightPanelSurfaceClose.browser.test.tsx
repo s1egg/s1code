@@ -10,6 +10,8 @@ const fixture = vi.hoisted(() => ({
   confirm: (_labels: readonly string[]): Promise<boolean> => Promise.resolve(false),
   allowed: new Set<string>(),
   sessions: new Map<string, string>(),
+  /** Terminal ids the server lists for a thread, keyed by "environment/thread". */
+  serverIds: new Map<string, readonly string[]>(),
   failClose: false,
 }));
 vi.mock("../lib/terminalCloseConfirm", () => ({
@@ -38,7 +40,12 @@ vi.mock("../state/entities", () => ({
   useProject: () => null,
   readThreadShell: () => null,
 }));
-vi.mock("../state/terminalSessions", () => ({ useKnownTerminalSessions: () => null }));
+vi.mock("../state/terminalSessions", () => ({
+  useKnownTerminalSessions: (input: { environmentId: string | null; threadId: string | null }) =>
+    fixture.serverIds
+      .get(`${input.environmentId}/${input.threadId}`)
+      ?.map((terminalId) => ({ target: { ...input, terminalId } })) ?? null,
+}));
 vi.mock("../composerDraftStore", async () => {
   const Schema = await import("effect/Schema");
   return {
@@ -72,6 +79,7 @@ function setup(mode: "single" | "all") {
   fixture.allowed = new Set(["environment-a", "environment-b"]);
   fixture.sessions = new Map();
   fixture.failClose = false;
+  fixture.serverIds = new Map();
   useRightPanelStore.setState({ byThreadKey: {} });
   useTerminalUiStateStore.setState({ terminalUiStateByThreadKey: {} });
   const original: ScopedThreadRef = {
@@ -157,3 +165,24 @@ it.each([
     ).toHaveLength(1);
   },
 );
+
+it("closing every pane also ends a shell the server lists that the pane never showed", async () => {
+  const { original, Harness, resolve } = setup("all");
+  fixture.sessions.set(`${original.environmentId}/${original.threadId}/agent-1`, "agent shell");
+  fixture.serverIds.set(`${original.environmentId}/${original.threadId}`, ["term-1", "agent-1"]);
+  let labels: readonly string[] = [];
+  const confirmation = fixture.confirm;
+  fixture.confirm = (asked) => {
+    labels = asked;
+    return confirmation(asked);
+  };
+  await using screen = await render(<Harness threadRef={original} />);
+  await screen.getByRole("button").click();
+  expect(labels).toHaveLength(2);
+  await act(async () => {
+    resolve(true);
+  });
+  expect(fixture.sessions.has(`${original.environmentId}/${original.threadId}/agent-1`)).toBe(
+    false,
+  );
+});

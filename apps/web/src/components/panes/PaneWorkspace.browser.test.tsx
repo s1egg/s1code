@@ -14,6 +14,7 @@ import { __setClientSettingsForTests } from "~/hooks/useSettings";
 import stylesheet from "~/index.css?inline";
 import { reopenClosedView } from "~/reopenClosedView";
 import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
+import { selectThreadTerminalUiState, useTerminalUiStateStore } from "~/terminalUiStateStore";
 import { getRouter } from "~/router";
 import {
   ENVIRONMENT_ID,
@@ -43,17 +44,22 @@ vi.mock(import("~/rpc/requestLatencyState"), async (original) => ({
 /** A thread view with the app's stylesheet, so tiles lay out as they do in the app. */
 async function mountThread(
   name: string,
-  options: { width?: number; seed?: (ref: ScopedThreadRef) => void } = {},
+  options: {
+    width?: number;
+    height?: number;
+    seed?: (ref: ScopedThreadRef) => void;
+  } = {},
 ) {
   const style = document.createElement("style");
   style.textContent = stylesheet;
   document.head.append(style);
-  await page.viewport(options.width ?? 1400, 900);
+  await page.viewport(options.width ?? 1400, options.height ?? 900);
   const thread = threadWithHistory(name, 1);
   const environment = installFakeEnvironment([thread]);
   __setClientSettingsForTests({
     ...DEFAULT_CLIENT_SETTINGS,
     onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+    confirmTerminalClose: false,
   });
   const ref = scopeThreadRef(ENVIRONMENT_ID, thread.id);
   options.seed?.(ref);
@@ -105,6 +111,77 @@ async function startDrag(chip: Element, to: { x: number; y: number }) {
   await mouse("mouseMoved", { x: from.x + 8, y: from.y + 8 });
   await mouse("mouseMoved", to);
 }
+
+const floatingWindow = (pane: string) =>
+  document.querySelector<HTMLElement>(`[data-pane-floating="${pane}"]`);
+
+const terminalIds = (ref: ScopedThreadRef) =>
+  selectThreadTerminalUiState(useTerminalUiStateStore.getState().terminalUiStateByThreadKey, ref)
+    .terminalIds;
+const activeSurfaceId = (ref: ScopedThreadRef) =>
+  selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, ref).activeSurfaceId;
+
+// First in the file: threads a file mounts after its first get no terminal views from the fake
+// environment.
+it("a terminal takes pane commands when focused or pressed, and keeps floating while it splits", async () => {
+  await using view = await mountThread("pane-terminal-commands");
+  await page.getByTestId("composer-editor").click();
+  await userEvent.keyboard("{ControlOrMeta>}j{/ControlOrMeta}");
+  await vi.waitFor(() => expect(terminalIds(view.ref)).toHaveLength(1));
+  const inputIn = (container: () => HTMLElement | null) =>
+    vi.waitFor(() => {
+      const element = container()?.querySelector<HTMLElement>("textarea");
+      expect(element).toBeTruthy();
+      return element!;
+    });
+
+  // The terminal's views render through a portal owned outside the pane's React tree.
+  const tiled = await inputIn(() => tile("terminal"));
+  await act(() => useRightPanelStore.getState().open(view.ref, "files"));
+  await act(() => document.querySelector<HTMLElement>('[data-pane-chip="files"]')!.focus());
+  expect(activeSurfaceId(view.ref)).toBe("files");
+  await act(() => tiled.focus());
+  expect(activeSurfaceId(view.ref)).toBe("terminal");
+  await act(() => document.querySelector<HTMLElement>('[data-pane-chip="files"]')!.focus());
+  expect(activeSurfaceId(view.ref)).toBe("files");
+  const point = pointIn(tile("terminal")!, 0.5, 0.6);
+  await mouse("mousePressed", point);
+  await mouse("mouseReleased", point);
+  await vi.waitFor(() => expect(activeSurfaceId(view.ref)).toBe("terminal"));
+
+  // The views move with the pane, and fit whatever holds them.
+  const canvasFits = (container: () => HTMLElement | null) =>
+    vi.waitFor(() => {
+      const holder = container()!.querySelector<HTMLElement>("[data-right-panel-surface-content]")!;
+      const canvas = holder.querySelector("canvas")!.getBoundingClientRect();
+      const room = holder.getBoundingClientRect();
+      expect(canvas.width).toBeGreaterThan(room.width / 2);
+      expect(canvas.width).toBeLessThanOrEqual(room.width + 1);
+      expect(canvas.height).toBeGreaterThan(room.height / 2);
+      expect(canvas.height).toBeLessThanOrEqual(room.height + 1);
+    });
+  await act(() => useRightPanelStore.getState().minimizePane(view.ref, "terminal"));
+  await canvasFits(() => floatingWindow("terminal"));
+  await act(async () => (await inputIn(() => floatingWindow("terminal"))).focus());
+  await userEvent.keyboard("{ControlOrMeta>}d{/ControlOrMeta}");
+  await vi.waitFor(() => expect(terminalIds(view.ref)).toHaveLength(2));
+  expect(
+    selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, view.ref).minimized,
+  ).toEqual(["terminal"]);
+  expect(tile("terminal")).toBeNull();
+  const focused = await vi.waitFor(() => {
+    const element = floatingWindow("terminal")?.querySelector<HTMLElement>("textarea:focus");
+    expect(element).toBeTruthy();
+    return element!;
+  });
+  await act(() => focused.focus());
+  await userEvent.keyboard("{ControlOrMeta>}w{/ControlOrMeta}");
+  await vi.waitFor(() => expect(terminalIds(view.ref)).toHaveLength(1));
+
+  await page.getByRole("button", { name: "Restore Terminal" }).click();
+  await vi.waitFor(() => expect(tile("terminal")).not.toBeNull());
+  await canvasFits(() => tile("terminal"));
+});
 
 it("title bar icons open panes beside the chat, then under the focused pane, and hide them again", async () => {
   await using view = await mountThread("pane-icons");
@@ -306,4 +383,148 @@ it("closing a pane from its chip and reopening it puts it back where it was", as
   );
   await vi.waitFor(() => expect(view.layout()).toEqual(before));
   expect(rectOf("diff").right).toBeLessThanOrEqual(rectOf("chat").left + 1);
+});
+
+it("minimizing panes floats them in the chat's corner, stacked, until restored or closed", async () => {
+  await using view = await mountThread("pane-minimize", {
+    seed: (ref) => {
+      useRightPanelStore.getState().open(ref, "files");
+      useRightPanelStore.getState().open(ref, "diff");
+    },
+  });
+  await page.getByRole("button", { name: "Minimize Files" }).click();
+  await vi.waitFor(() => expect(floatingWindow("files")).not.toBeNull());
+  expect(tile("files")).toBeNull();
+  const chat = rectOf("chat");
+  const files = floatingWindow("files")!.getBoundingClientRect();
+  expect(files.right).toBeLessThanOrEqual(chat.right);
+  expect(files.bottom).toBeLessThanOrEqual(chat.bottom);
+  expect(files.left).toBeGreaterThan(chat.left + chat.width / 3);
+
+  await page.getByRole("button", { name: "Minimize Diff" }).click();
+  await vi.waitFor(() => expect(floatingWindow("diff")).not.toBeNull());
+  // The newer window stacks above the older one.
+  expect(floatingWindow("diff")!.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    floatingWindow("files")!.getBoundingClientRect().top,
+  );
+  // With no pane right of the chat, thread details dock there; the windows stay in the chat column.
+  const details = await vi.waitFor(() => {
+    const element = document.querySelector('[data-thread-details-panel="docked"]');
+    expect(element).not.toBeNull();
+    return element!.getBoundingClientRect();
+  });
+  for (const pane of ["files", "diff"]) {
+    expect(floatingWindow(pane)!.getBoundingClientRect().right).toBeLessThanOrEqual(details.left);
+  }
+
+  await page.getByRole("button", { name: "Restore Files" }).click();
+  await vi.waitFor(() => expect(tile("files")).not.toBeNull());
+  expect(floatingWindow("files")).toBeNull();
+
+  await page.getByRole("button", { name: "Close Diff" }).click();
+  await vi.waitFor(() => expect(floatingWindow("diff")).toBeNull());
+  const state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, view.ref);
+  expect(state.surfaces.map((surface) => surface.id)).toEqual(["files"]);
+});
+
+it("keeps the title bar icons in the chat's header, and on a filled pane's header while it fills", async () => {
+  await using view = await mountThread("pane-titlebar", {
+    seed: (ref) => useRightPanelStore.getState().open(ref, "files"),
+  });
+  await vi.waitFor(() => expect(tile("files")).not.toBeNull());
+  const controls = () => document.querySelector("[data-panel-layout-controls]");
+  expect(controls()?.closest("[data-chat-header]")).not.toBeNull();
+  expect(
+    document.querySelector('[data-pane-header="files"] [data-panel-layout-controls]'),
+  ).toBeNull();
+
+  await act(() => useRightPanelStore.getState().setFill(view.ref, "files"));
+  await vi.waitFor(() => expect(controls()?.closest('[data-pane-header="files"]')).not.toBeNull());
+  expect(document.querySelector("[data-chat-header] [data-panel-layout-controls]")).toBeNull();
+});
+
+it("focus arriving in a pane by keyboard makes it the pane that pane commands act on", async () => {
+  await using view = await mountThread("pane-focus", {
+    seed: (ref) => {
+      useRightPanelStore.getState().open(ref, "diff");
+      useRightPanelStore.getState().open(ref, "files");
+    },
+  });
+  await vi.waitFor(() => expect(tile("diff")).not.toBeNull());
+  await act(() => document.querySelector<HTMLElement>('[data-pane-chip="diff"]')!.focus());
+  expect(
+    selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, view.ref)
+      .activeSurfaceId,
+  ).toBe("diff");
+});
+
+it("a narrow window's sheet switches and closes single items, and lists minimized panes", async () => {
+  await using view = await mountThread("pane-sheet-items", {
+    width: 900,
+    seed: (ref) => {
+      useRightPanelStore.getState().openFile(ref, "src/a.ts");
+      useRightPanelStore.getState().openFile(ref, "src/b.ts");
+      useRightPanelStore.getState().open(ref, "diff");
+      useRightPanelStore.getState().minimizePane(ref, "diff");
+    },
+  });
+  const picker = page.getByRole("tablist", { name: "Panes" });
+  await expect.element(picker).toBeVisible();
+  await page.getByRole("button", { name: "Switch item" }).click();
+  await page.getByRole("menuitem", { name: "Close this item" }).click();
+  await vi.waitFor(() =>
+    expect(
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, view.ref).surfaces.map(
+        (surface) => surface.id,
+      ),
+    ).toEqual(["file:src/a.ts", "diff"]),
+  );
+
+  const diff = document.querySelector<HTMLElement>('[data-pane-sheet-tab="diff"]')!;
+  expect(diff.dataset.minimized).toBe("true");
+  await userEvent.click(diff);
+  await vi.waitFor(() =>
+    expect(
+      selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, view.ref).minimized,
+    ).toBeUndefined(),
+  );
+  await expect
+    .element(picker.getByRole("tab", { name: "Diff" }))
+    .toHaveAttribute("aria-selected", "true");
+});
+
+it("a short chat keeps every minimized pane reachable, folding the ones that do not fit", async () => {
+  await using view = await mountThread("pane-floating-overflow", {
+    height: 560,
+    seed: (ref) => {
+      for (const pane of ["files", "diff", "terminal"] as const) {
+        useRightPanelStore.getState().open(ref, pane);
+        useRightPanelStore.getState().minimizePane(ref, pane);
+      }
+    },
+  });
+  const titles = { files: "Files", diff: "Diff", terminal: "Terminal" } as const;
+  const panes = ["files", "diff", "terminal"] as const;
+  await vi.waitFor(() => expect(floatingWindow("files")).not.toBeNull());
+  const chat = rectOf("chat");
+  const shown = panes.filter((pane) => floatingWindow(pane)?.checkVisibility() === true);
+  for (const pane of shown) {
+    const rect = floatingWindow(pane)!.getBoundingClientRect();
+    expect(rect.top).toBeGreaterThanOrEqual(chat.top);
+    expect(rect.bottom).toBeLessThanOrEqual(chat.bottom);
+  }
+  const folded = panes.filter((pane) => !shown.includes(pane));
+  expect(folded.length).toBeGreaterThan(0);
+  const more = page.getByRole("button", {
+    name: `${folded.length} more minimized pane${folded.length === 1 ? "" : "s"}`,
+  });
+  const moreRect = more.element().getBoundingClientRect();
+  expect(moreRect.top).toBeGreaterThanOrEqual(chat.top);
+  await more.click();
+  const restored = folded[0]!;
+  await page.getByRole("menuitem", { name: titles[restored], exact: true }).click();
+  await vi.waitFor(() => expect(tile(restored)).not.toBeNull());
+  expect(
+    selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, view.ref).minimized,
+  ).not.toContain(restored);
 });

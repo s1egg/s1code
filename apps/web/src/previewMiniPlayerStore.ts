@@ -22,26 +22,32 @@ export type PreviewMiniPlayerSource =
       readonly name: string;
     };
 
-export interface PreviewMiniPlayerState {
-  readonly source: PreviewMiniPlayerSource;
+/** Where the user dragged and sized a thread's floating preview. */
+export interface PreviewMiniPlayerGeometry {
   readonly position: PreviewMiniPlayerPosition | null;
   readonly width: number | null;
   readonly lastInteraction: "drag" | "resize";
 }
 
+/**
+ * A floating Browser or Device pane as the player draws it. Which page or device floats is the
+ * minimized pane's item in the right panel store; this store only keeps the frame's geometry.
+ */
+export interface PreviewMiniPlayerState extends PreviewMiniPlayerGeometry {
+  readonly source: PreviewMiniPlayerSource;
+}
+
+const DEFAULT_GEOMETRY: PreviewMiniPlayerGeometry = {
+  position: null,
+  width: null,
+  lastInteraction: "drag",
+};
+
 interface PreviewMiniPlayerStoreState {
-  readonly byThreadKey: Record<string, PreviewMiniPlayerState>;
-  readonly open: (ref: ScopedThreadRef, source: PreviewMiniPlayerSource) => void;
-  readonly close: (ref: ScopedThreadRef) => void;
-  /** `sourceKey` guards against a drag that outlives the source it started on. */
-  readonly move: (
-    ref: ScopedThreadRef,
-    sourceKey: string,
-    position: PreviewMiniPlayerPosition,
-  ) => void;
+  readonly byThreadKey: Record<string, PreviewMiniPlayerGeometry>;
+  readonly move: (ref: ScopedThreadRef, position: PreviewMiniPlayerPosition) => void;
   readonly resize: (
     ref: ScopedThreadRef,
-    sourceKey: string,
     width: number,
     position?: PreviewMiniPlayerPosition,
   ) => void;
@@ -61,40 +67,10 @@ export const browserMiniPlayerSource = (tabId: string): PreviewMiniPlayerSource 
 
 export const usePreviewMiniPlayerStore = create<PreviewMiniPlayerStoreState>()((set) => ({
   byThreadKey: {},
-  open: (ref, source) =>
+  move: (ref, position) =>
     set((state) => {
       const threadKey = scopedThreadKey(ref);
-      const current = state.byThreadKey[threadKey];
-      if (
-        current &&
-        previewMiniPlayerSourceKey(current.source) === previewMiniPlayerSourceKey(source)
-      ) {
-        return state;
-      }
-      return {
-        byThreadKey: {
-          ...state.byThreadKey,
-          [threadKey]: {
-            source,
-            position: current?.position ?? null,
-            width: current?.width ?? null,
-            lastInteraction: current?.lastInteraction ?? "drag",
-          },
-        },
-      };
-    }),
-  close: (ref) =>
-    set((state) => {
-      const threadKey = scopedThreadKey(ref);
-      if (!(threadKey in state.byThreadKey)) return state;
-      const { [threadKey]: _closed, ...byThreadKey } = state.byThreadKey;
-      return { byThreadKey };
-    }),
-  move: (ref, sourceKey, position) =>
-    set((state) => {
-      const threadKey = scopedThreadKey(ref);
-      const current = state.byThreadKey[threadKey];
-      if (!current || previewMiniPlayerSourceKey(current.source) !== sourceKey) return state;
+      const current = state.byThreadKey[threadKey] ?? DEFAULT_GEOMETRY;
       if (
         current.position?.x === position.x &&
         current.position.y === position.y &&
@@ -108,16 +84,14 @@ export const usePreviewMiniPlayerStore = create<PreviewMiniPlayerStoreState>()((
         },
       };
     }),
-  resize: (ref, sourceKey, width, position) =>
+  resize: (ref, width, position) =>
     set((state) => {
       const threadKey = scopedThreadKey(ref);
-      const current = state.byThreadKey[threadKey];
+      const current = state.byThreadKey[threadKey] ?? DEFAULT_GEOMETRY;
       if (
-        !current ||
-        previewMiniPlayerSourceKey(current.source) !== sourceKey ||
-        (current.width === width &&
-          current.lastInteraction === "resize" &&
-          (!position || (current.position?.x === position.x && current.position.y === position.y)))
+        current.width === width &&
+        current.lastInteraction === "resize" &&
+        (!position || (current.position?.x === position.x && current.position.y === position.y))
       ) {
         return state;
       }
@@ -142,18 +116,10 @@ export const usePreviewMiniPlayerStore = create<PreviewMiniPlayerStoreState>()((
     }),
 }));
 
-export function selectThreadPreviewMiniPlayer(
-  byThreadKey: Record<string, PreviewMiniPlayerState>,
+export function selectThreadPreviewMiniPlayerGeometry(
+  byThreadKey: Record<string, PreviewMiniPlayerGeometry>,
   ref: ScopedThreadRef | null | undefined,
-): PreviewMiniPlayerState | null {
-  if (!ref) return null;
-  return byThreadKey[scopedThreadKey(ref)] ?? null;
-}
-
-export function selectThreadPreviewMiniPlayerTabId(
-  byThreadKey: Record<string, PreviewMiniPlayerState>,
-  ref: ScopedThreadRef | null | undefined,
-): string | null {
-  const source = selectThreadPreviewMiniPlayer(byThreadKey, ref)?.source;
-  return source?.kind === "browser" ? source.tabId : null;
+): PreviewMiniPlayerGeometry {
+  if (!ref) return DEFAULT_GEOMETRY;
+  return byThreadKey[scopedThreadKey(ref)] ?? DEFAULT_GEOMETRY;
 }
