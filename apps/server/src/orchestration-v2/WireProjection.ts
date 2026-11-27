@@ -15,6 +15,10 @@ import {
   dedupeSubagentBodies,
   dedupeTurnItemBodies,
 } from "@s1tools/shared/orchestrationV2DedupedBodies";
+import {
+  countFileChangeLines,
+  unifiedDiffFileOperations,
+} from "@s1tools/shared/fileChangeLineCounts";
 import { MCP_APP_OUTPUT_KEY, readMcpAppReference } from "@s1tools/shared/mcpApp";
 import {
   commandIndicatesFailure,
@@ -51,17 +55,51 @@ function truncateDetail(
   return `${prefix}${TRUNCATION_MARKER}`;
 }
 
+/**
+ * Added and removed lines of a change whose provider sent no counts. The wire drops diff bodies, so
+ * the timeline shows these instead; computed at ingest, before storage truncates the diff.
+ */
+function fileChangeLineCounts(
+  item: Extract<OrchestrationV2TurnItem, { type: "file_change" }>,
+): { additions: number; deletions: number } | null {
+  if (item.additions !== undefined || item.deletions !== undefined) return null;
+  return countFileChangeLines(item);
+}
+
+/**
+ * The files a change created or deleted, for adapters that report no operations (only Codex does).
+ * The timeline names the step by them, and the wire drops the text that says. Null when unsure.
+ */
+function inferredFileOperations(
+  item: Extract<OrchestrationV2TurnItem, { type: "file_change" }>,
+): ReadonlyArray<{ operation: string; path: string }> | null {
+  if (item.changes?.length) return null;
+  const { diffStr, oldStr, newStr } = item;
+  if (diffStr !== undefined) return unifiedDiffFileOperations(diffStr);
+  const created =
+    newStr !== undefined && (oldStr === undefined || (oldStr === "" && newStr !== ""));
+  return created ? [{ operation: "add", path: item.fileName }] : null;
+}
+
 /** Bound stored diffs to the client wire limit to avoid retaining invisible data in SQLite and heap. */
 export function boundFileChangeForStorage(item: OrchestrationV2TurnItem): OrchestrationV2TurnItem {
   if (item.type !== "file_change") return item;
+  const counts = fileChangeLineCounts(item);
+  const changes = inferredFileOperations(item);
   const { diffStr, oldStr, newStr } = item;
   const bounded = {
     ...item,
+    ...counts,
+    ...(changes === null ? {} : { changes }),
     ...(diffStr === undefined ? {} : { diffStr: truncateDetail(diffStr) }),
     ...(oldStr === undefined ? {} : { oldStr: truncateDetail(oldStr) }),
     ...(newStr === undefined ? {} : { newStr: truncateDetail(newStr) }),
   };
-  return bounded.diffStr === diffStr && bounded.oldStr === oldStr && bounded.newStr === newStr
+  return counts === null &&
+    changes === null &&
+    bounded.diffStr === diffStr &&
+    bounded.oldStr === oldStr &&
+    bounded.newStr === newStr
     ? item
     : bounded;
 }

@@ -26,6 +26,7 @@ import * as Schema from "effect/Schema";
 
 import { coalesceLiveUpdatedEvents } from "./ThreadLiveEventCoalescer.ts";
 import {
+  boundFileChangeForStorage,
   makeLiveBodyDeduper,
   projectTurnItemForWire,
   projectTurnItemForDetail,
@@ -366,6 +367,114 @@ describe("orchestration V2 wire projection", () => {
     });
     expect(failed).toMatchObject({ diffStr: "String to replace not found" });
     expect(failed).not.toHaveProperty("newStr");
+  });
+
+  it("counts changed lines at ingest so they outlive the dropped diff body", () => {
+    const change = {
+      ...base,
+      type: "file_change" as const,
+      fileName: "src/truncate.ts",
+    };
+    const unified = [
+      "--- src/truncate.ts",
+      "+++ src/truncate.ts",
+      "@@ -1,4 +1,5 @@",
+      " export function truncate(text: string, max: number) {",
+      "-  if (text.length <= max) return text;",
+      "-  return text.slice(0, max - 1) + '…';",
+      "+  const seg = [...new Intl.Segmenter().segment(text)];",
+      "+  if (seg.length <= max) return text;",
+      "+  return seg.slice(0, max - 1).join('') + '…';",
+      " }",
+    ].join("\n");
+    expect(boundFileChangeForStorage({ ...change, diffStr: unified })).toMatchObject({
+      additions: 3,
+      deletions: 2,
+    });
+    expect(
+      boundFileChangeForStorage({
+        ...change,
+        oldStr: "a\nold one\nold two\nz",
+        newStr: "a\nnew one\nz",
+      }),
+    ).toMatchObject({ additions: 1, deletions: 2 });
+    expect(boundFileChangeForStorage({ ...change, newStr: "one\ntwo" })).toMatchObject({
+      additions: 2,
+      deletions: 0,
+    });
+    const counted = { ...change, additions: 7, deletions: 0, diffStr: unified };
+    expect(boundFileChangeForStorage(counted)).toBe(counted);
+    const failure = {
+      ...change,
+      status: "failed" as const,
+      diffStr: "String to replace not found",
+    };
+    expect(boundFileChangeForStorage(failure)).toBe(failure);
+  });
+
+  it("records a new or deleted file when the adapter sent no operation", () => {
+    const change = { ...base, type: "file_change" as const, fileName: "notes.md" };
+    expect(boundFileChangeForStorage({ ...change, newStr: "# Notes\n" })).toMatchObject({
+      changes: [{ operation: "add", path: "notes.md" }],
+    });
+    expect(boundFileChangeForStorage({ ...change, oldStr: "", newStr: "# Notes\n" })).toMatchObject(
+      { changes: [{ operation: "add", path: "notes.md" }] },
+    );
+    const created = ["--- /dev/null", "+++ b/notes.md", "@@ -0,0 +1 @@", "+# Notes"].join("\n");
+    expect(boundFileChangeForStorage({ ...change, diffStr: created })).toMatchObject({
+      changes: [{ operation: "add", path: "notes.md" }],
+    });
+    const deleted = ["--- a/notes.md", "+++ /dev/null", "@@ -1 +0,0 @@", "-# Notes"].join("\n");
+    expect(boundFileChangeForStorage({ ...change, diffStr: deleted })).toMatchObject({
+      changes: [{ operation: "delete", path: "notes.md" }],
+    });
+    // An edit stays without an operation, and an adapter's own operation is kept.
+    expect(
+      boundFileChangeForStorage({ ...change, oldStr: "a\n", newStr: "b\n" }),
+    ).not.toHaveProperty("changes");
+    const reported = {
+      ...change,
+      newStr: "x\n",
+      changes: [{ operation: "update", path: "notes.md" }],
+    };
+    expect(boundFileChangeForStorage(reported)).toMatchObject({
+      changes: [{ operation: "update", path: "notes.md" }],
+    });
+  });
+
+  // regression: header-looking hunk lines, other files' headers, and empty writes misled ingest
+  it("reads a file operation only from a patch's own file headers", () => {
+    const change = { ...base, type: "file_change" as const, fileName: "first.txt" };
+    const removesLiteral = [
+      "--- a/first.txt",
+      "+++ b/first.txt",
+      "@@ -1,2 +1 @@",
+      "--- /dev/null",
+      " kept",
+    ].join("\n");
+    expect(boundFileChangeForStorage({ ...change, diffStr: removesLiteral })).not.toHaveProperty(
+      "changes",
+    );
+    const editsAndAdds = [
+      "--- a/first.txt",
+      "+++ b/first.txt",
+      "@@ -1 +1 @@",
+      "-one",
+      "+uno",
+      "--- /dev/null",
+      "+++ b/second.txt",
+      "@@ -0,0 +1 @@",
+      "+two",
+    ].join("\n");
+    expect(boundFileChangeForStorage({ ...change, diffStr: editsAndAdds })).toMatchObject({
+      changes: [
+        { operation: "update", path: "first.txt" },
+        { operation: "add", path: "second.txt" },
+      ],
+    });
+    expect(boundFileChangeForStorage({ ...change, newStr: "" })).toMatchObject({
+      changes: [{ operation: "add", path: "first.txt" }],
+    });
   });
 
   it("retains only result identities and failure metadata in live tool events", () => {

@@ -5,12 +5,14 @@ import {
   useLayoutEffect,
   useRef,
   type ComponentProps,
+  type CSSProperties,
   type ReactNode,
 } from "react";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const GroupedRows = createContext(false);
+const InStepDetail = createContext(false);
 
 /** Groups may span virtualized timeline items. Each part owns its trailing space. */
 export function WorkLogBlock({
@@ -18,20 +20,12 @@ export function WorkLogBlock({
   continues = false,
   children,
 }: {
-  layout?: "standalone" | "group-header" | "group-content";
+  layout?: "standalone" | "group-content";
   continues?: boolean | undefined;
   children: ReactNode;
 }) {
   return (
-    <div
-      className={
-        continues || layout === "group-header"
-          ? "pb-0"
-          : layout === "group-content"
-            ? "pb-1"
-            : "pb-2"
-      }
-    >
+    <div className={continues ? "pb-0" : layout === "group-content" ? "pb-1" : "pb-2"}>
       {children}
     </div>
   );
@@ -99,45 +93,6 @@ function useRowClassName(interactive: boolean, focusable = interactive) {
   );
 }
 
-/** A collapsed tool group: a quiet pill that discloses its steps. The timestamp sits outside the pill
- * so revealing it on hover never resizes the pill. */
-export function WorkLogCapsule({
-  icon,
-  label,
-  trailing,
-  expanded,
-  ...buttonProps
-}: Omit<RowContent, "wrapLabel"> & { expanded: boolean } & Omit<
-    ComponentProps<"button">,
-    "className" | "style" | "children" | "aria-expanded"
-  >) {
-  return (
-    <div className="group/timeline-row relative flex min-h-6 w-full min-w-0 items-center gap-2 py-0.5">
-      <button
-        {...buttonProps}
-        type="button"
-        aria-expanded={expanded}
-        className="inline-flex h-6 min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-full ps-0.5 pe-2 text-xs text-muted-foreground inset-ring inset-ring-border transition-colors select-none hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
-      >
-        {icon ? (
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted">
-            {icon}
-          </span>
-        ) : null}
-        <span className="min-w-0 truncate">{label}</span>
-        <ChevronDownIcon
-          aria-hidden
-          className={cn(
-            "size-3 shrink-0 opacity-70 transition-transform duration-200 motion-reduce:transition-none",
-            !expanded && "-rotate-90",
-          )}
-        />
-      </button>
-      {trailing}
-    </div>
-  );
-}
-
 type RowProps = Omit<ComponentProps<"div">, "className" | "style"> & {
   toggle?: LineProps | undefined;
 };
@@ -172,6 +127,96 @@ export function WorkLogRow({
   );
 }
 
+/**
+ * A plain tool or reasoning step: icon, verb, target, and result on one quiet grid line. Its detail
+ * hangs off a hairline below. Like `WorkLogRow`, `toggle` goes on the line, not the whole row.
+ */
+export function WorkLogStepRow({
+  icon,
+  verb,
+  target,
+  result,
+  describeResult = false,
+  expandable,
+  expanded,
+  active = false,
+  enterDelayMs,
+  toggle,
+  children,
+  ...rowProps
+}: {
+  icon: ReactNode;
+  verb: ReactNode;
+  target: ReactNode;
+  result?: ReactNode;
+  /** The toggle's label replaces the line's text, so a static result is read as its description. */
+  describeResult?: boolean;
+  expandable: boolean;
+  expanded: boolean;
+  active?: boolean;
+  enterDelayMs?: number | undefined;
+  toggle?: LineProps | undefined;
+} & Omit<ComponentProps<"div">, "className" | "style">) {
+  const detailsId = useId();
+  const resultId = useId();
+  const describedBy = toggle && describeResult && result ? resultId : undefined;
+  return (
+    <div
+      {...rowProps}
+      className={cn(
+        "group/step relative w-full min-w-0 text-left",
+        rowProps.onClick !== undefined && "cursor-pointer",
+        enterDelayMs !== undefined && "trace-step-in",
+      )}
+      style={
+        enterDelayMs === undefined
+          ? undefined
+          : ({ "--trace-step-delay": `${enterDelayMs}ms` } as CSSProperties)
+      }
+    >
+      <div
+        aria-controls={toggle ? detailsId : undefined}
+        aria-describedby={describedBy}
+        {...toggle}
+        className={cn(
+          "grid h-5.5 min-w-0 grid-cols-[0.8125rem_3.25rem_minmax(0,1fr)_auto_0.75rem] items-center gap-x-2 text-2xs select-none transition-colors [&_*]:select-none",
+          active ? "text-foreground/80" : "text-muted-foreground",
+          "hover:text-foreground/85",
+          toggle && focusRingClassName,
+        )}
+      >
+        <span className="flex size-3.25 items-center justify-center">{icon}</span>
+        {verb === null ? null : <span className="truncate">{verb}</span>}
+        <span
+          className={cn("min-w-0 truncate [&_*]:whitespace-nowrap", verb === null && "col-span-2")}
+        >
+          {target}
+        </span>
+        <span id={resultId} className="col-start-4 whitespace-nowrap text-end tabular-nums">
+          {result}
+        </span>
+        <span className="col-start-5 flex justify-center">
+          {expandable ? (
+            <ChevronRightIcon
+              aria-hidden
+              className={cn(
+                "size-3 shrink-0 opacity-0 transition-[transform,opacity] duration-200 group-hover/step:opacity-70 group-focus-within/step:opacity-70",
+                expanded && "rotate-90 opacity-70",
+              )}
+            />
+          ) : null}
+        </span>
+      </div>
+      <div
+        id={toggle ? detailsId : undefined}
+        className="ms-1.75 mt-0.5 mb-1.5 cursor-auto border-s border-border/70 ps-3.75 empty:hidden"
+      >
+        <InStepDetail value>{children}</InStepDetail>
+      </div>
+    </div>
+  );
+}
+
 const LIVE_EDGE_PX = 4;
 
 export function WorkLogDetails({
@@ -184,6 +229,7 @@ export function WorkLogDetails({
 
   followLive?: boolean;
 }) {
+  const inStep = use(InStepDetail);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const atLiveEdgeRef = useRef(true);
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- pins the scroller's scrollTop to the bottom after each commit while following live output
@@ -203,10 +249,17 @@ export function WorkLogDetails({
       className={cn(
         "cursor-auto",
         kind === "text"
-          ? "ms-7 flex max-h-96 flex-col gap-3 overflow-auto px-0.5 py-1 select-text"
+          ? cn(
+              "flex max-h-96 flex-col gap-3 overflow-auto px-0.5 py-1 select-text",
+              !inStep && "ms-7",
+            )
           : kind === "panel"
-            ? "mt-0.5 mb-1.5 pb-2"
-            : "mt-1",
+            ? inStep
+              ? "py-0.5"
+              : "mt-0.5 mb-1.5 pb-2"
+            : inStep
+              ? "py-0.5"
+              : "mt-1",
       )}
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}

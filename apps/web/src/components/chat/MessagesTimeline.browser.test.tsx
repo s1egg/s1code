@@ -471,7 +471,7 @@ describe("MessagesTimeline work rows", () => {
         detail: "TOOL_OUTPUT_MARKER",
       }),
     ]);
-    const toggle = screen.button(/npm test/);
+    const toggle = await vi.waitFor(() => screen.button(/npm test/));
     await click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     const output = [...document.querySelectorAll("pre")].find((pre) =>
@@ -1157,42 +1157,18 @@ describe("MessagesTimeline messages", () => {
       await vi.waitFor(() => expect(viewport.scrollHeight).toBeGreaterThan(3000));
       await act(() => viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: -1 })));
     }
+    // Steps outside a turn list flat, so a grouped step is opened from its own row.
     if (mode.startsWith("grouped-")) {
       await act(() => {
         void props.listRef.current!.scrollToIndex({ index: 6, animated: false });
       });
       await vi.waitFor(() =>
         expect(
-          screen.container.querySelector('[data-timeline-row-kind="work-toggle"] button'),
-        ).not.toBeNull(),
-      );
-      const group = () =>
-        screen.container.querySelector<HTMLElement>(
-          '[data-timeline-row-kind="work-toggle"] button',
-        )!;
-      await click(group());
-      await vi.waitFor(() =>
-        expect(
           screen.container.querySelector('[data-work-entry-id="tool-near-composer"]'),
         ).not.toBeNull(),
       );
-      if (mode === "grouped-delayed") {
-        await click(
-          screen.container.querySelector<HTMLElement>('[data-work-entry-id="tool-near-composer"]')!,
-        );
-        await vi.waitFor(() => expect(screen.text()).toContain("Loading output"));
-        await click(group());
-      }
     }
     const header = () => {
-      if (mode === "grouped-end")
-        return screen.container.querySelector<HTMLElement>(
-          '[data-work-entry-id="tool-near-composer"]',
-        )!;
-      if (mode === "grouped-delayed")
-        return screen.container.querySelector<HTMLElement>(
-          '[data-timeline-row-kind="work-toggle"] button',
-        )!;
       const rows = screen.container.querySelectorAll<HTMLElement>(
         '[data-timeline-row-kind="work"] [role="button"]',
       );
@@ -1227,8 +1203,10 @@ describe("MessagesTimeline messages", () => {
     const collapsedScrollTop = viewport.scrollTop;
     using scrollBy = vi.spyOn(viewport, "scrollBy");
     // The nested row can measure before the outer scroller gains its new range.
-    if (mode === "grouped-delayed") scrollBy.mockImplementationOnce(() => {});
-    await click(header());
+    // A later layout can cut the first reveal scroll short; the reveal has to try again.
+    if (mode === "grouped-delayed" || inline) scrollBy.mockImplementationOnce(() => {});
+    // Step rows mount inside their own list, a frame after the row itself.
+    await click(await vi.waitFor(header));
     if (mode === "grouped-delayed") {
       await vi.waitFor(() => expect(scrollBy).toHaveBeenCalled());
       outerGrowth = true;
@@ -1982,7 +1960,7 @@ describe("MessagesTimeline attachments", () => {
       [read("first.png"), read("second.png"), read("third.png")],
       { onImageExpand, workspaceRoot: "/repo" },
     );
-    await click(screen.button(/^Read 3 files/));
+    // Outside a turn the reads list flat, with no capsule to open first.
     await vi.waitFor(() => expect(screen.buttons("Read")).toHaveLength(3));
     await click(screen.buttons("Read")[1]!);
     const inRow = await vi.waitFor(() => {
@@ -2592,7 +2570,10 @@ it("keeps concurrent approvals actionable outside collapsed work and restores se
   await expect
     .element(screen.getByRole("group", { name: "Command approval" }))
     .not.toBeInTheDocument();
-  await vi.waitFor(() => expect(screen.text()).not.toContain("Waiting for approval"));
+  // The island finishes its settling beats before its summary replaces the waiting label.
+  await vi.waitFor(() => expect(screen.text()).not.toContain("Waiting for approval"), {
+    timeout: 3_000,
+  });
   await screen.getByRole("button", { expanded: false }).click();
   await expect
     .element(screen.getByRole("button", { name: approvals[0]!.detail!, exact: true }))
@@ -2600,4 +2581,704 @@ it("keeps concurrent approvals actionable outside collapsed work and restores se
   await expect
     .element(screen.getByRole("button", { name: "Open the current tab", exact: true }))
     .toBeVisible();
+});
+
+describe("MessagesTimeline tool trace", () => {
+  const runId = RunId.make("trace-run");
+  const ENDED_AT = "2026-03-17T19:12:55.000Z";
+  const workingProps = {
+    isWorking: true,
+    runningRunId: runId,
+    activeTurnStartedAt: CREATED_AT,
+    latestRun: { runId, status: "running" as const, startedAt: CREATED_AT, completedAt: null },
+  };
+  const endedProps = (status: "completed" | "interrupted" | "failed" = "completed") => ({
+    isWorking: false,
+    runningRunId: null,
+    activeTurnStartedAt: null,
+    latestRun: { runId, status, startedAt: CREATED_AT, completedAt: ENDED_AT },
+  });
+  const prompt = message("Fix the lint errors", { runId }, "prompt");
+  const reply = (text = "Lint is clean.") => message(text, { role: "assistant", runId }, "reply");
+  const item = (type: string, fields: Record<string, unknown>) =>
+    ({
+      id: TurnItemId.make((fields.id as string | undefined) ?? type),
+      threadId: ThreadId.make("thread-1"),
+      runId,
+      nodeId: null,
+      providerThreadId: null,
+      providerTurnId: null,
+      nativeItemRef: null,
+      parentItemId: null,
+      ordinal: 0,
+      status: "completed",
+      title: null,
+      startedAt: DateTime.makeUnsafe(CREATED_AT),
+      completedAt: DateTime.makeUnsafe(CREATED_AT),
+      updatedAt: DateTime.makeUnsafe(CREATED_AT),
+      type,
+      ...fields,
+    }) as never;
+  const command = (
+    id: string,
+    input: string,
+    status: "completed" | "inProgress" | "failed" | "stopped",
+    exitCode?: number,
+  ) =>
+    work(id, {
+      runId,
+      label: "Ran command",
+      tone: "tool",
+      itemType: "command_execution",
+      command: input,
+      toolLifecycleStatus: status,
+      structuredPayload: item("command_execution", {
+        id,
+        input,
+        ...(exitCode === undefined ? {} : { exitCode }),
+      }),
+    });
+  const edit = (id: string, file = "src/a.ts", additions = 2, deletions = 1) =>
+    work(id, {
+      runId,
+      label: `Changed ${file}`,
+      tone: "tool",
+      itemType: "file_change",
+      changedFiles: [file],
+      toolLifecycleStatus: "completed",
+      structuredPayload: item("file_change", { id, fileName: file, additions, deletions }),
+    });
+  const thought = (id: string, detail: string, status: "completed" | "inProgress" = "completed") =>
+    work(id, {
+      runId,
+      label: "Thought",
+      tone: "thinking",
+      itemType: "reasoning",
+      detail,
+      toolLifecycleStatus: status,
+    });
+  const islandRowSelector = `[data-timeline-row-id="turn-fold:${runId}"]`;
+  const island = () =>
+    document.querySelector<HTMLElement>(`${islandRowSelector} [data-trace-island]`);
+  const islandToggle = () =>
+    document.querySelector<HTMLElement>(`${islandRowSelector} button[aria-expanded]`);
+  const chips = () => document.querySelectorAll(`${islandRowSelector} [data-trace-chip]`);
+
+  it("heads a running turn with the current step and its finished steps as chips", async () => {
+    setup();
+    await using screen = await renderTimeline(
+      [
+        prompt,
+        command("lint", "vp lint", "completed", 0),
+        edit("edit"),
+        command("test", "vp test run", "inProgress"),
+      ],
+      workingProps,
+    );
+    // The island is the turn's header: directly under the prompt, and nothing else above the steps.
+    const kinds = [...screen.container.querySelectorAll("[data-timeline-row-kind]")].map((row) =>
+      row.getAttribute("data-timeline-row-kind"),
+    );
+    expect(kinds).toEqual(["message", "turn-fold"]);
+    const toggle = screen.button("Run vp test run");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(island()?.getAttribute("data-island-state")).toBe("live");
+    expect(island()?.textContent).toMatch(/^Runvp test run[\d:]+$/);
+    expect([...chips()].map((chip) => chip.textContent)).toEqual(["✓", "+2−1"]);
+    await click(toggle);
+    expect(screen.button("Run vp test run").getAttribute("aria-expanded")).toBe("true");
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-work-entry-id="test"]')?.textContent).toContain(
+        "vp test run",
+      ),
+    );
+    // The equalizer is the trace's only loop; a running row marks itself with a static icon.
+    expect(
+      document.querySelector('[data-work-entry-id="test"] [class*="animate-spin"]'),
+    ).toBeNull();
+  });
+
+  it("keeps one island node from thinking through its steps to its settled summary", async () => {
+    setup();
+    const props = baseProps();
+    const view = (entries: Entry[], phase: Partial<TimelineProps>) => (
+      <MessagesTimeline {...props} {...phase} timelineEntries={entries} />
+    );
+    await using screen = await renderElement(view([prompt], workingProps));
+    await vi.waitFor(() => expect(island()?.textContent).toContain("Thinking"));
+    const node = island();
+    await screen.rerender(
+      view(
+        [
+          prompt,
+          thought("plan", "Check the lint config"),
+          command("lint", "vp lint", "inProgress"),
+        ],
+        workingProps,
+      ),
+    );
+    await vi.waitFor(() => expect(island()?.textContent).toContain("vp lint"));
+    expect(island()).toBe(node);
+    const finished = [
+      prompt,
+      thought("plan", "Check the lint config"),
+      command("lint", "vp lint", "completed", 0),
+      edit("edit"),
+      reply(),
+    ];
+    await screen.rerender(view(finished, endedProps()));
+    // It absorbs its film, then settles in place: same node, its summary, and a drawn check.
+    await vi.waitFor(() => expect(document.querySelector(".trace-chip-absorb")).not.toBeNull(), {
+      timeout: 2_000,
+    });
+    await vi.waitFor(() => expect(island()?.getAttribute("data-island-state")).toBe("done"), {
+      timeout: 3_000,
+    });
+    expect(island()).toBe(node);
+    expect(island()?.classList.contains("trace-pulse")).toBe(true);
+    expect(island()?.querySelector('path[pathLength="1"]')?.parentElement?.classList).toContain(
+      "trace-check-draw",
+    );
+    expect(island()?.textContent).toBe("27s · 3 steps");
+    expect(chips()).toHaveLength(0);
+    expect(islandToggle()?.getAttribute("aria-label")).toBe("Worked for 27s, 3 steps");
+    expect(screen.text()).toContain("Lint is clean.");
+  });
+
+  it("settles at once under reduced motion", async () => {
+    setup();
+    const session = cdp();
+    await session.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+    });
+    try {
+      const props = baseProps();
+      const steps = [prompt, command("lint", "vp lint", "inProgress")];
+      await using screen = await renderElement(
+        <MessagesTimeline {...props} {...workingProps} timelineEntries={steps} />,
+      );
+      await vi.waitFor(() => expect(island()?.textContent).toContain("vp lint"));
+      await screen.rerender(
+        <MessagesTimeline
+          {...props}
+          {...endedProps()}
+          timelineEntries={[prompt, command("lint", "vp lint", "completed", 0), reply()]}
+        />,
+      );
+      expect(island()?.getAttribute("data-island-state")).toBe("done");
+      expect(island()?.textContent).toBe("27s · 1 step");
+      expect(document.querySelector(".trace-chip-absorb, .trace-pulse")).toBeNull();
+    } finally {
+      await session.send("Emulation.setEmulatedMedia", { features: [] });
+    }
+  });
+
+  it("opens into flat step rows with the commentary between them", async () => {
+    setup();
+    await using screen = await renderTimeline(
+      [
+        prompt,
+        command("lint", "vp lint", "completed", 0),
+        message("Two errors left; fixing them.", { role: "assistant", runId }, "commentary"),
+        edit("edit"),
+        reply(),
+      ],
+      endedProps(),
+    );
+    expect(screen.text()).not.toContain("Two errors left");
+    await click(screen.button("Worked for 27s, 2 steps"));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-work-entry-id="edit"]')).not.toBeNull(),
+    );
+    const order = [...screen.container.querySelectorAll("[data-timeline-row-id]")].map((row) =>
+      row.getAttribute("data-timeline-row-id"),
+    );
+    expect(order).toEqual([
+      "entry-prompt",
+      `turn-fold:${runId}`,
+      "steps:lint",
+      "entry-commentary",
+      "steps:edit",
+      "entry-reply",
+    ]);
+    // No capsule sits between the island and its steps, and a whole turn fits before scrolling.
+    expect(screen.buttons(/^Ran 1 command|^Changed 1 file/)).toHaveLength(0);
+    expect(
+      document.querySelector<HTMLElement>("[data-tool-group-scroll]")?.style.maxHeight,
+    ).toContain("min(28rem, 60dvh)");
+    expect(document.querySelector('[data-work-entry-id="edit"]')?.textContent).toMatch(
+      /Editsrc\/a\.ts\+2−1/,
+    );
+    // Commentary inside the open island reads quieter than the answer outside it.
+    const markdownOf = (rowId: string) =>
+      document.querySelector(`[data-timeline-row-id="${rowId}"] .chat-markdown`);
+    expect(markdownOf("entry-commentary")?.classList).toContain("text-muted-foreground");
+    expect(markdownOf("entry-reply")?.classList).not.toContain("text-muted-foreground");
+  });
+
+  it.each([
+    ["interrupted", "You stopped after 27s, 1 step", ".rounded-xs"],
+    ["failed", "Failed after 27s, 1 step", 'path[d^="M7 7"]'],
+  ] as const)("marks a %s turn with its own glyph", async (status, name, glyph) => {
+    setup();
+    await using screen = await renderTimeline(
+      [prompt, command("lint", "vp lint", "completed", 0), reply("Stopped here.")],
+      endedProps(status),
+    );
+    expect(screen.button(name)).toBeTruthy();
+    expect(island()?.querySelector(glyph)).not.toBeNull();
+    expect(island()?.querySelector('path[pathLength="1"]')).toBeNull();
+  });
+
+  it("keeps a stopped step's verb and target on the island, without the equalizer", async () => {
+    setup();
+    await using screen = await renderTimeline(
+      [prompt, command("stopped-test", "npm test", "stopped")],
+      workingProps,
+    );
+    expect(screen.button("Run npm test").getAttribute("aria-expanded")).toBe("false");
+    expect(island()?.textContent).toMatch(/^Runnpm test/);
+    expect(island()?.querySelector(".trace-eq-bar")).toBeNull();
+  });
+
+  // regression: the caption showed the first sentence of folded commentary, not its end
+  it("captions the island with the last line of folded commentary", async () => {
+    setup();
+    await using screen = await renderTimeline(
+      [
+        prompt,
+        message(
+          "Checking the parser.\nFound the failing branch.",
+          { role: "assistant", runId },
+          "note",
+        ),
+        command("test", "vp test run", "inProgress"),
+      ],
+      workingProps,
+    );
+    expect(document.querySelector(islandRowSelector)?.textContent).toContain(
+      "Found the failing branch.",
+    );
+    expect(screen.text()).not.toContain("Checking the parser.");
+  });
+
+  it("names every kind of step on the island and in its rows", async () => {
+    setup();
+    const read = (id: string, files: string[]) =>
+      work(id, {
+        runId,
+        label: "Read files",
+        tone: "tool",
+        requestKind: "file-read",
+        changedFiles: files,
+        toolLifecycleStatus: "completed",
+      });
+    const subagent = {
+      id: "subagent",
+      kind: "event",
+      createdAt: CREATED_AT,
+      projectedItem: {
+        position: 0,
+        visibility: "local",
+        sourceThreadId: ThreadId.make("thread-1"),
+        sourceItemId: TurnItemId.make("subagent"),
+        item: item("subagent", {
+          id: "subagent",
+          status: "running",
+          completedAt: null,
+          subagentId: NodeId.make("subagent"),
+          origin: "provider_native",
+          driver: ProviderDriverKind.make("opencode"),
+          providerInstanceId: ProviderInstanceId.make("opencode"),
+          childThreadId: null,
+          prompt: "Audit the mobile preview",
+          result: null,
+        }),
+      },
+    } as Entry;
+    const approval = (id: string, status: "completed" | "pending") =>
+      work(id, {
+        runId,
+        label: "Command approval",
+        tone: "tool",
+        itemType: "approval_request",
+        requestKind: "command",
+        toolLifecycleStatus: status === "pending" ? "inProgress" : "completed",
+        projectedItem: {
+          position: 0,
+          visibility: "local",
+          sourceThreadId: ThreadId.make("thread-1"),
+          sourceItemId: TurnItemId.make(id),
+          item: item("approval_request", {
+            id,
+            status,
+            requestId: RuntimeRequestId.make(id),
+            requestKind: "command",
+            prompt: "rm -rf dist",
+          }),
+        },
+      });
+    const steps: Entry[] = [
+      thought("thought", "Mobile duplicates truncate()"),
+      read("read-one", ["/repo/src/a.ts"]),
+      read("read-many", ["/repo/a.ts", "/repo/b.ts", "/repo/c.ts", "/repo/d.ts"]),
+      edit("edit", "src/lib/truncate.ts", 2, 1),
+      edit("new-file", "src/truncate.test.ts", 12, 0),
+      command("cmd-ok", "vp lint", "completed", 0),
+      command("cmd-fail", "vp test run", "failed", 2),
+      work("search-hits", {
+        runId,
+        label: "Searched",
+        tone: "tool",
+        itemType: "file_search",
+        toolLifecycleStatus: "completed",
+        structuredPayload: item("file_search", {
+          id: "search-hits",
+          pattern: "truncate(",
+          results: [
+            { fileName: "a.ts", line: 3 },
+            { fileName: "b.ts", line: 9 },
+          ],
+        }),
+      }),
+      work("search-none", {
+        runId,
+        label: "Searched",
+        tone: "tool",
+        itemType: "file_search",
+        toolLifecycleStatus: "completed",
+        structuredPayload: item("file_search", {
+          id: "search-none",
+          pattern: "nothing",
+          results: [],
+        }),
+      }),
+      work("web", {
+        runId,
+        label: "Web search",
+        tone: "tool",
+        itemType: "web_search",
+        toolLifecycleStatus: "completed",
+        structuredPayload: item("web_search", {
+          id: "web",
+          patterns: ["intl segmenter"],
+          results: [{ title: "a" }, { title: "b" }, { title: "c" }],
+        }),
+      }),
+      work("mcp", {
+        runId,
+        label: "Called get_issue",
+        toolTitle: "get_issue",
+        tone: "tool",
+        itemType: "dynamic_tool",
+        toolLifecycleStatus: "completed",
+        structuredPayload: item("dynamic_tool", {
+          id: "mcp",
+          toolName: "mcp__linear__get_issue",
+          title: "get_issue",
+          input: { id: "ENG-1" },
+        }),
+      }),
+      work("todo", {
+        runId,
+        label: "Tasks 1/2 · Fix the preview",
+        tone: "info",
+        itemType: "todo_list",
+        toolLifecycleStatus: "completed",
+        structuredPayload: item("todo_list", {
+          id: "todo",
+          planId: "plan",
+          steps: [
+            { id: "a", text: "Fix the preview", status: "completed" },
+            { id: "b", text: "Add a test", status: "running" },
+          ],
+        }),
+      }),
+      subagent,
+      approval("approval-done", "completed"),
+      work("question", {
+        runId,
+        label: "Asked a question",
+        tone: "tool",
+        itemType: "user_input_request",
+        toolLifecycleStatus: "completed",
+        questionAnswer: {
+          requestId: RuntimeRequestId.make("question"),
+          questionTextById: { scope: "Which platform?" },
+          answers: { scope: "Android" },
+          attachmentsByQuestionId: {},
+        },
+      }),
+      work("image", {
+        runId,
+        label: "Read mock.png",
+        toolTitle: "Read",
+        tone: "tool",
+        itemType: "dynamic_tool",
+        toolLifecycleStatus: "completed",
+        viewedImagePath: "/repo/mock.png",
+      }),
+      work("error", {
+        runId,
+        label: "Provider hiccup",
+        tone: "error",
+        sourceActivityKind: "runtime.error",
+      }),
+    ];
+    const props = baseProps();
+    const running = [prompt, ...steps, command("live", "vp build", "inProgress")];
+    await using screen = await renderElement(
+      <MessagesTimeline
+        {...props}
+        {...workingProps}
+        workspaceRoot="/repo"
+        timelineEntries={running}
+      />,
+    );
+    // The live step heads the island; the newest finished tool steps fill the film.
+    expect(screen.button("Run vp build")).toBeTruthy();
+    expect(chips()).toHaveLength(5);
+    // 12 finished steps, the plan update among them: 5 chips and "+7".
+    expect(document.querySelector(islandRowSelector)?.textContent).toContain("+7");
+    // Cards, answers, and errors stay outside the island.
+    expect(screen.text()).toContain("Provider hiccup");
+    expect(screen.text()).toContain("Which platform?");
+    expect(screen.text()).not.toContain("intl segmenter");
+
+    await screen.rerender(
+      <MessagesTimeline
+        {...props}
+        {...workingProps}
+        workspaceRoot="/repo"
+        timelineEntries={[...running, approval("approval-pending", "pending")]}
+        canOperateThread
+        pendingApprovals={[
+          {
+            requestId: RuntimeRequestId.make("approval-pending"),
+            requestKind: "command",
+            createdAt: CREATED_AT,
+            detail: "rm -rf dist",
+            responseCapability: "live",
+          },
+        ]}
+      />,
+    );
+    await vi.waitFor(() => expect(screen.button("Waiting for approval")).toBeTruthy());
+    await expect.element(screen.getByRole("group", { name: "Command approval" })).toBeVisible();
+
+    await screen.rerender(
+      <MessagesTimeline
+        {...props}
+        {...endedProps()}
+        workspaceRoot="/repo"
+        timelineEntries={[prompt, ...steps, command("live", "vp build", "completed", 0), reply()]}
+      />,
+    );
+    const toggle = await vi.waitFor(
+      () => {
+        const button = islandToggle();
+        expect(button?.getAttribute("aria-label")).toMatch(/^Worked for 27s, \d+ steps$/);
+        return button!;
+      },
+      { timeout: 3_000 },
+    );
+    await click(toggle);
+    const row = (id: string) => document.querySelector(`[data-work-entry-id="${id}"]`)?.textContent;
+    await vi.waitFor(() => expect(row("live")).toBeDefined());
+    const expected: Record<string, RegExp> = {
+      thought: /Thought.*Mobile duplicates truncate\(\)/,
+      "read-one": /Read.*a\.ts/,
+      "read-many": /Read.*4 files/,
+      edit: /Edit.*src\/lib\/truncate\.ts.*\+2.*−1/,
+      "new-file": /Edit.*src\/truncate\.test\.ts.*\+12/,
+      "cmd-ok": /Run.*vp lint/,
+      "cmd-fail": /Run.*vp test run.*Exit 2/,
+      "search-hits": /Search.*truncate\(.*2 hits/,
+      "search-none": /Search.*nothing/,
+      web: /Web.*intl segmenter.*3 results/,
+      mcp: /\S/,
+      todo: /^Plan\s*Add a test\s*1\/2$/,
+      "approval-done": /\S/,
+      image: /Read/,
+      live: /Run.*vp build/,
+    };
+    for (const [id, pattern] of Object.entries(expected)) {
+      await vi.waitFor(() => expect(row(id), id).toMatch(pattern));
+    }
+  });
+  // regression: interrupting opened the pre-steer island, and a new run left a post-steer one open
+  it("opens and closes the final segment's island around a steer", async () => {
+    setup();
+    const steer = message("Also check the docs", { runId, inputIntent: "steer" }, "steer");
+    const entries = [
+      prompt,
+      command("lint", "vp lint", "completed", 0),
+      steer,
+      command("docs", "vp docs", "completed", 0),
+      reply("Stopped."),
+    ];
+    const segmentKey = `${runId}:steer:entry-steer`;
+    const toggleOf = (key: string) =>
+      document.querySelector<HTMLElement>(
+        `[data-timeline-row-id="turn-fold:${key}"] button[aria-expanded]`,
+      );
+    const props = baseProps();
+    await using screen = await renderElement(
+      <MessagesTimeline {...props} {...workingProps} timelineEntries={entries} />,
+    );
+    await screen.rerender(
+      <MessagesTimeline {...props} {...endedProps("interrupted")} timelineEntries={entries} />,
+    );
+    await vi.waitFor(
+      () => expect(toggleOf(segmentKey)?.getAttribute("aria-expanded")).toBe("true"),
+      {
+        timeout: 3_000,
+      },
+    );
+    expect(toggleOf(runId)?.getAttribute("aria-expanded")).toBe("false");
+    const nextRun = RunId.make("next-run");
+    await screen.rerender(
+      <MessagesTimeline
+        {...props}
+        isWorking
+        runningRunId={nextRun}
+        activeTurnStartedAt={ENDED_AT}
+        latestRun={{ runId: nextRun, status: "running", startedAt: ENDED_AT, completedAt: null }}
+        timelineEntries={[...entries, message("Next", {}, "next-prompt")]}
+      />,
+    );
+    await vi.waitFor(() =>
+      expect(toggleOf(segmentKey)?.getAttribute("aria-expanded")).toBe("false"),
+    );
+  });
+  // regression: beats from an earlier finish settled an island that had gone live again
+  it("cancels the finish when the same turn goes live again", async () => {
+    setup();
+    const props = baseProps();
+    const running = [prompt, command("lint", "vp lint", "inProgress")];
+    await using screen = await renderElement(
+      <MessagesTimeline {...props} {...workingProps} timelineEntries={running} />,
+    );
+    await vi.waitFor(() => expect(island()?.textContent).toContain("vp lint"));
+    using _timers = fakeTimers();
+    await screen.rerender(
+      <MessagesTimeline
+        {...props}
+        {...endedProps()}
+        timelineEntries={[prompt, command("lint", "vp lint", "completed", 0), reply()]}
+      />,
+    );
+    await screen.rerender(
+      <MessagesTimeline
+        {...props}
+        {...workingProps}
+        timelineEntries={[...running, command("test", "vp test run", "inProgress")]}
+      />,
+    );
+    await act(() => vi.advanceTimersByTime(1_600));
+    expect(island()?.getAttribute("data-island-state")).toBe("live");
+    expect(island()?.classList.contains("trace-pulse")).toBe(false);
+    expect(island()?.textContent).toContain("vp test run");
+    // regression: a second finish that skips its beats must not replay the first one's
+    const session = cdp();
+    await session.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+    });
+    try {
+      await screen.rerender(
+        <MessagesTimeline
+          {...props}
+          {...endedProps()}
+          timelineEntries={[
+            prompt,
+            command("lint", "vp lint", "completed", 0),
+            command("test", "vp test run", "completed", 0),
+            reply(),
+          ]}
+        />,
+      );
+      expect(island()?.getAttribute("data-island-state")).toBe("done");
+      await act(() => vi.advanceTimersByTime(600));
+      expect(island()?.getAttribute("data-island-state")).toBe("done");
+      await act(() => vi.advanceTimersByTime(1_000));
+      expect(island()?.textContent).toBe("27s · 2 steps");
+      expect(island()?.classList.contains("trace-pulse")).toBe(false);
+    } finally {
+      await session.send("Emulation.setEmulatedMedia", { features: [] });
+    }
+  });
+
+  // regression: a new run's starting state relabelled the island while it finished
+  it("keeps the ended turn's label through its finish", async () => {
+    setup();
+    const props = baseProps();
+    await using screen = await renderElement(
+      <MessagesTimeline
+        {...props}
+        {...workingProps}
+        timelineEntries={[prompt, command("lint", "vp lint", "inProgress")]}
+      />,
+    );
+    await vi.waitFor(() => expect(island()?.textContent).toContain("vp lint"));
+    const nextRun = RunId.make("starting-run");
+    await screen.rerender(
+      <MessagesTimeline
+        {...props}
+        isWorking
+        runningRunId={nextRun}
+        activeTurnStartedAt={ENDED_AT}
+        latestRun={{ runId: nextRun, status: "starting", startedAt: null, completedAt: null }}
+        providerStartingLabel="Starting Codex…"
+        providerStarting={
+          {
+            instanceId: ProviderInstanceId.make("codex"),
+            driver: ProviderDriverKind.make("codex"),
+          } as never
+        }
+        timelineEntries={[
+          prompt,
+          command("lint", "vp lint", "completed", 0),
+          reply(),
+          message("Next", {}, "next-prompt"),
+        ]}
+      />,
+    );
+    // The ended turn finishes under its own label; the new turn's island says it is starting.
+    expect(island()?.getAttribute("data-island-state")).toBe("live");
+    expect(island()?.textContent).toContain("vp lint");
+    expect(island()?.textContent).not.toContain("Starting");
+    expect(screen.text()).toContain("Starting Codex…");
+  });
+  // regression: the finish compared with the window, so an island below the scroller animated
+  it("settles at once when the island sits outside the chat's scroller", async () => {
+    setup();
+    const props = { ...baseProps(), liveFollowEnabled: false };
+    const intro = message(
+      `Intro\n\n${"Long paragraph. ".repeat(60)}`,
+      { role: "assistant" },
+      "intro",
+    );
+    const view = (entries: Entry[], phase: Partial<TimelineProps>) => (
+      <MessagesTimeline {...props} {...phase} timelineEntries={entries} />
+    );
+    await using screen = await renderElement(
+      view([intro, prompt, command("lint", "vp lint", "inProgress")], workingProps),
+    );
+    screen.container.style.height = "240px";
+    await act(() => {
+      void props.listRef.current!.scrollToIndex({ index: 0, animated: false });
+    });
+    const viewport = props.listRef.current!.getScrollableNode()!;
+    await vi.waitFor(() => {
+      expect(island()).not.toBeNull();
+      expect(island()!.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        viewport.getBoundingClientRect().bottom,
+      );
+      expect(island()!.getBoundingClientRect().top).toBeLessThan(window.innerHeight);
+    });
+    await screen.rerender(
+      view([intro, prompt, command("lint", "vp lint", "completed", 0), reply()], endedProps()),
+    );
+    expect(island()?.getAttribute("data-island-state")).toBe("done");
+  });
 });

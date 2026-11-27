@@ -163,6 +163,10 @@
       "types": "./src/terminalOutput.ts",
       "import": "./src/terminalOutput.ts"
     },
+    "./fileChangeLineCounts": {
+      "types": "./src/fileChangeLineCounts.ts",
+      "import": "./src/fileChangeLineCounts.ts"
+    },
     "./toolOutput": {
       "types": "./src/toolOutput.ts",
       "import": "./src/toolOutput.ts"

@@ -98,7 +98,6 @@ export interface TimelineRowSharedState {
   onFileOpen: (attachment: ChatFileAttachment) => void;
   onFileDownload: (attachment: ChatFileAttachment) => void;
   openPullRequest: (event: MouseEvent<HTMLElement>, url: string) => void;
-  onToggleWorkGroup: (groupId: string, anchorKey: string) => void;
   onToggleWorkEntry: (anchorKey: string, collapsed: boolean, entryId?: string) => void;
   onWorkEntryContentReady?: (anchorKey: string, entryId: string) => void;
   onCancelWorktreeSetup: (() => void) | null;
@@ -114,6 +113,8 @@ export interface TimelineRowActivityState {
   isCompacting: boolean;
   isRevertingCheckpoint: boolean;
   awaitingUser: boolean;
+  /** A question from the agent waits for the user's answer. */
+  awaitingInput: boolean;
   isPreparingWorktree: boolean;
   providerStartingLabel: string | null;
   providerStarting: NonNullable<ThreadRunSummary["providerStarting"]> | null;
@@ -139,6 +140,8 @@ export interface WorkGroupViewedImage {
 
 export const WorkGroupViewCtx = createContext<{
   state: WorkGroupViewState;
+  /** When the user just opened the fold these steps belong to, so its first rows stagger in. */
+  enterStartedAt?: number | null;
   viewedImages: ReadonlyArray<WorkGroupViewedImage>;
   onToggleEntry: (collapsed: boolean, entryId: string) => void;
   onContentReady?: ((entryId: string) => void) | undefined;

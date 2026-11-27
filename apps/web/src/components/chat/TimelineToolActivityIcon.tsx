@@ -10,6 +10,9 @@ import {
   CheckIcon,
   CircleAlertIcon,
   EyeIcon,
+  FilePlusIcon,
+  FileSymlinkIcon,
+  FileXIcon,
   GlobeIcon,
   ListTodoIcon,
   MessageCircleIcon,
@@ -44,6 +47,9 @@ export type WorkEntryIconName =
   | "code"
   | "device"
   | "eye"
+  | "file-move"
+  | "file-plus"
+  | "file-x"
   | "globe"
   | "hammer"
   | "message-circle"
@@ -254,6 +260,12 @@ function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className
       return <CircleAlertIcon className={className} aria-hidden />;
     case "eye":
       return <EyeIcon className={className} aria-hidden />;
+    case "file-move":
+      return <FileSymlinkIcon className={className} aria-hidden />;
+    case "file-plus":
+      return <FilePlusIcon className={className} aria-hidden />;
+    case "file-x":
+      return <FileXIcon className={className} aria-hidden />;
     case "globe":
       return <GlobeIcon className={className} aria-hidden />;
     case "hammer":

@@ -204,6 +204,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(s1-mobil
      by the composer, its context strip and attached banners. */
   --shadow-composer: 0 1px 2px rgb(0 0 0 / 5%);
   --shadow-composer-dark: 0 14px 32px -18px rgb(0 0 0 / 75%);
+  --shadow-trace-island: 0 10px 22px -14px rgb(0 0 0 / 35%);
+  --shadow-trace-island-dark: inset 0 1px rgb(255 255 255 / 8%), 0 10px 22px -14px rgb(0 0 0 / 80%);
   /* Overlap the lower toolbar backdrop by one pixel to cover the composer seam. */
   --spacing-composer-seam: calc(var(--spacing) * 4 - 1px);
   /* Dark-mode shade where an attached surface meets the composer: 10px of
@@ -586,39 +588,162 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(s1-mobil
   }
 }
 
-@keyframes live-tool-shine {
-  from {
-    background-position:
-      -4.5rem 0,
-      0 0;
-  }
-  to {
-    background-position:
-      calc(100% + 4.5rem) 0,
-      0 0;
-  }
-}
-
-@utility live-tool-shine {
-  @media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
-    color: transparent;
-    background-image:
-      linear-gradient(to right, transparent, var(--contrast-foreground), transparent),
-      linear-gradient(var(--contrast-secondary-label), var(--contrast-secondary-label));
-    background-size:
-      4.5rem 100%,
-      100% 100%;
-    background-repeat: no-repeat;
-    background-clip: text;
-    animation: live-tool-shine 2.2s steps(30) infinite;
-    animation-play-state: var(--visible-animation-state, paused);
-  }
-}
-
 @utility visible-animate-spin {
   animation: var(--animate-spin);
   animation-play-state: var(--visible-animation-state, paused);
   will-change: var(--visible-animation-will-change, auto);
+}
+
+/* The tool-call trace: one-shot transform/opacity motion, plus the equalizer as its only loop. */
+@keyframes trace-eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes trace-sheen {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes trace-label-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+    filter: blur(4px);
+  }
+}
+
+@keyframes trace-orb-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-70deg);
+  }
+}
+
+@keyframes trace-chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55) translateX(-10px);
+  }
+}
+
+@keyframes trace-chip-absorb {
+  to {
+    opacity: 0;
+    transform: translateX(calc(-28px - var(--trace-k, 0) * 34px)) scale(0.3);
+  }
+}
+
+@keyframes trace-check-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes trace-pulse {
+  from {
+    box-shadow:
+      inset 0 0 0 1px var(--color-border),
+      0 0 0 0 color-mix(in srgb, var(--color-primary) 50%, transparent);
+  }
+  to {
+    box-shadow:
+      inset 0 0 0 1px var(--color-border),
+      0 0 0 12px transparent;
+  }
+}
+
+@keyframes trace-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+
+@utility trace-eq-bar {
+  transform: scaleY(0.6);
+  transform-origin: 50% 100%;
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-eq 1s steps(5) infinite;
+    animation-delay: var(--trace-eq-delay, 0s);
+    animation-play-state: var(--visible-animation-state, paused);
+    will-change: var(--visible-animation-will-change, auto);
+  }
+}
+
+@utility trace-sheen {
+  transform: translateX(-100%);
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--color-white) 13%, transparent) 50%,
+    transparent 70%
+  );
+  @variant light {
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, var(--color-white) 55%, transparent) 50%,
+      transparent 70%
+    );
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-sheen 800ms ease-out;
+  }
+}
+
+@utility trace-label-in {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-label-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+}
+
+@utility trace-orb-pop {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-orb-pop 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+@utility trace-chip-in {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-chip-in 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+@utility trace-chip-absorb {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-chip-absorb 420ms cubic-bezier(0.6, 0, 0.9, 0.5) both;
+    animation-delay: calc(var(--trace-k, 0) * 45ms);
+  }
+}
+
+@utility trace-check-draw {
+  stroke-dasharray: 1;
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-check-draw 500ms ease-out both;
+  }
+}
+
+@utility trace-pulse {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-pulse 800ms ease-out;
+  }
+}
+
+@utility trace-step-in {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: trace-step-in 320ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    animation-delay: var(--trace-step-delay, 0ms);
+  }
 }
 
 @keyframes live-activity-focus {

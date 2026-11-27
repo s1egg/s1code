@@ -51,6 +51,8 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
           >
             <ChatMarkdown
               text={messageText}
+              // Commentary an open island reveals reads quieter than the answer below it.
+              {...(row.fold ? { className: "text-muted-foreground" } : {})}
               renderInsights
               cwd={ctx.markdownCwd}
               agentDirectories={() =>

@@ -20,3 +20,14 @@ export function formatWorkingTimerNow(startIso: string, environmentId: Environme
 
   return formatDuration(elapsedSeconds * 1_000, m);
 }
+
+/** A running turn's clock: "m:ss", or "h:mm:ss" from an hour. */
+export function formatTurnClock(elapsedMs: number): string {
+  const total = Number.isFinite(elapsedMs) ? Math.max(0, Math.floor(elapsedMs / 1000)) : 0;
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = String(total % 60).padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`
+    : `${minutes}:${seconds}`;
+}

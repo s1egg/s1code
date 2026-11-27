@@ -34,21 +34,30 @@ describe("long active tool groups", () => {
         activeTurnStartedAt: createdAt,
         turnDiffSummaries: [],
         supportsConversationRollback: false,
-        expandedWorkGroupIds: new Set(expanded ? ["work-group:work-entry-0"] : []),
+        expandedRunIds: new Set(expanded ? [runId] : []),
       });
-      const live = rows.find((row) => row.kind === "work-live");
-      expect(live).toBeDefined();
-      expect(live?.entry.id).toBe("work-999");
-      expect(live && liveWorkEntryLabel(live.entry, undefined, live.active)).toContain("999");
-      expect(live?.thought?.id).toBe("work-998");
-      expect(live?.groupedEntries.map(({ id }) => id)).toEqual(
-        timelineEntries.map(({ entry }) => entry.id),
-      );
-      expect(live?.groupId).toBe("work-group:work-entry-0");
+      const island = rows.find((row) => row.kind === "turn-fold");
+      if (island?.kind !== "turn-fold") throw new Error("Expected the turn's island");
+      const step = island.live?.step;
+      expect(step?.id).toBe("work-999");
+      expect(step && liveWorkEntryLabel(step, undefined, true)).toContain("999");
+      expect(island.live?.caption).toEqual({ id: "work-entry-998", text: "Thought 998" });
+      expect(island.stepCount).toBe(1_000);
+      // The film holds only the newest finished commands; older ones count into "+N".
+      expect(island.film.map(({ id }) => id)).toEqual([
+        "work-989",
+        "work-991",
+        "work-993",
+        "work-995",
+        "work-997",
+      ]);
+      expect(island.filmHiddenCount).toBe(494);
       const details = rows.filter((row) => row.kind === "work");
       expect(details).toHaveLength(expanded ? 1 : 0);
       if (expanded) {
-        expect(details[0]?.groupedEntries).toEqual(live?.groupedEntries);
+        expect(
+          details[0]?.kind === "work" && details[0].groupedEntries.map(({ id }) => id),
+        ).toEqual(timelineEntries.map(({ entry }) => entry.id));
       }
     },
   );
