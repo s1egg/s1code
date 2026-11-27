@@ -1,7 +1,9 @@
+import "~/index.css";
 import { scopeProjectRef, scopeThreadRef } from "@s1tools/client-runtime/environment";
 import { EnvironmentId, MessageId, ProjectId, ThreadId } from "@s1tools/contracts";
 import { Profiler } from "react";
 import { expect, it, vi } from "vite-plus/test";
+import { userEvent } from "vite-plus/test/browser";
 
 import { act, render } from "../../../test/render";
 import { formatAssistantCitationForComposer } from "../../composer-logic";
@@ -176,4 +178,32 @@ it("omits repeated project context when scoped to a single project", async () =>
   const row = screen.getByTestId("sidebar-draft-row");
   await expect.element(row).toHaveTextContent("Refine sidebar density");
   await expect.element(row).not.toHaveTextContent("alpha-app");
+});
+
+it("keeps Discard draft in the tab order after the focused row", async () => {
+  const initial = useComposerDraftStore.getState();
+  using _store = {
+    [Symbol.dispose]: () => useComposerDraftStore.setState(initial, true),
+  };
+  useComposerDraftStore.setState({
+    draftsByThreadKey: {},
+    draftThreadsByThreadKey: {},
+    logicalProjectDraftThreadKeyByLogicalProjectKey: {},
+  });
+  const draftId = DraftId.make("draft-keyboard");
+  initial.setProjectDraftThreadId(
+    scopeProjectRef(EnvironmentId.make("draft-keyboard-environment"), ProjectId.make("project")),
+    draftId,
+    { threadId: ThreadId.make("draft-keyboard-thread") },
+  );
+  initial.setPrompt(draftId, "Keyboard draft");
+  await using screen = await render(
+    <ul>
+      <DraftBlock />
+    </ul>,
+  );
+  await userEvent.tab();
+  await expect.element(screen.getByTestId("sidebar-draft-row")).toHaveFocus();
+  await userEvent.tab();
+  await expect.element(screen.getByRole("button", { name: "Discard draft" })).toHaveFocus();
 });

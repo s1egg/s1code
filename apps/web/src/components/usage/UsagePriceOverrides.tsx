@@ -94,21 +94,33 @@ export function requestUsagePriceModel(model: string | undefined) {
 }
 
 /** Custom model prices, as the thread details sidebar's drill-in under Usage. */
-export function UsagePricesDrillIn() {
+export function UsagePricesDrillIn({
+  selectedEnvironmentIds,
+}: {
+  /** The environments Usage is filtered to; new prices save to these unless changed here. */
+  readonly selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null;
+}) {
   const initialModel = useAtomValue(requestedPriceModelAtom);
   // The same window Usage last read, so model suggestions come from its cached answers.
   const [window] = useState(() => usageWindowFor(readUsagePagePreferences().windowDays));
   const { environments } = useUsage(window);
   return (
-    <UsagePriceOverrides key={initialModel} usage={environments} initialModel={initialModel} />
+    <UsagePriceOverrides
+      key={initialModel}
+      usage={environments}
+      initialSelectedEnvironmentIds={selectedEnvironmentIds}
+      initialModel={initialModel}
+    />
   );
 }
 
 export function UsagePriceOverrides({
   usage,
+  initialSelectedEnvironmentIds = null,
   initialModel,
 }: {
   readonly usage: readonly EnvironmentUsageStatus[];
+  readonly initialSelectedEnvironmentIds?: ReadonlySet<EnvironmentId> | null;
   readonly initialModel?: string | undefined;
 }) {
   const gt = useGT();
@@ -116,7 +128,7 @@ export function UsagePriceOverrides({
   const environments = useAtomValue(priceTargetsAtom).map((target) =>
     target.unavailable === null ? target : { ...target, unavailable: messages(target.unavailable) },
   );
-  const [selectedIds, setSelectedIds] = useState<ReadonlySet<EnvironmentId> | null>(null);
+  const [selectedIds, setSelectedIds] = useState(initialSelectedEnvironmentIds);
   const selected = environments.filter(
     (environment) => selectedIds === null || selectedIds.has(environment.environmentId),
   );

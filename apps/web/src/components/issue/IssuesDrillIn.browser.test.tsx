@@ -1,9 +1,9 @@
-import { scopeThreadRef } from "@s1tools/client-runtime/environment";
+import { scopeThreadRef, scopedThreadKey } from "@s1tools/client-runtime/environment";
 import type { EnvironmentProject } from "@s1tools/client-runtime/state/shell";
 import type { IssueListResult, IssueTrackerKind } from "@s1tools/contracts";
 import { EnvironmentId, ProjectId, ThreadId } from "@s1tools/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
 
@@ -86,9 +86,20 @@ vi.mock(import("~/state/issues"), async (original) => {
 import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
 import { threadDetailsListCountKey, useThreadDetailsStore } from "../chat/threadDetailsStore";
 import { IssuesDrillIn } from "./IssuesDrillIn";
+import { readIssueListPreferences, writeIssueListPreferences } from "./issueListPreferences";
 
 const threadRef = scopeThreadRef(EnvironmentId.make(ENV), ThreadId.make("thread-1"));
 const project = { id: "api", environmentId: ENV, title: "api" } as unknown as EnvironmentProject;
+
+function resetList(): Disposable {
+  window.localStorage.removeItem("s1.issues.preferences");
+  window.localStorage.removeItem("s1.issues.savedViews");
+  useThreadDetailsStore.setState({ listCounts: {}, scope: null, explicitListScope: null });
+  return {
+    [Symbol.dispose]: () =>
+      useThreadDetailsStore.setState({ scope: null, explicitListScope: null }),
+  };
+}
 
 describe("IssuesDrillIn", () => {
   it("reads the thread's project and opens a picked issue in the thread's right panel", async () => {
@@ -110,5 +121,51 @@ describe("IssuesDrillIn", () => {
       isOpen: true,
       surfaces: [{ kind: "issue", projectId: "api", scope: "acme/api", key: "7" }],
     });
+  });
+
+  it("saves a view with the projects the thread's own project narrows the list to", async () => {
+    using _reset = resetList();
+    await using _screen = await render(<IssuesDrillIn threadRef={threadRef} project={project} />);
+    await page.getByRole("button", { name: "Saved issue views" }).click();
+    await page.getByRole("menuitem", { name: "Save current view…" }).click();
+    await userEvent.fill(page.getByLabelText("View name"), "API issues");
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .poll(() => JSON.parse(window.localStorage.getItem("s1.issues.savedViews") ?? "[]"))
+      .toEqual([
+        expect.objectContaining({
+          name: "API issues",
+          preferences: expect.objectContaining({ hideProjects: [[ENV, "web"]] }),
+        }),
+      ]);
+  });
+
+  it("opens with the projects an old page address hid instead of the thread's own", async () => {
+    using _reset = resetList();
+    writeIssueListPreferences({
+      who: "all",
+      status: "open",
+      hideProjects: [[EnvironmentId.make(ENV), ProjectId.make("api")]],
+    });
+    useThreadDetailsStore.setState({
+      scope: scopedThreadKey(threadRef),
+      explicitListScope: "issues",
+    });
+    await using _screen = await render(<IssuesDrillIn threadRef={threadRef} project={project} />);
+    expect(state.targets).toEqual([
+      expect.objectContaining({ input: expect.objectContaining({ excludeProjectIds: ["api"] }) }),
+    ]);
+  });
+
+  it("cuts a long search to what the list accepts before saving and asking", async () => {
+    using _reset = resetList();
+    await using _screen = await render(<IssuesDrillIn threadRef={threadRef} project={project} />);
+    await userEvent.fill(page.getByRole("searchbox", { name: "Search issues" }), "x".repeat(205));
+    expect(readIssueListPreferences().q).toBe("x".repeat(200));
+    await expect
+      .poll(() => state.targets)
+      .toEqual([
+        expect.objectContaining({ input: expect.objectContaining({ query: "x".repeat(200) }) }),
+      ]);
   });
 });

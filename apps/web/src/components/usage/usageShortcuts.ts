@@ -17,23 +17,31 @@ export const WINDOW_OPTIONS = [
   { days: 90, label: msg("90 days"), command: "usage.period.quarter" },
 ] as const;
 
+/** Popups and dialogs whose keys are their own when they open inside the Usage view. */
+const NESTED_POPUP_SELECTOR = '[role="dialog"], [aria-modal="true"], [data-slot$="popup"]';
+
+/**
+ * The Usage command a key press inside `scope`, the Usage view, asks for. A popup around the view,
+ * such as the thread details popover, does not stop it; fields and popups inside it do.
+ */
 export function resolveUsageShortcut(
   event: ShortcutEventLike & { target: EventTarget | null },
   keybindings: ResolvedKeybindingsConfig,
+  scope: Element,
 ) {
   const target = event.target;
+  if (!(target instanceof Element) || !scope.contains(target)) return null;
   if (
     target instanceof HTMLElement &&
     (target.tagName === "INPUT" ||
       target.tagName === "TEXTAREA" ||
       target.tagName === "SELECT" ||
-      target.isContentEditable ||
-      target.closest(
-        '[role="dialog"]:not([data-app-modal]), [aria-modal="true"]:not([data-app-modal]), [data-slot$="popup"]:not([data-app-modal])',
-      ))
+      target.isContentEditable)
   ) {
     return null;
   }
+  const popup = target.closest(NESTED_POPUP_SELECTOR);
+  if (popup !== null && scope.contains(popup)) return null;
 
   return resolveShortcutCommand(event, keybindings, {
     context: { usagePageOpen: true },

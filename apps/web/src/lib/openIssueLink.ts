@@ -4,8 +4,10 @@ import type {
   ScopedThreadRef,
 } from "@s1tools/contracts";
 import { resolveIssueLinkTarget } from "@s1tools/client-runtime/issue-links";
+import { useRouter } from "@tanstack/react-router";
 import type { MouseEvent } from "react";
 
+import { openInShownThread } from "../components/chat/openThreadDetails";
 import { useRightPanelStore } from "../rightPanelStore";
 import { useProjects, useServerConfigs } from "../state/entities";
 
@@ -29,11 +31,13 @@ export function useOpenIssueLink(
 ) => boolean {
   const allProjects = useProjects();
   const serverConfigs = useServerConfigs();
+  const router = useRouter();
   return (event, targetUrl, targetEnvironmentId, trackers) => {
     if (event.metaKey || event.ctrlKey) return false;
     const resolvedPanelRef = panelRef ?? threadRef;
-    const environmentId = threadRef?.environmentId ?? targetEnvironmentId;
-    if (resolvedPanelRef === undefined || environmentId === undefined) return false;
+    // Content from another environment, such as a remote issue beside a local thread, names its own.
+    const environmentId = targetEnvironmentId ?? threadRef?.environmentId;
+    if (environmentId === undefined) return false;
     if (serverConfigs.get(environmentId)?.environment.capabilities.issues !== true) return false;
     const target = resolveIssueLinkTarget({
       url: targetUrl,
@@ -51,10 +55,14 @@ export function useOpenIssueLink(
       key: target.ref.key,
       url: targetUrl,
     };
-    useRightPanelStore.getState().openIssue(resolvedPanelRef, {
-      ...(resolvedPanelRef.environmentId === environmentId ? {} : { environmentId }),
-      ...surface,
-    });
+    const open = (panel: ScopedThreadRef) =>
+      useRightPanelStore.getState().openIssue(panel, {
+        ...(panel.environmentId === environmentId ? {} : { environmentId }),
+        ...surface,
+      });
+    // Content outside a thread, such as a workflow's pull request, opens beside the last thread.
+    if (resolvedPanelRef === undefined) void openInShownThread(router, open);
+    else open(resolvedPanelRef);
     return true;
   };
 }

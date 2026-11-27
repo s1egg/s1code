@@ -181,10 +181,12 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         ) : null}
         <span
           className={cn(
-            "ml-auto h-6 shrink-0 items-center justify-end",
+            "ml-auto flex h-6 shrink-0 items-center justify-end",
             props.jumpLabel
-              ? cn("flex min-w-6", JUMP_HINT_SLOT_CLASS_NAME)
-              : "hidden group-hover/sidebar-row:flex group-has-[:focus-visible]/sidebar-row:flex",
+              ? cn("min-w-6", JUMP_HINT_SLOT_CLASS_NAME)
+              : // Collapsed, not display:none: focus leaves the row before it reaches the button,
+                // and a button hidden in between could not take keyboard focus.
+                "-ms-2 w-0 overflow-hidden group-hover/sidebar-row:ms-0 group-hover/sidebar-row:w-auto group-focus-visible/sidebar-row:ms-0 group-focus-visible/sidebar-row:w-auto group-has-[:focus-visible]/sidebar-row:ms-0 group-has-[:focus-visible]/sidebar-row:w-auto",
           )}
         >
           <Tooltip>

@@ -1,6 +1,6 @@
-import { scopeThreadRef } from "@s1tools/client-runtime/environment";
+import { scopeThreadRef, scopedThreadKey } from "@s1tools/client-runtime/environment";
 import type { EnvironmentProject } from "@s1tools/client-runtime/state/shell";
-import { EnvironmentId, SourceControlProviderKind, ThreadId } from "@s1tools/contracts";
+import { EnvironmentId, ProjectId, SourceControlProviderKind, ThreadId } from "@s1tools/contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
@@ -88,6 +88,7 @@ vi.mock(import("~/state/pullRequests"), async (original) => {
 import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
 import { threadDetailsListCountKey, useThreadDetailsStore } from "../chat/threadDetailsStore";
 import { PullRequestsDrillIn } from "./PullRequestsDrillIn";
+import { writePullRequestListPreferences } from "./pullRequestListPreferences";
 
 const threadRef = scopeThreadRef(EnvironmentId.make(ENV), ThreadId.make("thread-1"));
 const project = { id: "project-1", environmentId: ENV, title: "s1code" } as EnvironmentProject;
@@ -118,4 +119,39 @@ it("lists the thread's project and opens a picked pull request in the thread's r
     selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, threadRef).surfaces[0],
   ).not.toHaveProperty("environmentId");
   await expect.element(row).toHaveAttribute("aria-current", "true");
+});
+
+it("lists another project's pull requests once the thread it sits beside changes project", async () => {
+  window.localStorage.removeItem("s1.pullRequests.preferences");
+  useThreadDetailsStore.setState({ listCounts: {}, explicitListScope: null });
+  const docs = { id: "project-2", environmentId: ENV, title: "docs" } as EnvironmentProject;
+  await using screen = await render(
+    <PullRequestsDrillIn threadRef={threadRef} project={project} />,
+  );
+  await expect.poll(() => state.inputs.at(-1)).toMatchObject({ projectId: "project-1" });
+
+  await screen.rerender(<PullRequestsDrillIn threadRef={threadRef} project={docs} />);
+  await expect.poll(() => state.inputs.at(-1)).toMatchObject({ projectId: "project-2" });
+});
+
+it("opens with the project an old page address named instead of the thread's own", async () => {
+  writePullRequestListPreferences({
+    involvement: "all",
+    state: "open",
+    projectId: ProjectId.make("project-2"),
+    environmentId: EnvironmentId.make(ENV),
+  });
+  using _store = {
+    [Symbol.dispose]: () =>
+      useThreadDetailsStore.setState({ scope: null, explicitListScope: null }),
+  };
+  useThreadDetailsStore.setState({
+    listCounts: {},
+    scope: scopedThreadKey(threadRef),
+    explicitListScope: "pull-requests",
+  });
+  await using _screen = await render(
+    <PullRequestsDrillIn threadRef={threadRef} project={project} />,
+  );
+  await expect.poll(() => state.inputs.at(-1)).toMatchObject({ projectId: "project-2" });
 });

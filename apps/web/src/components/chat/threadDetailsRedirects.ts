@@ -1,7 +1,7 @@
 import type { ScopedThreadRef } from "@s1tools/contracts";
 import { redirect } from "@tanstack/react-router";
 
-import { getMainAppHref } from "../sidebar/mainAppLocation";
+import { getThreadViewHref } from "../sidebar/mainAppLocation";
 import {
   openThreadDetailsDrillIn,
   type ThreadDetailsDrillInId,
@@ -15,8 +15,12 @@ import {
 export function redirectToThreadDetails(
   drillIn: ThreadDetailsDrillInId,
   openInPanel?: (threadRef: ScopedThreadRef) => void,
+  options?: {
+    /** The address named project filters, saved with the list's preferences, to open with. */
+    readonly explicitListScope?: boolean;
+  },
 ): never {
-  openThreadDetailsDrillIn(drillIn);
+  openThreadDetailsDrillIn(drillIn, options);
   if (openInPanel) withThreadDetails((attached) => openInPanel(attached.threadRef));
-  throw redirect({ href: getMainAppHref(), replace: true });
+  throw redirect({ href: getThreadViewHref(), replace: true });
 }

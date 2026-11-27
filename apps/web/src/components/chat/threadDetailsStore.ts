@@ -1,4 +1,5 @@
 import type { ScopedThreadRef } from "@s1tools/contracts";
+import { scopedThreadKey } from "@s1tools/client-runtime/environment";
 import { create } from "zustand";
 
 import {
@@ -24,6 +25,8 @@ export interface AttachedThreadDetails {
 }
 
 interface ThreadDetailsStoreState {
+  /** The thread the popover and drill-in state belong to; another thread's sidebar starts fresh. */
+  readonly scope: string | null;
   /** The popover form, shown while the right panel is open or the window is narrow. */
   readonly popoverOpen: boolean;
   readonly drillIn: ThreadDetailsDrillInId | null;
@@ -32,6 +35,11 @@ interface ThreadDetailsStoreState {
   readonly pending: ReadonlyArray<(attached: AttachedThreadDetails) => void>;
   /** The docked sidebar was closed until a drill-in opened it, so toggling it off closes it again. */
   readonly openedForDrillIn: boolean;
+  /**
+   * The list whose saved project filters an old page address set, so it opens with them instead
+   * of the thread's own project. Cleared when the drill-in changes.
+   */
+  readonly explicitListScope: "pull-requests" | "issues" | null;
   /** The last list length each drill-in showed for a project, keyed by threadDetailsListCountKey. */
   readonly listCounts: Readonly<Record<string, number>>;
   readonly setPopoverOpen: (open: boolean) => void;
@@ -44,17 +52,32 @@ interface ThreadDetailsStoreState {
 // Not persisted: the docked open state is the threadDetailsOpen client setting, and a popover or
 // drill-in left open should not reappear unasked after a reload.
 export const useThreadDetailsStore = create<ThreadDetailsStoreState>()((set, get) => ({
+  scope: null,
   popoverOpen: false,
   drillIn: null,
   attached: null,
   pending: [],
   openedForDrillIn: false,
+  explicitListScope: null,
   listCounts: {},
   setPopoverOpen: (popoverOpen) => set({ popoverOpen }),
-  setDrillIn: (drillIn) => set({ drillIn, openedForDrillIn: false }),
+  setDrillIn: (drillIn) => set({ drillIn, openedForDrillIn: false, explicitListScope: null }),
   attach: (attached) => {
-    const { pending } = get();
-    set({ attached, pending: [] });
+    const { pending, scope } = get();
+    const key = scopedThreadKey(attached.threadRef);
+    set({
+      attached,
+      pending: [],
+      ...(key === scope
+        ? {}
+        : {
+            scope: key,
+            drillIn: null,
+            popoverOpen: false,
+            openedForDrillIn: false,
+            explicitListScope: null,
+          }),
+    });
     for (const action of pending) action(attached);
   },
   // Another thread's sidebar can mount before this one's cleanup runs.
@@ -91,11 +114,18 @@ export function withThreadDetails(action: (attached: AttachedThreadDetails) => v
 }
 
 /** Opens the sidebar wherever it shows, on the given drill-in. */
-export function openThreadDetailsDrillIn(drillIn: ThreadDetailsDrillInId) {
+export function openThreadDetailsDrillIn(
+  drillIn: ThreadDetailsDrillInId,
+  options?: { readonly explicitListScope?: boolean },
+) {
   withThreadDetails((attached) => {
     const wasOpen = sidebarOpen(attached);
     useThreadDetailsStore.setState({
       drillIn,
+      explicitListScope:
+        options?.explicitListScope && (drillIn === "pull-requests" || drillIn === "issues")
+          ? drillIn
+          : null,
       ...(attached.presentation === "popover"
         ? { popoverOpen: true }
         : { openedForDrillIn: !wasOpen }),
@@ -133,9 +163,21 @@ export function toggleThreadDetailsDrillIn(drillIn: ThreadDetailsDrillInId) {
   useThreadDetailsStore.setState({
     drillIn: null,
     openedForDrillIn: false,
+    explicitListScope: null,
     ...(attached.presentation === "popover" ? { popoverOpen: false } : {}),
   });
   if (attached.presentation === "docked" && openedForDrillIn) {
     void updateClientSettings({ threadDetailsOpen: false });
   }
+}
+
+/** Whether this thread's list opens with the project filters an old page address saved. */
+export function useExplicitListScope(
+  threadRef: ScopedThreadRef,
+  drillIn: "pull-requests" | "issues",
+) {
+  const key = scopedThreadKey(threadRef);
+  return useThreadDetailsStore(
+    (state) => state.scope === key && state.explicitListScope === drillIn,
+  );
 }

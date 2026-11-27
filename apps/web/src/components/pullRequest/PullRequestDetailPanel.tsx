@@ -370,7 +370,7 @@ export function PullRequestDetailPanel({
   onSelectPullRequest,
   revealUrl,
   onRevealSettled,
-  initialTab = "summary",
+  storedTab = "summary",
   onTabChange,
 }: {
   environmentId: EnvironmentId;
@@ -393,7 +393,11 @@ export function PullRequestDetailPanel({
   revealUrl?: string | undefined;
   /** Reports the link it was given shown or missing, so a newer link stays pending. */
   onRevealSettled?: ((revealUrl: string) => void) | undefined;
-  initialTab?: PullRequestDetailTab;
+  /**
+   * The tab the panel store holds, which `onTabChange` updates. A change from elsewhere, such as
+   * a review guide notification, selects it in a panel already on screen.
+   */
+  storedTab?: PullRequestDetailTab;
   onTabChange?: ((tab: PullRequestDetailTab) => void) | undefined;
 }) {
   const gt = useGT();
@@ -454,8 +458,13 @@ export function PullRequestDetailPanel({
   } = usePullRequestDetail(environmentId, reference, matchingListEntry);
   const revealAnchor = parsePullRequestAnchor(revealUrl);
   const [selectedTab, setTab] = useState<PullRequestDetailTab>(
-    () => linkedTab(revealAnchor) ?? initialTab,
+    () => linkedTab(revealAnchor) ?? storedTab,
   );
+  const [shownStoredTab, setShownStoredTab] = useState(storedTab);
+  if (shownStoredTab !== storedTab) {
+    setShownStoredTab(storedTab);
+    setTab(storedTab);
+  }
   const reviewGuidesEnabled = useEnvironmentSettings(
     environmentId,
     (settings) => settings.reviewGuidesEnabled,

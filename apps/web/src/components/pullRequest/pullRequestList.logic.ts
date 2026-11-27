@@ -8,6 +8,7 @@ import type {
   PullRequestListProjectError,
   PullRequestListResult,
   ProjectId,
+  RepositoryIdentity,
   PullRequestAction,
   PullRequestActor,
   PullRequestDiffStat,
@@ -649,6 +650,16 @@ export function resolveQueryEnvironmentIds<Id extends string>(
   return environmentIds.filter((environmentId) => holders.has(environmentId));
 }
 
+/** Retain connecting environments to avoid matching another server's project id. */
+export function resolveSelectedEnvironmentId<Id extends string>(
+  namedEnvironmentId: Id | undefined,
+  knownEnvironmentIds: ReadonlySet<Id>,
+  fallbackEnvironmentId: Id | null,
+): Id | null {
+  if (namedEnvironmentId === undefined) return fallbackEnvironmentId;
+  return knownEnvironmentIds.has(namedEnvironmentId) ? namedEnvironmentId : fallbackEnvironmentId;
+}
+
 /** Host search also matches bodies and commits absent from visible row fields. */
 export function scorePullRequestMatch(entry: PullRequestListEntry, query: string): number {
   const needle = query.trim().toLowerCase();
@@ -970,4 +981,46 @@ export function largestPullRequestReadCount(
     counts.set(read, (counts.get(read) ?? 0) + 1);
   }
   return Math.max(0, ...counts.values());
+}
+
+export function findProjectForRepository<
+  Project extends {
+    readonly id: string;
+    readonly environmentId: string;
+    readonly repositoryIdentity?: RepositoryIdentity | null | undefined;
+  },
+>(
+  projects: ReadonlyArray<Project>,
+  input: {
+    readonly repository: string;
+    readonly host?: string | undefined;
+    readonly selectedEnvironmentId?: string | null | undefined;
+    readonly scopedProjectId?: string | undefined;
+    readonly scopedEnvironmentId?: string | null | undefined;
+  },
+): Project | undefined {
+  const repository = input.repository.toLowerCase();
+  const host = input.host?.toLowerCase();
+  const candidates = projects.filter((project) => {
+    if (
+      input.selectedEnvironmentId != null &&
+      project.environmentId !== input.selectedEnvironmentId
+    ) {
+      return false;
+    }
+    const identity = project.repositoryIdentity;
+    if (
+      !identity ||
+      sourceControlClients.repositorySelector(identity)?.toLowerCase() !== repository
+    ) {
+      return false;
+    }
+    return (
+      host === undefined ||
+      sourceControlClients.changeRequestHost(identity, identity.provider) === host
+    );
+  });
+  // Azure repository names can collide across projects on the same host.
+  const scoped = findScopedProject(candidates, input.scopedEnvironmentId, input.scopedProjectId);
+  return scoped ?? candidates[0];
 }

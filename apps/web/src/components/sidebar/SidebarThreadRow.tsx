@@ -479,7 +479,7 @@ const SIDEBAR_SORTABLE_DRAG_ENABLED = { draggable: false } as const;
 // sidebar body is new on every sidebar render, which rebuilt the bag and
 // re-rendered every memoized row with it.
 export function SortableThreadRow(
-  props: Omit<SidebarThreadRowProps, "sortable"> & {
+  props: Omit<SidebarThreadRowProps, "sortable" | "runEntrance"> & {
     sortableId: string;
     sortableDisabled: boolean;
     contextDrag: boolean;
@@ -519,8 +519,20 @@ export function SortableThreadRow(
       : rowProps.thread.runtime !== null
         ? asLaunchingThread(liveThread)
         : liveThread;
+  // Tracked here, not in the row: the row remounts when the run moves it to Working, and a hook
+  // there would only ever see a run already in progress.
+  const status = resolveSidebarRowStatus(thread);
+  const runEntrance = useEntranceOnce(status === "preparing" || status === "working");
   // Keyed by variant so a working/line switch remounts the row.
-  return <SidebarThreadRow key={rowProps.variant} {...rowProps} thread={thread} sortable={bag} />;
+  return (
+    <SidebarThreadRow
+      key={rowProps.variant}
+      {...rowProps}
+      thread={thread}
+      sortable={bag}
+      runEntrance={runEntrance}
+    />
+  );
 }
 export type SidebarSweepAction = "settle" | "unsettle" | "unsnooze";
 const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
@@ -565,6 +577,8 @@ type SidebarThreadRowProps = {
   settlementSupported: boolean;
   snoozeSupported: boolean;
   sortable?: SortableThreadRowBag | undefined;
+  /** Whether the running sparkle twinkles; see useEntranceOnce. */
+  runEntrance: ReturnType<typeof useEntranceOnce>;
   dropVerb: SidebarDropVerb | null;
   sweepAction: SidebarSweepAction | null;
   snoozeWakeLabelText: string | null;
@@ -805,7 +819,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const needsUser =
     status === "approval" || status === "input" || status === "request" || planReady;
   const isRunning = status === "preparing" || status === "working";
-  const runEntrance = useEntranceOnce(isRunning);
+  const { runEntrance } = props;
   const detailsTooltip = (
     <SidebarThreadTooltip
       thread={checkoutThread}

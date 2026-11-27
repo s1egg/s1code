@@ -54,7 +54,12 @@ import {
 import { m, type MessageResolver } from "~/i18n/messages";
 import { resolveFilterOptions } from "../pullRequest/pullRequestListOptions";
 import { IssueFiltersMenu } from "./IssueListFilterPickers";
-import { issueFilterProjects, issueListTargets, issueProjectKeys } from "./issuesSearch.logic";
+import {
+  boundIssueSearchText,
+  issueFilterProjects,
+  issueListTargets,
+  issueProjectKeys,
+} from "./issuesSearch.logic";
 import { ISSUE_SAVED_VIEWS } from "./issueSavedViews";
 import { SavedViewsMenu } from "~/components/SavedViewsMenu";
 import { PullRequestCompactFilterMenu } from "../pullRequest/PullRequestCompactFilterMenu";
@@ -81,7 +86,11 @@ import { useProjects } from "~/state/entities";
 import { useEnvironments, useIssuesSupported } from "~/state/environments";
 import { issueEnvironment, useIssueList } from "~/state/issues";
 import { useDebouncedValue } from "~/state/queries";
-import { threadDetailsListCountKey, useThreadDetailsStore } from "../chat/threadDetailsStore";
+import {
+  threadDetailsListCountKey,
+  useExplicitListScope,
+  useThreadDetailsStore,
+} from "../chat/threadDetailsStore";
 
 const STATE_TABS = [
   { value: "open", label: msg("Open", { $context: "issue state" }), Icon: IssueGlyph.issue },
@@ -157,8 +166,10 @@ export function IssuesDrillIn({
   const gt = useGT();
   const resolve = useMessages();
   const [search, setSearch] = useState(readIssueListPreferences);
-  // Until the reader picks projects, the list reads the thread's own project only.
-  const [threadProjectOnly, setThreadProjectOnly] = useState(project !== null);
+  // Until the reader picks projects, the list reads the thread's own project only, unless an old
+  // page address saved the projects to hide.
+  const explicitScope = useExplicitListScope(threadRef, "issues");
+  const [threadProjectOnly, setThreadProjectOnly] = useState(project !== null && !explicitScope);
   const { environments } = useEnvironments();
   const projects = useProjects();
   const issuesSupported = useIssuesSupported();
@@ -356,7 +367,7 @@ export function IssuesDrillIn({
       refreshing={list.isPending}
     />
   ) : everyProjectHidden ? (
-    <Empty>
+    <Empty size="panel">
       <EmptyMedia variant="icon">
         <IssueGlyph.issue />
       </EmptyMedia>
@@ -366,13 +377,13 @@ export function IssuesDrillIn({
         </EmptyTitle>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" onClick={() => updateHiddenProjects(undefined)}>
+        <Button size="xs" variant="outline" onClick={() => updateHiddenProjects(undefined)}>
           <T>Show all projects</T>
         </Button>
       </EmptyContent>
     </Empty>
   ) : groups.length === 0 ? (
-    <Empty>
+    <Empty size="panel">
       <EmptyMedia variant="icon">
         <IssueGlyph.issue />
       </EmptyMedia>
@@ -506,8 +517,8 @@ export function IssuesDrillIn({
           busy={
             (search.q ?? "") !== debouncedQuery || (debouncedQuery.length > 0 && list.isPending)
           }
-          onChange={(q) => updateSearch({ q: q || undefined })}
-          onSubmit={(q) => updateSearch({ q: q || undefined })}
+          onChange={(q) => updateSearch({ q: boundIssueSearchText(q) || undefined })}
+          onSubmit={(q) => updateSearch({ q: boundIssueSearchText(q) || undefined })}
         />
         <div className="flex min-w-0 items-center gap-1">
           <IssueFiltersMenu
@@ -539,7 +550,8 @@ export function IssuesDrillIn({
           />
           <SavedViewsMenu
             kind={ISSUE_SAVED_VIEWS}
-            preferences={search}
+            // The projects on screen, which the thread's own project can narrow.
+            preferences={{ ...search, hideProjects }}
             onApply={(view) => {
               setThreadProjectOnly(false);
               // Explicit clears replace the old list scope.

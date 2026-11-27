@@ -8,7 +8,11 @@ import type {
 } from "@s1tools/contracts";
 
 import type { ContextWindowSnapshot } from "@s1tools/client-runtime/state/context-window";
-import { scopeProjectRef, scopeThreadRef } from "@s1tools/client-runtime/environment";
+import {
+  scopeProjectRef,
+  scopeThreadRef,
+  scopedThreadKey,
+} from "@s1tools/client-runtime/environment";
 import { isScratchProject } from "@s1tools/client-runtime/state/projects";
 
 import type { ComposerThreadTarget, DraftId } from "../../composerDraftStore";
@@ -150,6 +154,8 @@ export function ThreadDetailsSidebar({
       <aside
         {...area}
         data-thread-details-panel="docked"
+        // Published to themes as the thread details hook (THEME_GUIDE in themeCss.ts).
+        data-thread-details-card=""
         className="flex w-(--thread-details-panel-width) shrink-0 flex-col border-s border-border bg-background"
       >
         <ThreadDetailsContent {...props} />
@@ -213,6 +219,7 @@ function ThreadDetailsPopover({
         <div
           className="dropdown-glass isolate flex max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))] w-full flex-col overflow-hidden rounded-2xl contain-paint"
           data-thread-details-panel="popover"
+          data-thread-details-card=""
         >
           {children}
         </div>
@@ -223,10 +230,18 @@ function ThreadDetailsPopover({
 
 function ThreadDetailsContent(props: ThreadDetailsContentProps) {
   const visible = useClientSettings(resolveThreadDetailsVisibility);
-  const drillIn = useThreadDetailsStore((state) => state.drillIn);
+  const threadKey = scopedThreadKey(scopeThreadRef(props.environmentId, props.threadId));
+  // Until this thread's sidebar attaches, the store can still hold the previous thread's drill-in.
+  const drillIn = useThreadDetailsStore((state) =>
+    state.scope === threadKey ? state.drillIn : null,
+  );
   const gt = useGT();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  // Shared by Usage and its Model prices drill-in, which replace each other on screen.
+  const [usageEnvironmentIds, setUsageEnvironmentIds] = useState<ReadonlySet<EnvironmentId> | null>(
+    null,
+  );
   const t3File = useT3ProjectFileState(
     props.environmentId,
     props.activeProjectScripts && visible.scripts ? props.gitCwd : null,
@@ -307,7 +322,7 @@ function ThreadDetailsContent(props: ThreadDetailsContentProps) {
     focusIn("[data-thread-details-back]");
   };
   const closeDrillIn = () => {
-    const id = useThreadDetailsStore.getState().drillIn;
+    const id = drillIn;
     if (!id) return;
     flushSync(() => useThreadDetailsStore.getState().setDrillIn(drillIns[id].parent ?? null));
     focusIn(`[data-thread-details-drill-in="${id}"]`);
@@ -322,11 +337,17 @@ function ThreadDetailsContent(props: ThreadDetailsContentProps) {
     },
     usage: {
       title: gt("Usage"),
-      content: <UsageDrillIn onOpenPrices={() => openDrillIn("usage-prices")} />,
+      content: (
+        <UsageDrillIn
+          onOpenPrices={() => openDrillIn("usage-prices")}
+          selectedEnvironmentIds={usageEnvironmentIds}
+          onSelectedEnvironmentIdsChange={setUsageEnvironmentIds}
+        />
+      ),
     },
     "usage-prices": {
       title: gt("Model prices"),
-      content: <UsagePricesDrillIn />,
+      content: <UsagePricesDrillIn selectedEnvironmentIds={usageEnvironmentIds} />,
       parent: "usage",
     },
     "pull-requests": {

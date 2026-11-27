@@ -62,7 +62,7 @@ describe("SidebarProviderUpdatePill exit", () => {
     expect(screen.container.textContent).toBe("");
   });
 
-  it("removes a dismissed failure", async () => {
+  it("removes a dismissed failure, and keeps it dismissed when thread details mount again", async () => {
     setup([provider("failed")]);
     await using screen = await render(<SidebarProviderUpdatePill />);
     using _timers = fakeTimers();
@@ -74,6 +74,10 @@ describe("SidebarProviderUpdatePill exit", () => {
         ?.click(),
     );
     await advance(180);
+    expect(screen.container.textContent).toBe("");
+
+    await screen.rerender(<div />);
+    await screen.rerender(<SidebarProviderUpdatePill />);
     expect(screen.container.textContent).toBe("");
   });
 });

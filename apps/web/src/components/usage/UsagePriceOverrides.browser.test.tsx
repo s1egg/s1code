@@ -81,6 +81,18 @@ describe("UsagePriceOverrides", () => {
     await expect.element(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
   });
 
+  it("applies to the environments Usage is filtered to, not every environment", async () => {
+    await using _screen = await render(
+      <UsagePriceOverrides
+        usage={[]}
+        initialSelectedEnvironmentIds={new Set([ENVIRONMENT_ID as never])}
+      />,
+    );
+    await expect
+      .element(page.getByRole("button", { name: "Apply to workstation" }))
+      .toBeInTheDocument();
+  });
+
   it("asks for a model ID once a new row maps to a model", async () => {
     await using _screen = await renderPrices();
     await page.getByRole("button", { name: "Add model price" }).click();

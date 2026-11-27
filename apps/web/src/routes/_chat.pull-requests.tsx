@@ -5,31 +5,38 @@ import {
   pullRequestListPreferences,
   writePullRequestListPreferences,
 } from "../components/pullRequest/pullRequestListPreferences";
-import { pullRequestsSearchFromUrl } from "../components/pullRequest/pullRequestsSearch.logic";
+import {
+  pullRequestsSearchFromUrl,
+  resolveLinkedPullRequest,
+} from "../components/pullRequest/pullRequestsSearch.logic";
 import { useRightPanelStore } from "../rightPanelStore";
+import { appAtomRegistry } from "../rpc/atomRegistry";
+import { readProjects } from "../state/entities";
+import { environmentPresentations } from "../state/presentation";
 
 export const Route = createFileRoute("/_chat/pull-requests")({
   beforeLoad: ({ location }) => {
     const search = pullRequestsSearchFromUrl(location.search as Record<string, unknown>);
     writePullRequestListPreferences(pullRequestListPreferences(search));
-    const { repository, number, selectedProjectId, selectedEnvironmentId, selectedHost } = search;
     redirectToThreadDetails(
       "pull-requests",
-      repository && number && selectedProjectId
-        ? (threadRef) =>
+      search.repository && search.number
+        ? (threadRef) => {
+            // Read when the thread's sidebar mounts, by when its projects have loaded.
+            const linked = resolveLinkedPullRequest(
+              search,
+              readProjects().filter((project) => !project.isScratch),
+              new Set(appAtomRegistry.get(environmentPresentations.presentationsAtom).keys()),
+            );
+            if (linked === null) return;
+            const { environmentId, ...pullRequest } = linked;
             useRightPanelStore.getState().openPullRequest(threadRef, {
-              ...(selectedEnvironmentId && selectedEnvironmentId !== threadRef.environmentId
-                ? { environmentId: selectedEnvironmentId }
-                : {}),
-              projectId: selectedProjectId,
-              ...(selectedHost ? { host: selectedHost } : {}),
-              repository,
-              number,
-              ...(search.selectedUrl
-                ? { url: search.selectedUrl, revealUrl: search.selectedUrl }
-                : {}),
-            })
+              ...(environmentId !== threadRef.environmentId ? { environmentId } : {}),
+              ...pullRequest,
+            });
+          }
         : undefined,
+      { explicitListScope: search.projectId !== undefined || search.environmentId !== undefined },
     );
   },
 });

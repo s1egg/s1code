@@ -22,11 +22,16 @@ export interface IssuesSearch extends IssueListPreferences {
   readonly key?: string | undefined;
 }
 
+/** Search text cut to what the issue list accepts, never through the middle of an emoji. */
+export function boundIssueSearchText(text: string): string {
+  return text.slice(0, splitsSurrogatePair(text, 200) ? 199 : 200);
+}
+
 // The router reads a bare `key=42` as a number.
 const bounded = (value: unknown): string | undefined => {
   const text = typeof value === "number" ? String(value) : value;
   const trimmed = typeof text === "string" ? text.trim() : "";
-  return trimmed ? trimmed.slice(0, splitsSurrogatePair(trimmed, 200) ? 199 : 200) : undefined;
+  return trimmed ? boundIssueSearchText(trimmed) : undefined;
 };
 
 const labels = (raw: unknown): ReadonlyArray<string> | undefined => {

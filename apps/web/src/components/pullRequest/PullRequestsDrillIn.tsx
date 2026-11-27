@@ -114,7 +114,12 @@ import {
   resetPullRequestHosts,
   type PullRequestHostRead,
 } from "./pullRequestProjectAssignment.logic";
-import { threadDetailsListCountKey, useThreadDetailsStore } from "../chat/threadDetailsStore";
+import { closeSweepRowKeyAt } from "./closeSweepTarget";
+import {
+  threadDetailsListCountKey,
+  useExplicitListScope,
+  useThreadDetailsStore,
+} from "../chat/threadDetailsStore";
 
 /**
  * One whole page from the host and no more: every provider asks for one row beyond the page as
@@ -155,16 +160,18 @@ function usePendingListEntries(
   );
 }
 
-/** The filters a list opens with: the saved ones, scoped to the thread's own project. */
-function initialListScope(project: EnvironmentProject | null): PullRequestListPreferences {
-  const {
-    projectId: _projectId,
-    environmentId: _environmentId,
-    ...saved
-  } = readPullRequestListPreferences();
-  return project
-    ? { ...saved, projectId: project.id, environmentId: project.environmentId }
-    : saved;
+/**
+ * The filters a list opens with: the saved ones, scoped to the thread's own project unless an old
+ * page address saved its own project filters.
+ */
+function initialListScope(
+  project: EnvironmentProject | null,
+  explicitScope: boolean,
+): PullRequestListPreferences {
+  const saved = readPullRequestListPreferences();
+  if (explicitScope) return saved;
+  const { projectId: _projectId, environmentId: _environmentId, ...rest } = saved;
+  return project ? { ...rest, projectId: project.id, environmentId: project.environmentId } : rest;
 }
 
 /**
@@ -180,7 +187,25 @@ export function PullRequestsDrillIn({
 }) {
   const gt = useGT();
   const resolve = useMessages();
-  const [search, setSearch] = useState(() => initialListScope(project));
+  const projectKey = project ? `${project.environmentId}:${project.id}` : null;
+  const explicitScope = useExplicitListScope(threadRef, "pull-requests");
+  const [scope, setScope] = useState(() => ({
+    projectKey,
+    search: initialListScope(project, explicitScope),
+  }));
+  // The sidebar stays mounted across threads: another project's thread lists its own project.
+  // A project that only finished loading keeps filters an old page address asked for.
+  if (projectKey !== null && projectKey !== scope.projectKey) {
+    setScope({
+      projectKey,
+      search:
+        scope.projectKey === null && explicitScope
+          ? scope.search
+          : initialListScope(project, false),
+    });
+  }
+  const search = scope.search;
+  const setSearch = (next: PullRequestListPreferences) => setScope({ projectKey, search: next });
   const sort = search.sort ?? "ready";
   const statsPolicy: PullRequestStatsPolicy =
     sort === "ready" || sort === "largest" || sort === "smallest" ? "eager" : "visible";
@@ -988,15 +1013,8 @@ export function PullRequestsDrillIn({
         onPending: () => {},
         onStart: () => sweepTo(originKey),
         onMove: ({ y }) => {
-          const viewport = scrollRef.current;
-          if (!viewport) return;
-          const bounds = viewport.getBoundingClientRect();
-          const visibleY = Math.min(Math.max(y, bounds.top), bounds.bottom - 1);
-          let key: string | null = null;
-          for (const row of viewport.querySelectorAll<HTMLElement>("[data-pull-request-key]")) {
-            if (key !== null && row.getBoundingClientRect().top > visibleY) break;
-            key = row.dataset.pullRequestKey ?? null;
-          }
+          const list = scrollRef.current;
+          const key = list ? closeSweepRowKeyAt(list, y) : null;
           if (key !== null) sweepTo(key);
         },
         onEnd: () => {

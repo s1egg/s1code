@@ -11,7 +11,8 @@ import type {
   ThreadPullRequestLink,
 } from "@s1tools/contracts";
 import { scopedThreadKey } from "@s1tools/client-runtime/environment";
-import { lazy, Suspense } from "react";
+import { useAtomValue } from "@effect/atom-react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { LinkedThreadPane } from "./LinkedThreadPane";
 import SideThreadPane from "./SideThreadPane";
 import type { ComposerImageAttachment, DraftId } from "../../composerDraftStore";
@@ -28,6 +29,7 @@ import { PullRequestDetailPanel } from "../pullRequest/PullRequestDetailPanel";
 import { PullRequestDetailGhost } from "../pullRequest/PullRequestGhosts";
 import { PullRequestsUnavailableState } from "../pullRequest/PullRequestsUnavailableState";
 import { ThreadPullRequestsPanel } from "../pullRequest/ThreadPullRequestsPanel";
+import { serverEnvironment } from "../../state/server";
 
 const PreviewPanel = lazy(() =>
   import("../preview/PreviewPanel").then((module) => ({ default: module.PreviewPanel })),
@@ -83,7 +85,6 @@ export function RightPanelSurfaceContent(props: {
   readonly onCloseSurface: (surface: RightPanelSurface) => void;
   readonly terminal: RightPanelTerminalProps;
   readonly pullRequest: RightPanelPullRequestProps;
-  readonly issuesSupported: boolean;
   readonly files: RightPanelFileProps;
   readonly sideChatParentPanel: SideChatParentPanel;
 }) {
@@ -162,7 +163,7 @@ export function RightPanelSurfaceContent(props: {
             repository: surface.repository,
             number: surface.number,
           }}
-          initialTab={surface.detailTab ?? "summary"}
+          storedTab={surface.detailTab ?? "summary"}
           revealUrl={surface.revealUrl}
           onRevealSettled={(revealUrl) => {
             useRightPanelStore.getState().settlePullRequestReveal(threadRef, surface.id, revealUrl);
@@ -184,52 +185,47 @@ export function RightPanelSurfaceContent(props: {
         />
       );
     }
-    case "issue":
-      if (!props.pullRequest.capabilityKnown) return <PullRequestDetailGhost />;
-      if (!props.issuesSupported) {
-        return (
-          <PullRequestsUnavailableState
-            title={gt("Issues unavailable")}
-            error={gt("Update this environment's S1 Code server to browse issues.")}
-          />
-        );
-      }
+    case "issue": {
+      // A remote issue beside a local thread is read from its own environment.
+      const issueEnvironmentId =
+        (surface.environmentId as EnvironmentId | undefined) ?? props.environmentId;
       return (
-        <IssueDetailPanel
-          key={`${surface.environmentId ?? props.environmentId}:${surface.id}`}
-          environmentId={
-            (surface.environmentId as EnvironmentId | undefined) ?? props.environmentId
-          }
-          reference={{
-            projectId: surface.projectId as ProjectId,
-            tracker: surface.tracker as IssueTrackerKind,
-            ...(surface.host ? { host: surface.host } : {}),
-            scope: surface.scope,
-            key: surface.key,
-          }}
-          threadRef={threadRef}
-          onSelectPullRequest={(reference) => {
-            useRightPanelStore.getState().openPullRequest(threadRef, {
-              ...(surface.environmentId === undefined
-                ? {}
-                : { environmentId: surface.environmentId }),
-              projectId: reference.projectId,
-              repository: reference.repository,
-              number: reference.number,
-              ...(reference.host ? { host: reference.host } : {}),
-            });
-          }}
-          onSelectIssue={({ host, ...reference }) => {
-            useRightPanelStore.getState().openIssue(threadRef, {
-              ...(surface.environmentId === undefined
-                ? {}
-                : { environmentId: surface.environmentId }),
-              ...reference,
-              ...(host ? { host } : {}),
-            });
-          }}
-        />
+        <IssueSurfaceSupport environmentId={issueEnvironmentId}>
+          <IssueDetailPanel
+            key={`${issueEnvironmentId}:${surface.id}`}
+            environmentId={issueEnvironmentId}
+            reference={{
+              projectId: surface.projectId as ProjectId,
+              tracker: surface.tracker as IssueTrackerKind,
+              ...(surface.host ? { host: surface.host } : {}),
+              scope: surface.scope,
+              key: surface.key,
+            }}
+            threadRef={threadRef}
+            onSelectPullRequest={(reference) => {
+              useRightPanelStore.getState().openPullRequest(threadRef, {
+                ...(surface.environmentId === undefined
+                  ? {}
+                  : { environmentId: surface.environmentId }),
+                projectId: reference.projectId,
+                repository: reference.repository,
+                number: reference.number,
+                ...(reference.host ? { host: reference.host } : {}),
+              });
+            }}
+            onSelectIssue={({ host, ...reference }) => {
+              useRightPanelStore.getState().openIssue(threadRef, {
+                ...(surface.environmentId === undefined
+                  ? {}
+                  : { environmentId: surface.environmentId }),
+                ...reference,
+                ...(host ? { host } : {}),
+              });
+            }}
+          />
+        </IssueSurfaceSupport>
       );
+    }
     case "pull-requests":
       return <ThreadPullRequestsPanel threadRef={threadRef} />;
     case "thread":
@@ -307,4 +303,26 @@ export function RightPanelSurfaceContent(props: {
       );
     }
   }
+}
+
+/** An issue's panel, once its environment's server says it can show issues. */
+function IssueSurfaceSupport({
+  environmentId,
+  children,
+}: {
+  environmentId: EnvironmentId;
+  children: ReactNode;
+}) {
+  const gt = useGT();
+  const config = useAtomValue(serverEnvironment.configValueAtom(environmentId));
+  if (!config) return <PullRequestDetailGhost />;
+  if (config.environment.capabilities.issues !== true) {
+    return (
+      <PullRequestsUnavailableState
+        title={gt("Issues unavailable")}
+        error={gt("Update this environment's S1 Code server to browse issues.")}
+      />
+    );
+  }
+  return children;
 }

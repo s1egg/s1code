@@ -9,6 +9,7 @@ import {
   EnvironmentId,
   type LocalApi,
   ProjectId,
+  ProviderInstanceId,
   ThreadId,
   type ScopedThreadRef,
 } from "@s1tools/contracts";
@@ -407,6 +408,59 @@ describe("sidebar render isolation", () => {
   });
 });
 
+describe("sidebar running sparkle", () => {
+  it("twinkles once when a thread in Earlier starts running and moves to Working", async () => {
+    const activeProject = project("active");
+    // Ids no other test uses: the sidebar keeps a finished run in Working for a while.
+    const idleThread = threadShell(activeProject.id, 700);
+    const routeThreadRef = scopeThreadRef(
+      activeProject.environmentId,
+      threadShell(activeProject.id, 701).id,
+    );
+    vi.mocked(useProjects).mockReturnValue([activeProject]);
+    vi.mocked(useQuietThreadShells).mockReturnValue([idleThread]);
+    vi.mocked(useThreadRouteTarget).mockReturnValue({ kind: "server", threadRef: routeThreadRef });
+    vi.mocked(useHandleNewThread).mockReturnValue({
+      activeDraftThread: null,
+      activeThread: null,
+      defaultProjectRef: {
+        environmentId: activeProject.environmentId,
+        projectId: activeProject.id,
+      },
+      defaultProjectFallbackReady: true,
+      handleNewThread: vi.fn().mockResolvedValue(null),
+      routeDraftId: null,
+      routeThreadRef,
+    });
+    using _configs = mockServerConfigs(activeProject.environmentId);
+    const tree = () => (
+      <SidebarProvider>
+        <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
+      </SidebarProvider>
+    );
+    await using screen = await render(tree());
+    await expect.element(screen.getByTestId("sidebar-row-slim")).toBeVisible();
+
+    vi.mocked(useQuietThreadShells).mockReturnValue([
+      {
+        ...idleThread,
+        runtime: {
+          status: "running",
+          activeRunId: null,
+          providerInstanceId: ProviderInstanceId.make("codex"),
+          providerName: "Codex",
+          lastError: null,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    ]);
+    await screen.rerender(tree());
+    const working = screen.getByTestId("sidebar-row-working");
+    await expect.element(working).toBeVisible();
+    expect(working.element().querySelector("[data-twinkle]")).not.toBeNull();
+  });
+});
+
 describe("sidebar thread rename", () => {
   // regression: #35151 an untouched rename wrote back the title it opened with over a newer one
   it.each(["{Enter}", "{Tab}"])(
@@ -707,7 +761,7 @@ describe("sidebar settled pagination", () => {
     }
     const settledRow = screen.getByRole("button", { name: /Settled unread thread/ });
     await expect.element(settledRow).toBeVisible();
-    expect(settledRow.element().querySelector(".rounded-full.bg-primary")).toBeNull();
+    expect(settledRow.element().querySelector("[data-unread-dot]")).toBeNull();
     const navigate = vi.spyOn(screen.router!, "navigate").mockResolvedValue(undefined);
     await userEvent.click(screen.getByRole("button", { name: "Archive", exact: true }));
     expect(navigate).toHaveBeenCalledWith({ to: "/settings/archived" });

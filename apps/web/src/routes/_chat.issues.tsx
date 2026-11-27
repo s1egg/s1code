@@ -28,6 +28,7 @@ export const Route = createFileRoute("/_chat/issues")({
               key,
             })
         : undefined,
+      { explicitListScope: search.hideProjects !== undefined },
     );
   },
 });

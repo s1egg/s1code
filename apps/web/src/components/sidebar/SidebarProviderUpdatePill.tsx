@@ -5,6 +5,7 @@ import type { ServerProvider } from "@s1tools/contracts";
 import { CircleCheckIcon, DownloadIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { T, useGT, useMessages } from "gt-react";
 import { useEffect, useEffectEvent, useState, type CSSProperties } from "react";
+import { create } from "zustand";
 
 import { primaryServerProvidersAtom } from "../../state/server";
 import {
@@ -43,17 +44,25 @@ function latestProviderCheckedAt(
   );
 }
 
+// Lives for the session, not the pill: the docked and popover thread details mount their own pill,
+// and closing either must not bring back a notice the user dismissed.
+const useProviderUpdateNoticeStore = create<{
+  readonly dismissedKeys: ReadonlySet<string>;
+  /** Only updates that finish after the first providers this session saw get a notice. */
+  readonly visibleAfterIso: string | undefined;
+}>()(() => ({ dismissedKeys: new Set(), visibleAfterIso: undefined }));
+
 export function SidebarProviderUpdatePill() {
   const gt = useGT();
   const messages = useMessages();
   const navigate = useNavigate();
   const providers = useAtomValue(primaryServerProvidersAtom);
-  const [dismissedKeys, setDismissedKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const dismissedKeys = useProviderUpdateNoticeStore((state) => state.dismissedKeys);
+  const visibleAfterIso = useProviderUpdateNoticeStore((state) => state.visibleAfterIso);
   const [renderedView, setRenderedView] = useState<ProviderUpdateSidebarPillView | null>(null);
   const [pendingView, setPendingView] = useState<ProviderUpdateSidebarPillView | null>(null);
   const [exitingKey, setExitingKey] = useState<string | null>(null);
   const [dismissAfterExitKeys, setDismissAfterExitKeys] = useState<ReadonlyArray<string>>([]);
-  const [visibleAfterIso, setVisibleAfterIso] = useState<string | undefined>();
   const effectiveVisibleAfterIso = visibleAfterIso ?? latestProviderCheckedAt(providers);
   const view = getProviderUpdateSidebarPillView(
     providers,
@@ -66,9 +75,12 @@ export function SidebarProviderUpdatePill() {
     messages,
   );
 
-  if (visibleAfterIso === undefined && effectiveVisibleAfterIso !== undefined) {
-    setVisibleAfterIso(effectiveVisibleAfterIso);
-  }
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- records the session's notice baseline in its session-lived store the first time providers arrive
+  useEffect(() => {
+    if (effectiveVisibleAfterIso === undefined) return;
+    if (useProviderUpdateNoticeStore.getState().visibleAfterIso !== undefined) return;
+    useProviderUpdateNoticeStore.setState({ visibleAfterIso: effectiveVisibleAfterIso });
+  }, [effectiveVisibleAfterIso]);
 
   const openProviderSettings = () => {
     void navigate({ to: "/settings/providers" });
@@ -112,7 +124,9 @@ export function SidebarProviderUpdatePill() {
 
   const finishExit = useEffectEvent(() => {
     if (dismissAfterExitKeys.length > 0) {
-      setDismissedKeys((previous) => new Set([...previous, ...dismissAfterExitKeys]));
+      useProviderUpdateNoticeStore.setState((previous) => ({
+        dismissedKeys: new Set([...previous.dismissedKeys, ...dismissAfterExitKeys]),
+      }));
     }
     setRenderedView(pendingView);
     setPendingView(null);

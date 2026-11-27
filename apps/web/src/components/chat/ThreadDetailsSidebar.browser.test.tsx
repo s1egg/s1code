@@ -1,3 +1,4 @@
+import "~/index.css";
 import {
   EnvironmentId,
   ProjectId,
@@ -103,6 +104,15 @@ vi.mock(import("~/state/environments"), async (importOriginal) => ({
   usePullRequestsSupported: () => true,
   useIssuesSupported: () => true,
 }));
+vi.mock(import("~/state/server"), async (original) => {
+  const { Atom } = await import("effect/reactivity");
+  const { compileResolvedKeybindingsConfig } = await import("@s1tools/shared/keybindings");
+  const keybindings = compileResolvedKeybindingsConfig([
+    { key: "c", command: "usage.cost", when: "usagePageOpen" },
+    { key: "t", command: "usage.tokens", when: "usagePageOpen" },
+  ]);
+  return { ...(await original()), primaryServerKeybindingsAtom: Atom.make(keybindings) };
+});
 // Neither folder is a repository, which is what the server reports for both.
 vi.mock(import("~/state/vcs"), async (importOriginal) => {
   const actual = await importOriginal();
@@ -199,8 +209,10 @@ function Panel({
   onMachines = false,
   withScripts = false,
   withContext = false,
+  threadId = threadRef.threadId,
 }: {
   fixture: ReturnType<typeof setup>;
+  threadId?: ThreadId;
   presentation?: ThreadPanelPresentation;
   /** Renders an unsent draft in this mode instead of a started thread. */
   draftEnvMode?: "local" | "worktree";
@@ -216,7 +228,7 @@ function Panel({
       anchor={fixture.anchor}
       handle={fixture.handle}
       environmentId={threadRef.environmentId}
-      threadId={threadRef.threadId}
+      threadId={threadId}
       projectId={ProjectId.make("project")}
       composerDraftTarget={threadRef}
       worktreePath={draftEnvMode === undefined ? state.folder : null}
@@ -262,6 +274,8 @@ it("docks beside the chat while open", async () => {
   await using _screen = await render(<Panel fixture={fixture} />);
   await expect.element(page.getByRole("region", { name: "Thread details" })).toBeVisible();
   await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
+  // Themes target this published hook.
+  expect(docked()?.hasAttribute("data-thread-details-card")).toBe(true);
 });
 
 it("renders nothing docked once closed", async () => {
@@ -279,6 +293,9 @@ it("opens as a popover while the right panel is open, and closes it when it dock
   await act(() => useThreadDetailsStore.getState().setPopoverOpen(true));
   await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
   await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
+  expect(document.querySelector('[data-thread-details-panel="popover"]')).toHaveAttribute(
+    "data-thread-details-card",
+  );
 
   await screen.rerender(<Panel fixture={fixture} />);
   await expect.element(page.getByRole("region", { name: "Thread details" })).toBeVisible();
@@ -309,6 +326,19 @@ it("drills into the context window and returns to the sections with back or Esca
   await expect.element(contextRow).toHaveFocus();
 });
 
+it("starts another thread's sidebar on its sections, not the drill-in the last thread left open", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using screen = await render(<Panel fixture={fixture} withContext />);
+  await page.getByRole("button", { name: /^Context\s?12%$/ }).click();
+  await expect.element(page.getByRole("heading", { name: "Context window" })).toBeVisible();
+
+  await screen.rerender(
+    <Panel fixture={fixture} withContext threadId={ThreadId.make("other-thread")} />,
+  );
+  await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Back" })).not.toBeInTheDocument();
+});
+
 it("opens Usage from its row, with Model prices a drill-in inside it", async () => {
   using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
   await using _screen = await render(<Panel fixture={fixture} />);
@@ -330,6 +360,28 @@ it("opens Usage from its row, with Model prices a drill-in inside it", async () 
   await page.getByRole("button", { name: "Back" }).click();
   await expect.element(page.getByRole("heading", { name: "Environment" })).toBeVisible();
   await expect.element(usageRow).toHaveFocus();
+});
+
+it("takes Usage shortcuts while focus is on Back, docked or in the popover", async () => {
+  using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  await using screen = await render(<Panel fixture={fixture} />);
+  const metric = (name: string) => page.getByRole("button", { name, exact: true });
+  await page.getByRole("button", { name: "Usage", exact: true }).click();
+  await expect.element(page.getByRole("button", { name: "Back" })).toHaveFocus();
+  await userEvent.keyboard("t");
+  await expect.element(metric("Tokens")).toHaveAttribute("aria-pressed", "true");
+  await userEvent.keyboard("c");
+  await expect.element(metric("Cost")).toHaveAttribute("aria-pressed", "true");
+
+  await screen.rerender(<Panel fixture={fixture} presentation="popover" />);
+  await act(() => openThreadDetailsDrillIn("usage"));
+  await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
+  // The app's workspace focus controller moves focus here; this test has none.
+  await act(() => page.getByRole("button", { name: "Back" }).element().focus());
+  await userEvent.keyboard("t");
+  await expect.element(metric("Tokens")).toHaveAttribute("aria-pressed", "true");
+  await userEvent.keyboard("c");
+  await expect.element(metric("Cost")).toHaveAttribute("aria-pressed", "true");
 });
 
 it("opens the pull request and issue lists from their rows", async () => {

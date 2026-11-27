@@ -78,21 +78,24 @@ export function ThreadDetailsUsage({
       title={gt("Usage")}
       showHeading={false}
     >
-      <ThreadDetailsNavRow label={gt("Usage")} drillIn="usage" onClick={onOpen} />
-      <div className="grid grid-cols-[auto_minmax(3rem,1fr)_auto] gap-x-3 text-xs empty:hidden">
-        <OpenUsageContext value={onOpen}>
-          {resolved?.kind === "pool"
-            ? resolved.windows.map((window) => (
-                <PoolRow key={window.id} window={window} now={now} />
-              ))
-            : resolved &&
-              (quotas.length === 0 || limitsNotice(resolved.limits) === null) && (
-                <InstanceRows limits={resolved.limits} now={now} />
-              )}
-          {quotas.map(({ key, accountLabel, window }) => (
-            <LimitRow key={key} window={window} now={now} accountLabel={accountLabel} />
-          ))}
-        </OpenUsageContext>
+      {/* One container, so the section's empty-content rule sees the button even without limits. */}
+      <div className="flex flex-col">
+        <ThreadDetailsNavRow label={gt("Usage")} drillIn="usage" onClick={onOpen} />
+        <div className="grid grid-cols-[auto_minmax(3rem,1fr)_auto] gap-x-3 text-xs empty:hidden">
+          <OpenUsageContext value={onOpen}>
+            {resolved?.kind === "pool"
+              ? resolved.windows.map((window) => (
+                  <PoolRow key={window.id} window={window} now={now} />
+                ))
+              : resolved &&
+                (quotas.length === 0 || limitsNotice(resolved.limits) === null) && (
+                  <InstanceRows limits={resolved.limits} now={now} />
+                )}
+            {quotas.map(({ key, accountLabel, window }) => (
+              <LimitRow key={key} window={window} now={now} accountLabel={accountLabel} />
+            ))}
+          </OpenUsageContext>
+        </div>
       </div>
     </ThreadDetailsSection>
   );

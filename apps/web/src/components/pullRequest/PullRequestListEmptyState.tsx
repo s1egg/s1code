@@ -13,7 +13,7 @@ function BranchMark({ joined }: { joined: boolean }) {
     <svg
       aria-hidden
       viewBox="0 0 120 72"
-      className="h-20 w-32 text-muted-foreground/60"
+      className="h-12 w-20 text-muted-foreground/60"
       fill="none"
       stroke="currentColor"
       strokeWidth={2}
@@ -75,7 +75,7 @@ export function PullRequestListEmptyState({
     query.length > 48 ? `${query.slice(0, splitsSurrogatePair(query, 48) ? 47 : 48)}…` : query;
   if (!hasProjects) {
     return (
-      <Empty>
+      <Empty size="panel">
         <BranchMark joined={false} />
         <EmptyHeader>
           <EmptyTitle>
@@ -106,7 +106,7 @@ export function PullRequestListEmptyState({
 
   if (query.length > 0) {
     return (
-      <Empty>
+      <Empty size="panel">
         <BranchMark joined={false} />
         <EmptyHeader>
           <EmptyTitle>
@@ -122,11 +122,11 @@ export function PullRequestListEmptyState({
           </EmptyDescription>
         </EmptyHeader>
         <div className="flex flex-wrap justify-center gap-2">
-          <Button size="sm" variant="outline" onClick={onClearQuery}>
+          <Button size="xs" variant="outline" onClick={onClearQuery}>
             <SearchIcon className="size-3.5" />
             <T>Clear search</T>
           </Button>
-          <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
+          <Button size="xs" variant="outline" disabled={refreshing} onClick={onRefresh}>
             <RefreshIcon size="sm" refreshing={refreshing} />
             {refreshing ? gt("Checking...") : gt("Check again")}
           </Button>
@@ -136,7 +136,7 @@ export function PullRequestListEmptyState({
   }
 
   return (
-    <Empty>
+    <Empty size="panel">
       <BranchMark joined={false} />
       <EmptyHeader>
         <EmptyTitle>
@@ -150,11 +150,11 @@ export function PullRequestListEmptyState({
       </EmptyHeader>
       <div className="flex flex-wrap justify-center gap-2">
         {canLoadMore ? (
-          <Button size="sm" variant="outline" disabled={loadingMore} onClick={onLoadMore}>
+          <Button size="xs" variant="outline" disabled={loadingMore} onClick={onLoadMore}>
             {loadingMore ? gt("Loading...") : gt("Load more pull requests")}
           </Button>
         ) : null}
-        <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
+        <Button size="xs" variant="outline" disabled={refreshing} onClick={onRefresh}>
           <RefreshIcon size="sm" refreshing={refreshing} />
           {refreshing ? gt("Checking...") : gt("Check again")}
         </Button>

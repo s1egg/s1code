@@ -11,7 +11,7 @@ import {
 } from "@s1tools/contracts";
 import { CircleAlertIcon, ChevronDownIcon, InfoIcon } from "lucide-react";
 import { T, useGT, useLocale, useMessages, Var } from "gt-react";
-import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { settlePromise } from "@s1tools/client-runtime/state/runtime";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Cause from "effect/Cause";
@@ -153,7 +153,16 @@ function UsageModelDialogHost({
 }
 
 /** Usage across environments, sized for the thread details sidebar. */
-export function UsageDrillIn({ onOpenPrices }: { readonly onOpenPrices: () => void }) {
+export function UsageDrillIn({
+  onOpenPrices,
+  selectedEnvironmentIds,
+  onSelectedEnvironmentIdsChange,
+}: {
+  readonly onOpenPrices: () => void;
+  /** Kept by the sidebar, so Model prices edits these and Back returns to the same filter. */
+  readonly selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null;
+  readonly onSelectedEnvironmentIdsChange: (ids: ReadonlySet<EnvironmentId> | null) => void;
+}) {
   const [preferences, setPreferences] = useState(readUsagePagePreferences);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const hour12 = usePrimarySettings((settings) => resolveHour12(settings.timestampFormat));
@@ -178,8 +187,6 @@ export function UsageDrillIn({ onOpenPrices }: { readonly onOpenPrices: () => vo
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [limitsNow, setLimitsNow] = useState(() => Date.now());
   const refreshingRef = useRef(false);
-  const [selectedEnvironmentIds, setSelectedEnvironmentIds] =
-    useState<ReadonlySet<EnvironmentId> | null>(null);
   const hiddenProviders = new Set(preferences.hiddenProviders);
   const { days: windowDays, window } = windowSelection;
   const {
@@ -241,9 +248,9 @@ export function UsageDrillIn({ onOpenPrices }: { readonly onOpenPrices: () => vo
       if (!AsyncResult.isSuccess(result)) throw Cause.squash(result.cause);
     });
   // Scoped to this view: metric and period keys work while focus is inside it.
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || event.repeat || event.nativeEvent.isComposing) return;
-    const command = resolveUsageShortcut(event.nativeEvent, keybindings);
+  const handleSectionKeyDown = useEffectEvent((event: KeyboardEvent, section: Element) => {
+    if (event.defaultPrevented || event.repeat || event.isComposing) return;
+    const command = resolveUsageShortcut(event, keybindings, section);
     const metricOption = METRIC_OPTIONS.find((option) => option.command === command);
     const periodOption = WINDOW_OPTIONS.find((option) => option.command === command);
     if (!metricOption && !periodOption) return;
@@ -251,7 +258,16 @@ export function UsageDrillIn({ onOpenPrices }: { readonly onOpenPrices: () => vo
     event.stopPropagation();
     if (metricOption) selectMetric(metricOption.value);
     if (periodOption && !showingLimits) selectWindow(periodOption.days);
-  };
+  });
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- listens on the whole drill-in section: its Back button, outside this component, takes focus when Usage opens
+  useEffect(() => {
+    const section = rootRef.current?.closest<HTMLElement>("[data-thread-details-drill-in-view]");
+    if (!section) return;
+    const listener = (event: KeyboardEvent) => handleSectionKeyDown(event, section);
+    section.addEventListener("keydown", listener);
+    return () => section.removeEventListener("keydown", listener);
+  }, []);
 
   const refreshWindow = () => {
     if (refreshingRef.current) return;
@@ -318,7 +334,7 @@ export function UsageDrillIn({ onOpenPrices }: { readonly onOpenPrices: () => vo
   };
 
   return (
-    <div className="flex flex-col gap-4" onKeyDown={handleKeyDown}>
+    <div ref={rootRef} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <ToggleGroup
           aria-label={gt("Usage metric")}
@@ -341,7 +357,7 @@ export function UsageDrillIn({ onOpenPrices }: { readonly onOpenPrices: () => vo
             environments={environments}
             selectedEnvironments={selectedEnvironments}
             selectedEnvironmentIds={selectedEnvironmentIds}
-            onSelectionChange={setSelectedEnvironmentIds}
+            onSelectionChange={onSelectedEnvironmentIdsChange}
             showUsageStatus={!showingLimits}
             refreshing={refreshingUsage}
             isPartial={isPartial}

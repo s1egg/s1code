@@ -1,6 +1,13 @@
-import type { EnvironmentId, ProjectId } from "@s1tools/contracts";
+import { sourceControlClients } from "@s1tools/client-runtime/source-control-clients";
+import type { EnvironmentId, ProjectId, RepositoryIdentity } from "@s1tools/contracts";
 import { splitsSurrogatePair } from "@s1tools/shared/assistantCitations";
 
+import {
+  findProjectForRepository,
+  findScopedProject,
+  resolveProjectScope,
+  resolveSelectedEnvironmentId,
+} from "./pullRequestList.logic";
 import type { PullRequestListPreferences, PullRequestListSort } from "./pullRequestListPreferences";
 import { SORT_OPTIONS } from "./pullRequestListOptions";
 
@@ -83,3 +90,65 @@ export const pullRequestsSearchFromUrl = (raw: Record<string, unknown>): PullReq
     typeof raw.author === "string" ? sliceSearchText(raw.author.trim()) || undefined : undefined,
   labels: pullRequestSearchLabels(raw.labels),
 });
+
+/**
+ * The pull request an old address had open, in the project that holds it. Without a named
+ * project, the repository picks it, preferring the list's server and project filters.
+ */
+export function resolveLinkedPullRequest<
+  Project extends {
+    readonly id: ProjectId;
+    readonly environmentId: EnvironmentId;
+    readonly repositoryIdentity?: RepositoryIdentity | null | undefined;
+  },
+>(
+  search: PullRequestsSearch,
+  projects: ReadonlyArray<Project>,
+  knownEnvironmentIds: ReadonlySet<EnvironmentId>,
+) {
+  const { repository, number } = search;
+  if (!repository || !number) return null;
+  const host = search.selectedHost ?? search.host;
+  const scopedEnvironmentId =
+    search.environmentId !== undefined && knownEnvironmentIds.has(search.environmentId)
+      ? search.environmentId
+      : null;
+  // A named server still connecting stays named: falling back would match another server's
+  // project where two servers share a project id.
+  const selectedEnvironmentId = resolveSelectedEnvironmentId(
+    search.selectedEnvironmentId,
+    knownEnvironmentIds,
+    scopedEnvironmentId,
+  );
+  const scopedProjectId = resolveProjectScope(search.projectId, projects, true);
+  const linkedProjectId = resolveProjectScope(search.selectedProjectId, projects, true);
+  const project =
+    linkedProjectId === undefined
+      ? findProjectForRepository(projects, {
+          repository,
+          host,
+          selectedEnvironmentId,
+          scopedProjectId,
+          scopedEnvironmentId,
+        })
+      : findScopedProject(projects, selectedEnvironmentId, linkedProjectId);
+  if (project === undefined) return null;
+  // The address is user-controlled; its URL only stands in for the link when it names this PR.
+  const link = search.selectedUrl
+    ? sourceControlClients.parseChangeRequestUrl(search.selectedUrl)?.link
+    : undefined;
+  const url =
+    link !== undefined &&
+    link.number === number &&
+    link.repository.toLowerCase() === repository.toLowerCase()
+      ? search.selectedUrl
+      : undefined;
+  return {
+    environmentId: project.environmentId,
+    projectId: project.id,
+    repository,
+    number,
+    ...(host ? { host } : {}),
+    ...(url ? { url, revealUrl: url } : {}),
+  };
+}

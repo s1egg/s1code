@@ -55,7 +55,7 @@ export function ThreadDetailsDrillInView({
   const gt = useGT();
   const titleId = useId();
   return (
-    <section aria-labelledby={titleId} className="flex flex-col">
+    <section aria-labelledby={titleId} data-thread-details-drill-in-view className="flex flex-col">
       <div className="flex h-11 shrink-0 items-center gap-1 px-2">
         <ThreadDetailsControl
           variant="ghost"

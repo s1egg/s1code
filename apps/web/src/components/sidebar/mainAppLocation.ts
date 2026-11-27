@@ -22,6 +22,7 @@ const SHELL_LESS_PATHS = new Set(["/pair", "/connect", "/connect-agent", GUEST_P
 const REDIRECTED_PATHS = new Set(["/usage", "/pull-requests", "/issues"]);
 
 let mainAppHref: string | null = null;
+let threadHref: string | null = null;
 let appModalReturnHref: string | null = null;
 let appModalReturnHistoryIndex: number | null = null;
 let appModalReturnThreadTarget: ThreadRouteTarget | null = null;
@@ -47,6 +48,7 @@ export function startMainAppLocationTracking(router: AnyRouter): () => void {
       router.state.matches.at(-1)?.params ?? {},
     );
     if (!isUtilityPage(pathname)) mainAppHref = href;
+    if (appModalReturnThreadTarget !== null) threadHref = href;
   };
   record();
   return router.subscribe("onResolved", record);
@@ -58,8 +60,16 @@ export function getAppModalReturnThreadTarget() {
 }
 
 /** The last main-app view, such as a thread, outside Settings and the utility pages. */
-export function getMainAppHref() {
+function getMainAppHref() {
   return mainAppHref ?? "/";
+}
+
+/**
+ * The last server or draft thread, where the thread sidebar lives. Unlike the main-app view, it
+ * is never a page without a thread, such as the new-thread prompt.
+ */
+export function getThreadViewHref() {
+  return threadHref ?? "/";
 }
 
 export function useNavigateToMainApp() {

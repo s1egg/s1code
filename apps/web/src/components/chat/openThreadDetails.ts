@@ -2,7 +2,7 @@ import type { ScopedThreadRef } from "@s1tools/contracts";
 import type { AnyRouter } from "@tanstack/react-router";
 
 import { resolveThreadRouteTarget } from "../../threadRoutes";
-import { getMainAppHref, isAppModalPage } from "../sidebar/mainAppLocation";
+import { getThreadViewHref, isAppModalPage } from "../sidebar/mainAppLocation";
 import {
   isThreadDetailsDrillInShown,
   openThreadDetailsDrillIn,
@@ -18,9 +18,9 @@ function onThreadView(router: AnyRouter) {
   );
 }
 
-/** Leaves Settings or a utility page for the last thread, where the thread sidebar lives. */
+/** Leaves Settings, a utility page or the new-thread prompt for the last thread, where the thread sidebar lives. */
 async function showThreadView(router: AnyRouter) {
-  if (!onThreadView(router)) await router.navigate({ href: getMainAppHref() });
+  if (!onThreadView(router)) await router.navigate({ href: getThreadViewHref() });
 }
 
 /** Opens a thread sidebar drill-in from anywhere in the app. */
