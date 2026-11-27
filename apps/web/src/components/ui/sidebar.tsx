@@ -1029,5 +1029,4 @@ export {
   SidebarTrigger,
   useMobileSidebarSheetMounted,
   useSidebar,
-  useSidebarVisibility,
 };

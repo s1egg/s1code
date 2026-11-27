@@ -1,3 +1,4 @@
+import { useMessages } from "gt-react";
 import { availableScratchWorkspaceRoot } from "@s1tools/client-runtime/operations/projects";
 import { isScratchProject } from "@s1tools/client-runtime/state/projects";
 import type { EnvironmentProject } from "@s1tools/client-runtime/state/shell";
@@ -7,7 +8,11 @@ import {
   resolveEnvironmentMachineKind,
 } from "@s1tools/contracts";
 
-import type { EnvironmentOption } from "../components/BranchToolbar.logic";
+import {
+  type EnvironmentOption,
+  resolveEnvironmentOptionLabel,
+} from "../components/BranchToolbar.logic";
+import type { MessageResolver } from "../i18n/messages";
 import {
   deriveLogicalProjectKeyFromSettings,
   selectProjectGroupingSettings,
@@ -15,6 +20,37 @@ import {
 import { useProjects } from "../state/entities";
 import { useEnvironments, usePrimaryEnvironmentId } from "../state/environments";
 import { useClientSettings } from "./useSettings";
+
+type EnvironmentServerConfig = Parameters<typeof resolveEnvironmentMachineKind>[0];
+
+export function buildEnvironmentOption(
+  input: {
+    readonly environmentId: EnvironmentId;
+    readonly projectId: ProjectId | null;
+    readonly primaryEnvironmentId: EnvironmentId | null;
+    readonly environment: {
+      readonly label: string;
+      readonly serverConfig: EnvironmentServerConfig;
+    } | null;
+  },
+  resolve: MessageResolver,
+): EnvironmentOption {
+  const isPrimary = input.environmentId === input.primaryEnvironmentId;
+  return {
+    environmentId: input.environmentId,
+    projectId: input.projectId,
+    label: resolveEnvironmentOptionLabel(
+      {
+        isPrimary,
+        environmentId: input.environmentId,
+        runtimeLabel: input.environment?.label ?? null,
+      },
+      resolve,
+    ),
+    isPrimary,
+    machine: resolveEnvironmentMachineKind(input.environment?.serverConfig ?? null),
+  };
+}
 
 export function useLogicalProjectEnvironments(
   activeProject: EnvironmentProject | null,
@@ -24,6 +60,7 @@ export function useLogicalProjectEnvironments(
   const allProjects = useProjects();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
+  const messages = useMessages();
 
   if (!activeProject) return [];
   const environmentById = new Map(
@@ -31,14 +68,17 @@ export function useLogicalProjectEnvironments(
   );
   const envs: EnvironmentOption[] = [];
   const pushEnvironment = (environmentId: EnvironmentId, projectId: ProjectId | null) => {
-    const environment = environmentById.get(environmentId) ?? null;
-    envs.push({
-      environmentId,
-      projectId,
-      label: environment?.label ?? environmentId,
-      isPrimary: environmentId === primaryEnvironmentId,
-      machine: resolveEnvironmentMachineKind(environment?.serverConfig ?? null),
-    });
+    envs.push(
+      buildEnvironmentOption(
+        {
+          environmentId,
+          projectId,
+          primaryEnvironmentId,
+          environment: environmentById.get(environmentId) ?? null,
+        },
+        messages,
+      ),
+    );
   };
   if (scratchDraft) {
     for (const environment of environments) {

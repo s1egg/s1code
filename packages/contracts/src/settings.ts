@@ -208,17 +208,32 @@ export const TerminalFontSize = Schema.Int.check(
 export type TerminalFontSize = typeof TerminalFontSize.Type;
 const DEFAULT_TERMINAL_FONT_SIZE: TerminalFontSize = 12;
 
-// "artwork" follows the running channel and shows nothing on Latest. The fixed artwork
-// modes let any channel opt into a specific channel's art.
-export const EnvironmentIdentificationMode = Schema.Literals([
+// The pill names Dev and Nightly channels and shows nothing on Latest.
+export const EnvironmentIdentificationMode = Schema.Literals(["pill", "none"]);
+export type EnvironmentIdentificationMode = typeof EnvironmentIdentificationMode.Type;
+export const DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE: EnvironmentIdentificationMode = "pill";
+
+// Sidebar artwork was retired; saved artwork modes keep identifying the channel with the pill.
+const RetiredArtworkIdentificationMode = Schema.Literals([
   "artwork",
   "nightly-artwork",
   "dev-artwork",
-  "pill",
-  "none",
+]).pipe(
+  Schema.decodeTo(
+    EnvironmentIdentificationMode,
+    SchemaTransformation.transform<
+      EnvironmentIdentificationMode,
+      "artwork" | "nightly-artwork" | "dev-artwork"
+    >({
+      decode: () => "pill",
+      encode: () => "artwork",
+    }),
+  ),
+);
+const EnvironmentIdentificationModeSetting = Schema.Union([
+  EnvironmentIdentificationMode,
+  RetiredArtworkIdentificationMode,
 ]);
-export type EnvironmentIdentificationMode = typeof EnvironmentIdentificationMode.Type;
-export const DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE: EnvironmentIdentificationMode = "artwork";
 
 export const SnapShotKeyChord = KeybindingShortcut.check(
   Schema.makeFilter(
@@ -311,6 +326,31 @@ export type FontFamilyPreference = typeof FontFamilyPreference.Type;
 export const DefaultThemePreference = Schema.String.check(Schema.isMaxLength(64));
 // Excluded from RPC patches so s1 theme set can validate syntax and resolvability.
 export type DefaultThemePreference = typeof DefaultThemePreference.Type;
+
+/** Removed built-in themes and their aliases. Saved choices naming one fall back to the stock look. */
+export const RETIRED_THEME_IDS: ReadonlySet<string> = new Set([
+  "s1-chat",
+  "grove",
+  "ocean",
+  "ember",
+  "iris",
+  "s1-chat-dark",
+  "s1-grove",
+  "s1-ocean",
+  "s1-ember",
+  "s1-iris",
+]);
+
+// Keeps defaultThemeSetAt, so clients still adopt the stock look once instead of waiting forever.
+const StoredDefaultTheme = DefaultThemePreference.pipe(
+  Schema.decodeTo(
+    DefaultThemePreference,
+    SchemaTransformation.transform({
+      decode: (themeId) => (RETIRED_THEME_IDS.has(themeId) ? "" : themeId),
+      encode: (themeId) => themeId,
+    }),
+  ),
+);
 
 /** A mode clients apply once per set, like the default theme. Empty sets none. */
 export const DefaultAppearancePreference = Schema.Literals(["", "light", "dark", "system"]);
@@ -500,7 +540,7 @@ export const ClientSettingsSchema = Schema.Struct({
   diffFilesCollapsed: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   diffIgnoreWhitespace: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   diffLayout: DiffLayout.pipe(Schema.withDecodingDefault(Effect.succeed(DEFAULT_DIFF_LAYOUT))),
-  environmentIdentificationMode: EnvironmentIdentificationMode.pipe(
+  environmentIdentificationMode: EnvironmentIdentificationModeSetting.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE)),
   ),
   glassOpacity: GlassOpacity.pipe(
@@ -509,6 +549,8 @@ export const ClientSettingsSchema = Schema.Struct({
   backgroundGlow: BackgroundGlow.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_BACKGROUND_GLOW)),
   ),
+  // Absent in settings saved before migrateClientSettings existed.
+  clientSettingsVersion: Schema.Int.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
   fontSizeInterface: InterfaceFontSize.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_INTERFACE_FONT_SIZE)),
   ),
@@ -629,7 +671,27 @@ export const ClientSettingsSchema = Schema.Struct({
 });
 export type ClientSettings = typeof ClientSettingsSchema.Type;
 
-export const DEFAULT_CLIENT_SETTINGS: ClientSettings = Schema.decodeSync(ClientSettingsSchema)({});
+const CLIENT_SETTINGS_VERSION = 1;
+const LEGACY_DEFAULT_BACKGROUND_GLOW = 30;
+
+export const DEFAULT_CLIENT_SETTINGS: ClientSettings = {
+  ...Schema.decodeSync(ClientSettingsSchema)({}),
+  clientSettingsVersion: CLIENT_SETTINGS_VERSION,
+};
+
+/** One-time upgrades of saved client settings; returns the input unchanged when current. */
+export function migrateClientSettings(settings: ClientSettings): ClientSettings {
+  if (settings.clientSettingsVersion >= CLIENT_SETTINGS_VERSION) return settings;
+  return {
+    ...settings,
+    // Every field is saved, so the retired default glow is indistinguishable from unset.
+    backgroundGlow:
+      settings.backgroundGlow === LEGACY_DEFAULT_BACKGROUND_GLOW
+        ? DEFAULT_BACKGROUND_GLOW
+        : settings.backgroundGlow,
+    clientSettingsVersion: CLIENT_SETTINGS_VERSION,
+  };
+}
 
 const UsageModelTokenPrice = Schema.Number.check(
   Schema.isFinite(),
@@ -1550,7 +1612,7 @@ export const ServerSettings = Schema.Struct({
   backgroundActivityProfile: BackgroundActivityProfile.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_BACKGROUND_ACTIVITY_PROFILE)),
   ),
-  defaultTheme: DefaultThemePreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  defaultTheme: StoredDefaultTheme.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   /** Distinguishes repeated sets of the same theme so clients apply each one. */
   defaultThemeSetAt: Schema.String.check(Schema.isMaxLength(64)).pipe(
     Schema.withDecodingDefault(Effect.succeed("")),

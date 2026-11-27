@@ -76,6 +76,7 @@ import { Separator } from "./ui/separator";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { MiddleTruncate } from "./ui/middle-truncate";
 import { ComposerSurface } from "./chat/ComposerSurface";
+import { NATURAL_WIDTH_PROPERTY } from "./chat/useRestingComposerControlsLayout";
 import { useComposerMenuProps } from "./chat/composerEventScope";
 import { cn } from "~/lib/utils";
 
@@ -601,6 +602,9 @@ function useLabelsOverflow(): readonly [
       for (const label of current.querySelectorAll<HTMLElement>("[data-composer-label]")) {
         needed += Math.max(0, labelTextWidth(label, range) - label.getBoundingClientRect().width);
       }
+      // In the control row this is the strip's flex basis, so labels fold only when both sides
+      // of the row cannot fit, not when the strip's share of the row runs out.
+      current.style.setProperty(NATURAL_WIDTH_PROPERTY, `${needed + stripWidth - available}px`);
       const nextOverflows = resolveContextStripLabelsCompact({
         compact,
         neededWidth: needed,
@@ -810,8 +814,10 @@ export const BranchToolbar = memo(function BranchToolbar({
     );
   }
 
+  // The row always names the machine; the strip only does when there is a choice to make.
   const environmentSelector =
-    showEnvironmentIndicator && availableEnvironments ? (
+    (inRow ? activeEnvironmentOption !== null : showEnvironmentIndicator) &&
+    availableEnvironments ? (
       <BranchToolbarEnvironmentSelector
         autoEnvironmentLabel={autoEnvironmentLabel}
         onAutoEnvironment={onAutoEnvironment}
@@ -832,6 +838,7 @@ export const BranchToolbar = memo(function BranchToolbar({
       previousWorktreeLabel={previousWorktreeLabel}
       previousWorktreeBranch={previousWorktreeSeed?.branch ?? null}
       onUsePreviousWorktree={onUsePreviousWorktree}
+      iconOnly={inRow && effectiveEnvMode === "local" && activeWorktreePath === null}
     />
   ) : null;
   const repositoriesControl = offersRepositoryChoice ? (
@@ -884,7 +891,7 @@ export const BranchToolbar = memo(function BranchToolbar({
       <ComposerSurface.ContextStrip
         ref={attachStrip}
         data-compact={labelsOverflow ? "" : undefined}
-        className={cn("min-w-0 flex-1", COMPOSER_ROW_CONTEXT_CLASS)}
+        className={cn("min-w-0 grow basis-(--composer-natural-width)", COMPOSER_ROW_CONTEXT_CLASS)}
       >
         <div className="flex min-h-7 min-w-0 items-center gap-0.5">
           {environmentSelector}

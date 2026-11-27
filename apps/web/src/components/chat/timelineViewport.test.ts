@@ -96,6 +96,12 @@ describe("navigationReleasesFollow", () => {
     expect(navigationReleasesFollow(down, viewport(true, false))).toBe(false);
     expect(navigationReleasesFollow(down, viewport(false, true))).toBe(true);
     expect(navigationReleasesFollow({ source: "touch" }, viewport(true, false))).toBe(false);
+    // A forwarded drag knows its direction before the timeline leaves the end.
+    const dragUp = { source: "touch", direction: "up" } as const;
+    expect(navigationReleasesFollow(dragUp, viewport(true, false))).toBe(true);
+    expect(navigationReleasesFollow(dragUp, viewport(false, false))).toBe(false);
+    const dragDown = { source: "touch", direction: "down" } as const;
+    expect(navigationReleasesFollow(dragDown, viewport(true, false))).toBe(false);
     expect(
       navigationReleasesFollow({ source: "pointer", onScrollbar: false }, viewport(true, false)),
     ).toBe(false);

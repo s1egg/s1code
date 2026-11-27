@@ -1,3 +1,5 @@
+import { RETIRED_THEME_IDS } from "@s1tools/contracts/settings";
+
 export const BUILT_IN_THEME_IDS = [
   "s1-midnight",
   "s1-graphite",
@@ -15,17 +17,8 @@ export const RESERVED_THEME_IDS: ReadonlySet<string> = new Set([
   "light",
   "dark",
   ...BUILT_IN_THEME_IDS,
-  // Retired built-ins and their aliases fall back to the default instead of resolving to a custom theme.
-  "s1-chat",
-  "grove",
-  "ocean",
-  "ember",
-  "iris",
-  "s1-chat-dark",
-  "s1-grove",
-  "s1-ocean",
-  "s1-ember",
-  "s1-iris",
+  // Retired built-ins fall back to the default instead of resolving to a custom theme.
+  ...RETIRED_THEME_IDS,
 ]);
 
 /** The mobile default id is valid in saved themes but cannot be published because web/desktop cannot resolve it. */

@@ -278,6 +278,7 @@ interface ComposerSendInput {
   readonly setThreadError: ReturnType<typeof makeThreadErrorSetter>;
   readonly setKeepFullHistory: (threadKey: string, keep: boolean) => void;
   readonly anchorNewTurn: TimelineFollow["anchorNewTurn"];
+  readonly releaseTurnAnchor: TimelineFollow["releaseTurnAnchor"];
   readonly acknowledgeActiveThreadWoke: () => void;
   /** Resolves true once the side chat started and got the message. */
   readonly onSideChat?: ((message: SideChatMessage | undefined) => Promise<boolean>) | undefined;
@@ -370,6 +371,7 @@ export function useComposerSend(input: ComposerSendInput) {
     setThreadError,
     setKeepFullHistory,
     anchorNewTurn,
+    releaseTurnAnchor,
     acknowledgeActiveThreadWoke,
     onSideChat,
     sideChatDisabledReason,
@@ -1408,12 +1410,10 @@ export function useComposerSend(input: ComposerSendInput) {
       return;
     }
     const optimisticAttachments = optimisticMessageAttachments(composerAttachmentsSnapshot);
-    if (!shouldQueueBehindActiveRun) {
-      anchorNewTurn(
-        scopedThreadKey(scopeThreadRef(activeThread.environmentId, threadIdForSend)),
-        messageIdForSend,
-      );
-    }
+    const sendThreadKey = scopedThreadKey(
+      scopeThreadRef(activeThread.environmentId, threadIdForSend),
+    );
+    if (!shouldQueueBehindActiveRun) anchorNewTurn(sendThreadKey, messageIdForSend);
     const optimisticMessage: ChatMessage = {
       id: messageIdForSend,
       role: "user",
@@ -1691,6 +1691,8 @@ export function useComposerSend(input: ComposerSendInput) {
         const next = existing.filter((message) => message.id !== messageIdForSend);
         return next.length === existing.length ? existing : next;
       });
+      // An anchor on the removed row would stop the end from following anything after it.
+      releaseTurnAnchor(sendThreadKey, messageIdForSend);
       // A restored draft clones its images, so the sent copies are no longer used.
       optimisticBlobPreviews.release(optimisticMessage);
       if (

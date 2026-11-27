@@ -12,9 +12,11 @@ import {
   ClientSettingsPatch,
   ClientServerSettingsPatch,
   ClaudeSettings,
+  DEFAULT_CLIENT_SETTINGS,
   DEFAULT_SERVER_SETTINGS,
   globalIdleCompaction,
   idleCompactionPatch,
+  migrateClientSettings,
   PROJECT_SCOPED_SERVER_SETTING_KEYS,
   requiredScopesForProjectMutation,
   resolveIdleCompaction,
@@ -53,6 +55,18 @@ it("drops theme defaults from a client's settings patch", () => {
       defaultAppearanceSetAt: "2026-11-13T00:00:00.000Z",
     }),
   ).toEqual({ newWorktreesStartFromOrigin: false });
+});
+
+it("reads a retired default theme as the stock look and keeps its set time", () => {
+  const settings = decodeServerSettings({
+    defaultTheme: "grove",
+    defaultThemeSetAt: "2026-11-13T00:00:00.000Z",
+  });
+  expect(settings).toMatchObject({
+    defaultTheme: "",
+    defaultThemeSetAt: "2026-11-13T00:00:00.000Z",
+  });
+  expect(decodeServerSettings({ defaultTheme: "s1-graphite" }).defaultTheme).toBe("s1-graphite");
 });
 
 describe("storage cleanup settings", () => {
@@ -150,6 +164,21 @@ describe("ClientSettings retired keys", () => {
   });
 });
 
+describe("ClientSettings environment identification", () => {
+  it("reads retired sidebar artwork modes as the version pill", () => {
+    for (const mode of ["artwork", "nightly-artwork", "dev-artwork"]) {
+      expect(decodeClientSettings({ environmentIdentificationMode: mode })).toMatchObject({
+        environmentIdentificationMode: "pill",
+      });
+    }
+    expect(decodeClientSettings({ environmentIdentificationMode: "none" })).toMatchObject({
+      environmentIdentificationMode: "none",
+    });
+    expect(decodeClientSettings({}).environmentIdentificationMode).toBe("pill");
+    expect(() => decodeClientSettingsPatch({ environmentIdentificationMode: "artwork" })).toThrow();
+  });
+});
+
 describe("ClientSettings background glow", () => {
   it("defaults to off and accepts 0 through 48 whole steps", () => {
     expect(decodeClientSettings({}).backgroundGlow).toBe(0);
@@ -157,6 +186,19 @@ describe("ClientSettings background glow", () => {
     expect(decodeClientSettingsPatch({ backgroundGlow: 48 }).backgroundGlow).toBe(48);
     expect(() => decodeClientSettingsPatch({ backgroundGlow: 49 })).toThrow();
     expect(() => decodeClientSettingsPatch({ backgroundGlow: 12.5 })).toThrow();
+  });
+
+  it("treats the retired default 30 in settings saved before versioning as unset", () => {
+    const migrated = migrateClientSettings(decodeClientSettings({ backgroundGlow: 30 }));
+    expect(migrated.backgroundGlow).toBe(0);
+    expect(migrated.clientSettingsVersion).toBe(DEFAULT_CLIENT_SETTINGS.clientSettingsVersion);
+    expect(migrateClientSettings(decodeClientSettings({ backgroundGlow: 12 })).backgroundGlow).toBe(
+      12,
+    );
+    // Choosing 30 after the migration ran is a real choice.
+    const chosen = { ...migrated, backgroundGlow: 30 };
+    expect(migrateClientSettings(chosen)).toBe(chosen);
+    expect(migrateClientSettings(DEFAULT_CLIENT_SETTINGS)).toBe(DEFAULT_CLIENT_SETTINGS);
   });
 });
 

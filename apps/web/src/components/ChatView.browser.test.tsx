@@ -417,6 +417,46 @@ it("a new draft does not load its reserved thread before the server lists it", a
   expect(threadRequests).toEqual([]);
 });
 
+it("a new draft's control row names its machine and keeps labels at a normal width", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  using _environment = installFakeEnvironment([]);
+  await page.viewport(1280, 800);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const draftId = DraftId.make("draft-composer-row");
+  useComposerDraftStore
+    .getState()
+    .setProjectDraftThreadId(scopeProjectRef(ENVIRONMENT_ID, PROJECT_ID), draftId, {
+      threadId: ThreadId.make("thread-composer-row"),
+    });
+
+  const router = getRouter(createMemoryHistory({ initialEntries: [`/draft/${draftId}`] }));
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await expect.element(page.getByTestId("composer-editor")).toBeVisible();
+  await expect.element(page.getByText("render", { exact: true }).first()).toBeVisible();
+
+  // A single primary machine still shows where the thread runs.
+  const strip = await vi.waitFor(() => {
+    const element = document.querySelector<HTMLElement>('[data-slot="composer-context-strip"]');
+    expect(element?.textContent).toContain("Render scenarios");
+    return element!;
+  });
+  // The composer's normal width, where the old even split folded the run context to icons.
+  expect(strip.parentElement!.getBoundingClientRect().width).toBeLessThan(800);
+  await vi.waitFor(() => {
+    expect(strip.hasAttribute("data-compact")).toBe(false);
+    for (const label of strip.querySelectorAll<HTMLElement>("[data-composer-label]")) {
+      expect(label.getBoundingClientRect().width).toBeGreaterThan(0);
+    }
+  });
+});
+
 it("a failed image-only first send of a new thread keeps the new draft", async () => {
   using _environment = installFakeEnvironment([]);
   __setClientSettingsForTests({
@@ -755,6 +795,93 @@ it("a rejected send leaves the timeline when a new draft was typed meanwhile", a
   await expect.element(page.getByText("Attachment 'sample.png' cannot be sent.")).toBeVisible();
   await expect.element(page.getByText("Failed prompt")).not.toBeInTheDocument();
   expect(editor.element().textContent).toContain("Next draft");
+});
+
+it("after a rejected send, a growing composer keeps the end of the timeline in view", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  const thread = threadWithHistory("rejected-anchor", 8);
+  using _environment = installFakeEnvironment([thread], {
+    acceptCommands: true,
+    holdCommand: (command) => command.type === "message.dispatch",
+  });
+  await page.viewport(1280, 800);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await expect.element(page.getByText(`Answer 7 for ${thread.id}.`)).toBeVisible();
+
+  const editor = page.getByTestId("composer-editor");
+  await userEvent.click(editor);
+  await userEvent.keyboard("Failed prompt{Enter}");
+  await vi.waitFor(() =>
+    expect(dispatchedCommands().map((command) => command.type)).toContain("message.dispatch"),
+  );
+  const timeline = document.querySelector<HTMLElement>(".messages-timeline-scroll")!;
+  await vi.waitFor(() => expect(timeline.textContent).toContain("Failed prompt"));
+  await rejectPendingCommand("The provider refused the message.");
+  // The composer takes the failed text back; the timeline drops it.
+  await vi.waitFor(() => expect(timeline.textContent).not.toContain("Failed prompt"));
+
+  // The failed message's anchor would leave the end unfollowed as the composer grows over it.
+  await userEvent.click(editor);
+  await userEvent.keyboard(
+    "{Shift>}{Enter}{/Shift}Line 1{Shift>}{Enter}{/Shift}Line 2{Shift>}{Enter}{/Shift}Line 3{Shift>}{Enter}{/Shift}Line 4",
+  );
+  await vi.waitFor(() =>
+    expect(timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight).toBeLessThan(2),
+  );
+});
+
+it("a wheel over the space under the composer scrolls the timeline", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  const thread = threadWithHistory("composer-gutter-wheel", 8);
+  using _environment = installFakeEnvironment([thread]);
+  await page.viewport(1280, 800);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await expect.element(page.getByText(`Answer 7 for ${thread.id}.`)).toBeVisible();
+  const timeline = document.querySelector<HTMLElement>(".messages-timeline-scroll")!;
+  await vi.waitFor(() =>
+    expect(timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight).toBeLessThan(2),
+  );
+  const atEnd = timeline.scrollTop;
+
+  // The spacer sits in the composer stack, above the backdrop that used to take the wheel.
+  const spacer = document.querySelector<HTMLElement>('[data-chat-composer-bottom-spacer="true"]')!;
+  const box = spacer.getBoundingClientRect();
+  await cdp().send("Input.dispatchMouseEvent", {
+    type: "mouseWheel",
+    x: box.left + box.width / 2,
+    y: box.top + box.height / 2,
+    deltaX: 0,
+    deltaY: -400,
+  });
+  await vi.waitFor(() => expect(timeline.scrollTop).toBeLessThan(atEnd - 100));
+
+  // One-finger drags are forwarded by script; two-finger zoom stays the browser's.
+  const backdrop = document.querySelector<HTMLElement>('[data-chat-composer-backdrop="true"]')!;
+  for (const gutter of [spacer, backdrop]) {
+    expect(getComputedStyle(gutter).touchAction).toBe("pinch-zoom");
+  }
 });
 
 it("Enter on an empty prompt resumes an interrupted thread", async () => {

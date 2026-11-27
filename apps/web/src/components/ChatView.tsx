@@ -8,7 +8,7 @@ import { sourceControlClients } from "@s1tools/client-runtime/source-control-cli
 import { resolveNewThreadModelSelection } from "@s1tools/shared/usageLimits";
 import { queuedRunEditBlockedReason } from "@s1tools/client-runtime/queued-run-edit";
 import { ScrollToEndButton, WorkspaceFileDropOverlay } from "./chat/TimelineOverlays";
-import { forwardWheelToTimeline } from "./chat/timelineMinimapWheel";
+import { forwardScrollGesturesToTimeline } from "./chat/timelineMinimapWheel";
 import { usePasteToFocusComposer } from "./chat/usePasteToFocusComposer";
 import { useFocusComposerOnThreadOpen } from "./chat/useFocusComposerOnThreadOpen";
 import { configuredHostedAppUrl } from "../hostedPairing";
@@ -2253,6 +2253,9 @@ export default function ChatView(props: ChatViewProps) {
     onTimelineFooterGrowStable,
     onIsAtEndChangeStable,
     anchorNewTurn,
+    releaseTurnAnchor,
+    followsLiveEnd,
+    timelineListAnchorRetired,
     attachTimelineViewport,
     attachComposerOverlay: attachFollowComposerOverlay,
   } = useTimelineFollow({
@@ -2444,15 +2447,13 @@ export default function ChatView(props: ChatViewProps) {
     setScrollToEndClearance(clearance);
   };
   const publishComposerOverlayHeightStable = useStableCallback(publishComposerOverlayHeight);
-  // The backdrop hides the timeline below it, so it hands the timeline the wheel it would get.
-  const forwardComposerBackdropWheel = (backdrop: HTMLDivElement | null) => {
-    if (!backdrop) return;
-    const onWheel = (event: WheelEvent) => {
-      const scrollNode = legendListRef.current?.getScrollableNode();
-      if (scrollNode) forwardWheelToTimeline(event, scrollNode);
-    };
-    backdrop.addEventListener("wheel", onWheel, { passive: false });
-    return () => backdrop.removeEventListener("wheel", onWheel);
+  // The backdrop and the spacer under the composer hide the timeline, so they hand it the
+  // scroll gestures it would get.
+  const forwardComposerGutterScroll = (gutter: HTMLDivElement | null) => {
+    if (!gutter) return;
+    return forwardScrollGesturesToTimeline(gutter, () =>
+      legendListRef.current?.getScrollableNode(),
+    );
   };
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- measures the composer overlay element before paint for a new thread or composer mount
   useLayoutEffect(() => {
@@ -3186,6 +3187,7 @@ export default function ChatView(props: ChatViewProps) {
     setThreadError,
     setKeepFullHistory,
     anchorNewTurn,
+    releaseTurnAnchor,
     acknowledgeActiveThreadWoke,
     onSideChat: sideChat.available ? sendSideChatStable : undefined,
     sideChatDisabledReason,
@@ -3240,8 +3242,9 @@ export default function ChatView(props: ChatViewProps) {
     const hasNewMessage = pendingGuestMessageKey
       .split(",")
       .some((id) => id !== "" && !previousIds.has(id));
-    if (hasNewMessage && timelineLiveFollowEnabled) scrollToEnd(true);
-  }, [routeThreadKey, pendingGuestMessageKey, timelineLiveFollowEnabled, scrollToEnd]);
+    // An anchored turn holds the owner's place, as it does against any other footer growth.
+    if (hasNewMessage && followsLiveEnd()) scrollToEnd(true);
+  }, [routeThreadKey, pendingGuestMessageKey, followsLiveEnd, scrollToEnd]);
   const onExpandTimelineImage = (preview: ExpandedImagePreview) => {
     openExpandedImagePreview(routeThreadKey, preview);
   };
@@ -3591,7 +3594,7 @@ export default function ChatView(props: ChatViewProps) {
     />
   ) : draftProjectPicker ? (
     <ComposerSurface.ContextStrip
-      className={isMobileViewport ? "w-full px-2 pt-2" : "min-w-0 flex-1"}
+      className={isMobileViewport ? "w-full px-2 pt-2" : "min-w-0 flex-initial"}
     >
       {draftProjectPicker}
     </ComposerSurface.ContextStrip>
@@ -3805,6 +3808,7 @@ export default function ChatView(props: ChatViewProps) {
                   workspaceRoot={activeWorkspaceRoot}
                   skills={timelineSkills}
                   anchorMessageId={timelineAnchorMessageId}
+                  anchorListRetired={timelineListAnchorRetired}
                   onAnchorReady={onTimelineAnchorReadyStable}
                   onAnchorSizeChanged={onTimelineAnchorSizeChangedStable}
                   contentInsetEndAdjustment={composerTimelineInset}
@@ -3853,9 +3857,9 @@ export default function ChatView(props: ChatViewProps) {
                 // timeline is cut there instead of showing beside and below the composer.
                 <div
                   aria-hidden
-                  ref={forwardComposerBackdropWheel}
+                  ref={forwardComposerGutterScroll}
                   data-chat-composer-backdrop="true"
-                  className="pointer-events-auto absolute inset-x-0 top-1.5 bottom-0 bg-background surface-glow sm:top-2"
+                  className="pointer-events-auto absolute inset-x-0 top-1.5 bottom-0 touch-pinch-zoom bg-background surface-glow sm:top-2"
                 />
               )}
               <div ref={draftHeroTransitionGroupRef} className="chat-composer-lane w-full">
@@ -4116,7 +4120,9 @@ export default function ChatView(props: ChatViewProps) {
                     </div>
                     <div
                       aria-hidden
-                      className="h-[calc(env(safe-area-inset-bottom)+1rem)] sm:h-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+                      ref={isDraftHeroState ? undefined : forwardComposerGutterScroll}
+                      data-chat-composer-bottom-spacer="true"
+                      className="h-[calc(env(safe-area-inset-bottom)+1rem)] touch-pinch-zoom sm:h-[calc(env(safe-area-inset-bottom)+1.25rem)]"
                     />
                   </div>
                 </div>

@@ -89,9 +89,17 @@ describe("mobile themes", () => {
         flattenThemeColor(themeColorToNativeColor(colors.sidebarRowHover), drawer),
       );
       expect(variables["--color-card"]).toBe(themeColorToNativeColor(colors.surface));
-      expect(variables["--color-composer-surface"]).toBe(
-        themeColorWithAlpha(variables["--color-grouped-card"], appearance === "dark" ? 0.9 : 0.94),
-      );
+      const composerAlpha = appearance === "dark" ? 0.9 : 0.94;
+      if (themeId === DEFAULT_MOBILE_THEME_ID) {
+        expect(variables["--color-composer-surface"]).toBe(
+          themeColorWithAlpha(themeColorToNativeColor(colors.surfaceRaised), composerAlpha),
+        );
+        expect(variables["--color-composer-border"]).toBe(themeColorToNativeColor(colors.input));
+      } else {
+        expect(variables["--color-composer-surface"]).toBe(
+          themeColorWithAlpha(variables["--color-grouped-card"], composerAlpha),
+        );
+      }
       expect(variables["--color-thread-selected"]).toBe(
         flattenThemeColor(themeColorToNativeColor(colors.sidebarRowActive), drawer),
       );

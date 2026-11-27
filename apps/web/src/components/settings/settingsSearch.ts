@@ -364,7 +364,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "setting-glass-opacity",
     title: msg("Glass opacity"),
     to: "/settings/appearance",
-    searchTerms: [msg("transparent transparency solid menus dialogs composer")],
+    searchTerms: [msg("transparent transparency solid menus dialogs popovers")],
   },
   {
     // Prefixed because the slider control already owns the `background-glow` id.
@@ -424,7 +424,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "environment-identification",
     title: msg("Environment identification"),
     to: "/settings/appearance",
-    searchTerms: [msg("dev nightly latest channel artwork pill label hide none")],
+    searchTerms: [msg("dev nightly latest channel pill label hide none")],
     targetId: "appearance-interface",
   },
   {

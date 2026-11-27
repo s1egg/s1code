@@ -63,6 +63,11 @@ function createVisitScrollState(
     showScrollDebouncer: new Debouncer(() => showScrollToBottom(visit), { wait: 150 }),
     positionedAnchor: null as MessageId | null,
     settledAnchor: null as MessageId | null,
+    /**
+     * A send the reader scrolled away from. LegendList reports the anchor ready again whenever
+     * its end space changes, and that must not pull the reader back.
+     */
+    abandonedAnchor: null as MessageId | null,
     releaseAnchorScrollHold: null as (() => void) | null,
     pendingAnchorScrollRestore: null as {
       readonly messageId: MessageId;
@@ -74,6 +79,15 @@ function createVisitScrollState(
   };
 }
 type VisitScrollState = ReturnType<typeof createVisitScrollState>;
+
+/** Once the reply reaches the composer, its inset alone holds the scroll range the end space did. */
+function insetHoldsEndSpace(
+  endSpace: VisitScrollState["anchoredEndSpace"],
+  messageId: MessageId | null,
+  composerInset: number,
+): boolean {
+  return endSpace?.messageId === messageId && endSpace.size <= composerInset + 1;
+}
 
 function stopAnchorPositioning(scroll: VisitScrollState) {
   scroll.positionedAnchor = null;
@@ -228,10 +242,17 @@ export function useTimelineFollow(input: TimelineFollowInput) {
   const anchorPending =
     timelineAnchorMessageId !== null && laidOutAnchor !== timelineAnchorMessageId;
   const viewportRef = useRef<TimelineViewport | null>(null);
+  // The anchored turn whose list anchor is gone because the composer inset holds its end space.
+  // The turn stays anchored, so the end is not followed, but the list stops keeping every row
+  // from the anchor down mounted.
+  const [retiredListAnchor, setRetiredListAnchor] = useState<MessageId | null>(null);
+  const timelineListAnchorRetired =
+    timelineAnchorMessageId !== null && retiredListAnchor === timelineAnchorMessageId;
   const releaseFollowForNavigation = (awayFromEnd: boolean) => {
     const { before } = followStore.dispatch(visit, { type: "navigated", awayFromEnd });
     if (before.mode === "following") viewportRef.current?.followReleased();
     const scroll = visitScroll();
+    if (timelineAnchorMessageId !== null) scroll.abandonedAnchor = timelineAnchorMessageId;
     stopAnchorPositioning(scroll);
     scroll.pendingAnchorScrollRestore = null;
     if (scroll.anchorScrollRestoreFrame !== null) {
@@ -377,12 +398,42 @@ export function useTimelineFollow(input: TimelineFollowInput) {
     }
   };
 
-  const onTimelineAnchorReady = (messageId: MessageId, anchorIndex: number) => {
+  /** Retires the list anchor once the inset holds its end space and no positioning runs. */
+  const retireListAnchorIfInsetHolds = useStableCallback(
+    (messageId: MessageId, composerInset: number = composerTimelineInset) => {
+      const scroll = visitScroll();
+      const positioning =
+        scroll.positionedAnchor === messageId && scroll.settledAnchor !== messageId;
+      if (
+        positioning ||
+        messageId !== timelineAnchorMessageId ||
+        !insetHoldsEndSpace(scroll.anchoredEndSpace, messageId, composerInset)
+      ) {
+        return false;
+      }
+      setRetiredListAnchor(messageId);
+      return true;
+    },
+  );
+
+  // The list sizes its end space without the inset, so a growing composer reports no change.
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- retires the list anchor once a grown inset holds its end space
+  useLayoutEffect(() => {
+    if (timelineAnchorMessageId !== null) {
+      retireListAnchorIfInsetHolds(timelineAnchorMessageId, composerTimelineInset);
+    }
+  }, [composerTimelineInset, timelineAnchorMessageId, retireListAnchorIfInsetHolds]);
+
+  const onTimelineAnchorReady = (messageId: MessageId, anchorIndex: number, size: number) => {
     setLaidOutAnchor(messageId);
     const scroll = visitScroll();
+    // A new anchor can report ready at its predecessor's size, with no size change.
+    scroll.anchoredEndSpace = { messageId, size };
     if (scroll.positionedAnchor === messageId) {
+      retireListAnchorIfInsetHolds(messageId);
       return;
     }
+    if (scroll.abandonedAnchor === messageId) return;
     stopAnchorPositioning(scroll);
     scroll.positionedAnchor = messageId;
     // The positioning scroll moves up when the anchor sits above the view.
@@ -424,6 +475,7 @@ export function useTimelineFollow(input: TimelineFollowInput) {
               scroll.settledAnchor = messageId;
               releaseHold();
               scroll.releaseAnchorScrollHold = null;
+              retireListAnchorIfInsetHolds(messageId);
               // A tall message leaves the end below the view without another scroll event.
               if (resolveTimelineIsAtEnd(list.getState()) === false) showScrollToBottomOnce(scroll);
             } else {
@@ -438,6 +490,7 @@ export function useTimelineFollow(input: TimelineFollowInput) {
   const onTimelineAnchorSizeChanged = (messageId: MessageId, size: number) => {
     const scroll = visitScroll();
     scroll.anchoredEndSpace = { messageId, size };
+    if (retireListAnchorIfInsetHolds(messageId)) return;
     if (scroll.settledAnchor !== messageId || readFollow().mode === "following") {
       return;
     }
@@ -489,10 +542,8 @@ export function useTimelineFollow(input: TimelineFollowInput) {
       // Back at the end, the anchor goes only when that moves nothing: once the reply
       // reaches the composer, its inset alone holds the same scroll range. Otherwise
       // the turn is anchored again, as it was before the reader scrolled away.
-      const endSpace = scroll.anchoredEndSpace;
       if (
-        endSpace?.messageId === timelineAnchorMessageId &&
-        endSpace.size <= composerTimelineInset + 1
+        insetHoldsEndSpace(scroll.anchoredEndSpace, timelineAnchorMessageId, composerTimelineInset)
       ) {
         setTimelineAnchor(releaseChatTimelineAnchor);
       } else {
@@ -514,6 +565,15 @@ export function useTimelineFollow(input: TimelineFollowInput) {
   };
   const onIsAtEndChangeStable = useStableCallback(onIsAtEndChange);
 
+  /** Drops the anchor of a send that failed, unless a newer send or another thread replaced it. */
+  const releaseTurnAnchor = (threadKey: string, messageId: MessageId) => {
+    setTimelineAnchor((current) =>
+      current.threadKey === threadKey && current.messageId === messageId
+        ? releaseChatTimelineAnchor(current)
+        : current,
+    );
+  };
+
   /** Arms the anchor for a message the user just sent, before its run exists. */
   const anchorNewTurn = (threadKey: string, messageId: MessageId) => {
     followStore.dispatch(visit, { type: "followEnd" });
@@ -534,6 +594,9 @@ export function useTimelineFollow(input: TimelineFollowInput) {
     onTimelineFooterGrowStable,
     onIsAtEndChangeStable,
     anchorNewTurn,
+    releaseTurnAnchor,
+    followsLiveEnd: followsLiveEndStable,
+    timelineListAnchorRetired,
     attachTimelineViewport,
     attachComposerOverlay: followStore.attachComposerOverlay,
   };

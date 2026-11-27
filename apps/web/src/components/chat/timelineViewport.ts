@@ -41,7 +41,7 @@ export type TimelineScrollDirection = "up" | "down";
  */
 export type TimelineNavigation =
   | { readonly source: "wheel"; readonly direction: TimelineScrollDirection }
-  | { readonly source: "touch" }
+  | { readonly source: "touch"; readonly direction?: TimelineScrollDirection }
   | { readonly source: "pointer"; readonly onScrollbar: boolean }
   | { readonly source: "key"; readonly key: string; readonly direction: TimelineScrollDirection }
   | { readonly source: "scroll" }
@@ -60,6 +60,26 @@ export interface TimelineViewport {
   /** Follow announces letting go, so the list can remember it is reading history. */
   readonly followReleased: () => void;
   readonly onFollowReleased: (listener: () => void) => () => void;
+}
+
+// Not a synthetic touchmove: LegendList's own touchmove listener reads `touches`.
+const TOUCH_DRAG_EVENT = "s1code:timeline-touch-drag";
+
+/**
+ * Reports a drag on a surface covering the timeline as the timeline's own touch. Unlike a
+ * native touch, its direction is known before the timeline moves.
+ */
+export function reportTimelineTouchDrag(
+  scrollNode: HTMLElement,
+  direction: TimelineScrollDirection,
+): void {
+  scrollNode.dispatchEvent(new CustomEvent(TOUCH_DRAG_EVENT, { detail: { direction } }));
+}
+
+function touchDragDirection(event: Event): TimelineScrollDirection | undefined {
+  if (!(event instanceof CustomEvent)) return undefined;
+  const direction: unknown = event.detail?.direction;
+  return direction === "up" || direction === "down" ? direction : undefined;
 }
 
 const UP_KEYS = new Set(["PageUp", "Home", "ArrowUp"]);
@@ -89,6 +109,10 @@ export function attachTimelineViewport(
     emit({ source: "wheel", direction: event.deltaY < 0 ? "up" : "down" });
   };
   const handleTouchMove = () => emit({ source: "touch" });
+  const handleTouchDrag = (event: Event) => {
+    const direction = touchDragDirection(event);
+    emit(direction ? { source: "touch", direction } : { source: "touch" });
+  };
   // Scrollbar drags produce no wheel/touch events. The scroll node's own padding
   // also targets it, so only a press at its trailing edge counts.
   const handlePointerDown = (event: PointerEvent) =>
@@ -175,6 +199,7 @@ export function attachTimelineViewport(
   scrollNode.addEventListener("scroll", handleScroll, { passive: true });
   scrollNode.addEventListener("wheel", handleWheel, { passive: true });
   scrollNode.addEventListener("touchmove", handleTouchMove, { passive: true });
+  scrollNode.addEventListener(TOUCH_DRAG_EVENT, handleTouchDrag);
   scrollNode.addEventListener("pointerdown", handlePointerDown, { passive: true });
   const unregisterKeyDown = registerCommands({}, { observe: handleKeyDown });
   return {
@@ -207,6 +232,7 @@ export function attachTimelineViewport(
       scrollNode.removeEventListener("scroll", handleScroll);
       scrollNode.removeEventListener("wheel", handleWheel);
       scrollNode.removeEventListener("touchmove", handleTouchMove);
+      scrollNode.removeEventListener(TOUCH_DRAG_EVENT, handleTouchDrag);
       scrollNode.removeEventListener("pointerdown", handlePointerDown);
       unregisterKeyDown();
     },
@@ -236,7 +262,9 @@ export function navigationReleasesFollow(
     case "pointer":
       return navigation.onScrollbar ? viewport.contentScrollsUp() : viewport.awayFromEnd();
     case "touch":
-      // Touch direction is not observable; an upward flick leaves the end
+      // A forwarded drag reports navigation before it scrolls, so it cannot wait to leave the end.
+      if (navigation.direction === "up") return viewport.contentScrollsUp();
+      // Native touch direction is not observable; an upward flick leaves the end
       // band within its first few events.
       return viewport.awayFromEnd();
     case "scroll":

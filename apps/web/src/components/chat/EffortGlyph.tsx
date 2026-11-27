@@ -100,7 +100,7 @@ export function FastBolt(props: { ultra: boolean }) {
       <ZapIcon className="absolute top-0 left-0.75 size-3" />
       <ZapIcon
         strokeWidth={4}
-        className="absolute top-0 left-0 size-3 fill-current stroke-(--chat-composer-glass-surface) [paint-order:stroke]"
+        className="absolute top-0 left-0 size-3 fill-current stroke-(--chat-composer-surface) [paint-order:stroke]"
       />
     </span>
   );

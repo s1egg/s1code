@@ -18,6 +18,7 @@ import {
   type ClientSettings,
   DEFAULT_CLIENT_SETTINGS,
   type EnvironmentIdentificationMode,
+  migrateClientSettings,
   type UnifiedSettings,
 } from "@s1tools/contracts/settings";
 import { safeErrorLogAttributes } from "@s1tools/client-runtime/errors";
@@ -34,12 +35,6 @@ import {
 import { ensureLocalApi } from "~/localApi";
 import { subscribeBrowserClientSettingsWrites } from "~/clientPersistenceStorage";
 import {
-  getThemeDefinition,
-  getThemePreviewAppearance,
-  resolveThemeHalf,
-  subscribeToThemePreview,
-} from "~/themePalette";
-import {
   modelPreferencesMigrationPatch,
   resolveModelPreferences,
 } from "@s1tools/shared/serverSettings";
@@ -53,7 +48,6 @@ import { environmentCatalog } from "~/connection/catalog";
 import { primaryServerSettingsAtom, serverEnvironment } from "~/state/server";
 import { useEnvironments, usePrimaryEnvironment } from "~/state/environments";
 import { useAtomCommand } from "~/state/use-atom-command";
-import { useTheme } from "./useTheme";
 import { msg } from "gt-react";
 import { m } from "~/i18n/messages";
 import {
@@ -133,6 +127,34 @@ export function subscribeClientSettingsHydration(listener: () => void): () => vo
   };
 }
 
+// Older clients (an open tab, a downgraded desktop app) rewrite the settings document without
+// clientSettingsVersion, so the version also lives under its own key they leave alone.
+const CLIENT_SETTINGS_VERSION_STORAGE_KEY = "s1code:client-settings-version";
+
+function readMigratedClientSettingsVersion(): number {
+  try {
+    return Number(window.localStorage.getItem(CLIENT_SETTINGS_VERSION_STORAGE_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function markClientSettingsMigrated(version: number): void {
+  if (version <= readMigratedClientSettingsVersion()) return;
+  try {
+    window.localStorage.setItem(CLIENT_SETTINGS_VERSION_STORAGE_KEY, String(version));
+  } catch {}
+}
+
+function migrateSavedClientSettings(saved: ClientSettings): ClientSettings {
+  const migratedVersion = readMigratedClientSettingsVersion();
+  return migrateClientSettings(
+    saved.clientSettingsVersion >= migratedVersion
+      ? saved
+      : { ...saved, clientSettingsVersion: migratedVersion },
+  );
+}
+
 async function hydrateClientSettings(): Promise<void> {
   if (clientSettingsHydrationStatus === "ready") {
     return;
@@ -154,7 +176,23 @@ async function hydrateClientSettings(): Promise<void> {
         return;
       }
       if (persistedSettings) {
-        replaceClientSettingsSnapshot({ ...DEFAULT_CLIENT_SETTINGS, ...persistedSettings });
+        const saved = { ...DEFAULT_CLIENT_SETTINGS, ...persistedSettings };
+        const migrated = migrateSavedClientSettings(saved);
+        replaceClientSettingsSnapshot(migrated);
+        if (migrated.clientSettingsVersion === saved.clientSettingsVersion) {
+          markClientSettingsMigrated(migrated.clientSettingsVersion);
+        } else {
+          void enqueueClientSettingsPersistence(() =>
+            defaultClientSettingsPersistence(getClientSettingsSnapshot()),
+          )
+            .then(() => markClientSettingsMigrated(migrated.clientSettingsVersion))
+            .catch((error) => {
+              console.error(`${CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE} migrate failed`, {
+                operation: "migrate",
+                ...safeErrorLogAttributes(error),
+              });
+            });
+        }
       }
       unsubscribeOtherTabClientSettings ??= subscribeBrowserClientSettingsWrites(
         refreshClientSettingsFromOtherTab,
@@ -186,7 +224,9 @@ function refreshClientSettingsFromOtherTab(): void {
   void enqueueClientSettingsPersistence(async () => {
     const persistedSettings = await ensureLocalApi().persistence.getClientSettings();
     if (persistedSettings) {
-      replaceClientSettingsSnapshot({ ...DEFAULT_CLIENT_SETTINGS, ...persistedSettings });
+      replaceClientSettingsSnapshot(
+        migrateSavedClientSettings({ ...DEFAULT_CLIENT_SETTINGS, ...persistedSettings }),
+      );
     }
   }).catch((error) => {
     console.error(`${CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE} refresh failed`, {
@@ -410,32 +450,10 @@ export function useMergedSettings<T = UnifiedSettings>(
   });
 }
 
-function resolveEnvironmentIdentificationMode(input: {
-  mode: EnvironmentIdentificationMode;
-  settingsHydrated: boolean;
-  paletteThemeActive?: boolean;
-}): EnvironmentIdentificationMode {
-  if (!input.settingsHydrated) return "none";
-  const isArtwork = input.mode !== "pill" && input.mode !== "none";
-  return input.paletteThemeActive && isArtwork ? "pill" : input.mode;
-}
-
 export function useEnvironmentIdentificationMode(): EnvironmentIdentificationMode {
   const settingsHydrated = useClientSettingsHydrated();
   const mode = useClientSettings((settings) => settings.environmentIdentificationMode);
-  const { resolvedTheme, theme, themeHalves } = useTheme();
-  const previewAppearance = useSyncExternalStore(
-    subscribeToThemePreview,
-    getThemePreviewAppearance,
-    () => null,
-  );
-  const activeTheme = resolveThemeHalf(theme, themeHalves, resolvedTheme);
-  const activeThemeDefinition = getThemeDefinition(activeTheme);
-  return resolveEnvironmentIdentificationMode({
-    mode,
-    settingsHydrated,
-    paletteThemeActive: previewAppearance !== null || activeThemeDefinition !== null,
-  });
+  return settingsHydrated ? mode : "none";
 }
 
 export async function prepareModelPreferencesPatch(

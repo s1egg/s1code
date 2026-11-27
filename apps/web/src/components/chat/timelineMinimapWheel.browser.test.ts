@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { fakeTimers } from "../../../test/render";
-import { forwardWheelToTimeline } from "./timelineMinimapWheel";
+import { forwardScrollGesturesToTimeline, forwardWheelToTimeline } from "./timelineMinimapWheel";
+import { attachTimelineViewport, type TimelineNavigation } from "./timelineViewport";
 
 function mountTimeline() {
   const timeline = document.createElement("div");
@@ -50,5 +51,40 @@ describe("forwardWheelToTimeline", () => {
     window.dispatchEvent(new PointerEvent("pointerdown"));
     vi.advanceTimersByTime(200);
     expect(timeline.scrollTop).toBe(1000);
+  });
+});
+
+describe("forwardScrollGesturesToTimeline", () => {
+  function touch(type: string, target: HTMLElement, clientY: number | null): TouchEvent {
+    const touches =
+      clientY === null ? [] : [new Touch({ identifier: 1, target, clientX: 10, clientY })];
+    return new TouchEvent(type, { cancelable: true, touches, changedTouches: touches });
+  }
+
+  it("scrolls the timeline for a drag or wheel on a covering gutter", () => {
+    using timeline = mountTimeline();
+    const gutter = document.createElement("div");
+    document.body.append(gutter);
+    const stop = forwardScrollGesturesToTimeline(gutter, () => timeline);
+    using _gutter = { [Symbol.dispose]: () => (stop(), gutter.remove()) };
+    const viewport = attachTimelineViewport(timeline);
+    using _viewport = { [Symbol.dispose]: () => viewport.dispose() };
+    const navigations = vi.fn<(navigation: TimelineNavigation) => void>();
+    viewport.subscribe(navigations);
+
+    gutter.dispatchEvent(touch("touchstart", gutter, 300));
+    const move = touch("touchmove", gutter, 220);
+    gutter.dispatchEvent(move);
+    expect(move.defaultPrevented).toBe(true);
+    expect(timeline.scrollTop).toBe(80);
+    // The viewport hears the drag as the reader's own touch, direction included, so it can
+    // release follow before the scroll lands.
+    expect(navigations.mock.calls).toEqual([[{ source: "touch", direction: "down" }]]);
+    gutter.dispatchEvent(touch("touchend", gutter, null));
+    gutter.dispatchEvent(touch("touchmove", gutter, 100));
+    expect(timeline.scrollTop).toBe(80);
+
+    gutter.dispatchEvent(wheel(40, -120 / 3));
+    expect(timeline.scrollTop).toBe(120);
   });
 });

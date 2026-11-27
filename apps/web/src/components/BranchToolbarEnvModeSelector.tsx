@@ -36,6 +36,8 @@ interface BranchToolbarEnvModeSelectorProps {
   previousWorktreeLabel?: string | null;
   previousWorktreeBranch?: string | null;
   onUsePreviousWorktree?: () => void;
+  /** Hides the label; the tooltip still names the workspace. */
+  iconOnly?: boolean;
 }
 
 export const BranchToolbarEnvModeSelector = memo(function BranchToolbarEnvModeSelector({
@@ -47,6 +49,7 @@ export const BranchToolbarEnvModeSelector = memo(function BranchToolbarEnvModeSe
   previousWorktreeLabel,
   previousWorktreeBranch = null,
   onUsePreviousWorktree,
+  iconOnly = false,
 }: BranchToolbarEnvModeSelectorProps) {
   const gt = useGT();
   const m = useMessages();
@@ -86,11 +89,13 @@ export const BranchToolbarEnvModeSelector = memo(function BranchToolbarEnvModeSe
         ) : (
           <FolderIcon className="size-3" />
         )}
-        <ComposerContextLabel>
-          {forceNewWorktree
-            ? resolveEnvModeLabel("worktree", m)
-            : resolveLockedWorkspaceLabel(activeWorktreePath, effectiveEnvMode, m)}
-        </ComposerContextLabel>
+        {iconOnly ? null : (
+          <ComposerContextLabel>
+            {forceNewWorktree
+              ? resolveEnvModeLabel("worktree", m)
+              : resolveLockedWorkspaceLabel(activeWorktreePath, effectiveEnvMode, m)}
+          </ComposerContextLabel>
+        )}
       </span>
     );
 
@@ -140,9 +145,11 @@ export const BranchToolbarEnvModeSelector = memo(function BranchToolbarEnvModeSe
           ) : (
             <FolderIcon className="size-3" />
           )}
-          <ComposerContextLabel>
-            <SelectValue />
-          </ComposerContextLabel>
+          {iconOnly ? null : (
+            <ComposerContextLabel>
+              <SelectValue />
+            </ComposerContextLabel>
+          )}
         </TooltipTrigger>
         <TooltipPopup>
           {effectiveEnvMode === "worktree"

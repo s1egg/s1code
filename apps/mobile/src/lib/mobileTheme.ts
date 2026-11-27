@@ -472,12 +472,24 @@ export function getMobileThemeVariables(
   overrides: Partial<MobileThemeVariables> | null = null,
 ): MobileThemeVariables {
   const colors = getMobileThemeColors(themeId, appearance);
-  const baseVariables = createMobileThemeVariables(
+  const stock = themeId === DEFAULT_MOBILE_THEME_ID;
+  const themeVariables = createMobileThemeVariables(
     colors,
     appearance,
-    themeId === DEFAULT_MOBILE_THEME_ID ? colors.secondary : colors.muted,
+    stock ? colors.secondary : colors.muted,
     [colors.messageAction, colors.messageActionForeground],
   );
+  // The stock composer matches desktop's raised card and input edge, not the grouped-list fill.
+  const baseVariables = stock
+    ? {
+        ...themeVariables,
+        "--color-composer-surface": themeColorWithAlpha(
+          themeColorToNativeColor(colors.surfaceRaised),
+          appearance === "dark" ? 0.9 : 0.94,
+        ),
+        "--color-composer-border": themeColorToNativeColor(colors.input),
+      }
+    : themeVariables;
 
   return overrides ? ({ ...baseVariables, ...overrides } as MobileThemeVariables) : baseVariables;
 }

@@ -3784,7 +3784,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       data-chat-composer-controls="footer"
       data-chat-composer-footer-controls="true"
       className={cn(
-        "relative flex min-w-0 flex-1 items-center justify-end gap-0.5",
+        "relative flex min-w-0 items-center justify-end gap-0.5",
+        isMobileViewport ? "flex-1" : "grow basis-(--composer-natural-width)",
         dictationTakesFooter && "hidden",
       )}
     >

@@ -1,7 +1,12 @@
 import { measureRestingComposerControls } from "./restingComposerControlsMeasurement";
 import { observeResize } from "~/lib/observeResize";
-import { resolveRestingComposerControlsLayout } from "../composerFooterLayout";
+import {
+  resolveRestingComposerControlsLayout,
+  resolveRestingComposerControlsNaturalWidth,
+} from "../composerFooterLayout";
 import { useLayoutEffect, useRef, useState } from "react";
+
+export const NATURAL_WIDTH_PROPERTY = "--composer-natural-width";
 
 export function useRestingComposerControlsLayout(
   host: HTMLDivElement | null,
@@ -25,6 +30,13 @@ export function useRestingComposerControlsLayout(
 
     const measurement = measureRestingComposerControls(controls);
     if (!measurement) return;
+    if (useControlsAsHost) {
+      // A flex basis that ignores the current folding, so a row shares space by what each side needs.
+      controls.style.setProperty(
+        NATURAL_WIDTH_PROPERTY,
+        `${resolveRestingComposerControlsNaturalWidth(measurement)}px`,
+      );
+    }
     const style = getComputedStyle(currentHost);
     const hostWidth =
       currentHost.clientWidth -

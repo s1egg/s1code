@@ -326,7 +326,12 @@ interface MessagesTimelineProps {
   skills?: ReadonlyArray<ServerProviderSkill>;
   runs: ReadonlyArray<HandoffTimelineRun>;
   anchorMessageId: MessageId | null;
-  onAnchorReady: (messageId: MessageId, anchorIndex: number) => void;
+  /**
+   * The composer inset holds the anchored turn's end space, so the list drops its anchor (and
+   * the rows it keeps mounted) while the turn stays anchored and the end unfollowed.
+   */
+  anchorListRetired?: boolean;
+  onAnchorReady: (messageId: MessageId, anchorIndex: number, size: number) => void;
   onAnchorSizeChanged: (messageId: MessageId, size: number) => void;
   contentInsetEndAdjustment: number;
   onIsAtEndChange: (isAtEnd: boolean) => void;
@@ -428,6 +433,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   skills = EMPTY_TIMELINE_SKILLS,
   runs: runsProp,
   anchorMessageId,
+  anchorListRetired = false,
   onAnchorReady,
   onAnchorSizeChanged,
   contentInsetEndAdjustment: composerInsetEnd,
@@ -910,9 +916,9 @@ const ConversationTimeline = memo(function ConversationTimeline({
   const [minimapHitStrip, setMinimapHitStrip] = useState({ left: 0, width: 0 });
   const [minimapCurrentIndex, setMinimapCurrentIndex] = useState<number | null>(null);
   const [minimapAtEnd, setMinimapAtEnd] = useState(false);
-  const handleAnchorReady = (info: { anchorIndex: number | undefined }) => {
+  const handleAnchorReady = (info: { anchorIndex: number | undefined; size: number }) => {
     if (anchorMessageId !== null && info.anchorIndex !== undefined) {
-      onAnchorReady(anchorMessageId, info.anchorIndex);
+      onAnchorReady(anchorMessageId, info.anchorIndex, info.size);
     }
   };
   const handleAnchorSizeChanged = (size: number) => {
@@ -921,8 +927,10 @@ const ConversationTimeline = memo(function ConversationTimeline({
     }
   };
   const anchorIndex = resolveTimelineAnchorIndex(rows, anchorMessageId);
+  // The turn holds its place either way; only the list's end space and pinned rows retire.
+  const anchoredTurn = anchorIndex !== undefined;
   const anchoredEndSpace =
-    anchorIndex === undefined
+    anchorIndex === undefined || anchorListRetired
       ? undefined
       : {
           anchorIndex,
@@ -1053,7 +1061,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
 
   const handleScroll = () => {
     if (restoringThreadPosition || listRef.current?.getState?.().data !== rows) return;
-    const isAtEnd = rememberPosition(liveFollowEnabled && !anchoredEndSpace);
+    const isAtEnd = rememberPosition(liveFollowEnabled && !anchoredTurn);
     if (isAtEnd !== undefined && !citationPositioning) {
       onIsAtEndChange(isAtEnd);
     }
@@ -1274,7 +1282,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   const shouldPreserveReadingPosition = useStableCallback(
     () =>
       !liveFollowEnabled &&
-      !anchoredEndSpace &&
+      !anchoredTurn &&
       !findActive &&
       !citationPositioning &&
       !restoringThreadPosition,
@@ -1506,7 +1514,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
               maintainScrollAtEnd={
                 citationPositioning ||
                 (restoringThreadPosition && rememberedPosition?.atEnd === false) ||
-                anchoredEndSpace ||
+                anchoredTurn ||
                 !liveFollowEnabled ||
                 fullscreenAppRowId !== null
                   ? false

@@ -110,6 +110,11 @@ describe("searchSettings", () => {
   it("matches normalized title substrings", () => {
     expect(searchSettings("  WORD   WRAP  ", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
     expect(searchSettings("glass").map((item) => item.id)).toEqual(["setting-glass-opacity"]);
+    // Glass no longer tints the composer, so it is found by what it does tint.
+    expect(searchSettings("composer").map((item) => item.id)).not.toContain(
+      "setting-glass-opacity",
+    );
+    expect(searchSettings("popovers").map((item) => item.id)).toContain("setting-glass-opacity");
     expect(searchSettings("panel animations").map((item) => item.id)).toEqual(["panel-animations"]);
     expect(searchSettings("thè\u{1ab0}mes")[0]?.id).toBe("theme");
     const localeLowerCase = vi.spyOn(String.prototype, "toLocaleLowerCase").mockReturnValue("gıt");
