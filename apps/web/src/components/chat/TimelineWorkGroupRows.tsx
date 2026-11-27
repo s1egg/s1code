@@ -10,23 +10,26 @@ import { observeResize } from "~/lib/observeResize";
 import { T, useGT, useMessages } from "gt-react";
 import { memo, use, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
-import { workEntryDisplayIndicatesToolFailure } from "../../session-logic";
 import ChatMarkdown from "../ChatMarkdown";
 import { assetMediaActionsSource } from "./ChatMarkdownMedia";
 import {
   AlignLeftIcon,
   BrainIcon,
   GitBranchIcon,
+  GlobeIcon,
   HandIcon,
   MessageCircleQuestionIcon,
   Minimize2Icon,
+  SearchIcon,
+  SquarePenIcon,
+  TerminalIcon,
   UsersIcon,
-  XIcon,
+  WrenchIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { getVirtualizedScrollFadeClassName } from "../ui/scroll-area";
 import {
-  liveWorkEntryLabel,
   resolveWorkGroupScrollIndex,
   shouldFollowWorkGroupAppend,
   workEntryIsVisibleInGroup,
@@ -47,27 +50,15 @@ import {
   type TimelineRow,
 } from "./timelineRowContext";
 import { ProviderStartingIcon } from "./ProviderStartingIcon";
-import { ToolActivityIconView } from "./TimelineToolActivityIcon";
-import {
-  useThreadReadTarget,
-  threadReadLabel,
-  ThreadReadLabel,
-  SimpleWorkEntryRow,
-} from "./TimelineWorkEntryRow";
+import { SimpleWorkEntryRow } from "./TimelineWorkEntryRow";
 import {
   captionSourceLine,
   thoughtPreviewMarkdown,
-  workEntryIconName,
   workStepChip,
-  workStepIslandTarget,
   workStepParts,
 } from "./TimelineWorkEntryRow.logic";
-import {
-  readTurnFoldExpandIntent,
-  StepVerbLabel,
-  TurnIsland,
-  type TurnIslandLook,
-} from "./TimelineTrace";
+import { readTurnFoldExpandIntent, TurnIsland, type TurnIslandLook } from "./TimelineTrace";
+import { turnIslandSummary } from "./TimelineWorkGroupRows.logic";
 
 export const WorkGroupSection = memo(function WorkGroupSection({
   anchorKey,
@@ -395,24 +386,21 @@ function useIslandLook(live: TurnFoldLive | undefined, runId: RunId): TurnIsland
   const gt = useGT();
   const m = useMessages();
   const activity = use(TimelineRowActivityCtx);
-  const step = live?.activity === "step" ? (live.step ?? null) : null;
-  const threadTarget = useThreadReadTarget(step, ctx.activeThreadEnvironmentId);
   if (!live) return null;
-  const clockStartedAt = live.startedAt;
-  const plain = (
+  const look = (
     key: string,
     label: string,
-    orbIcon: ReactNode,
+    Icon: LucideIcon,
+    hold: TurnIslandLook["hold"] = "normal",
     tone: TurnIslandLook["tone"] = "live",
-    equalizer?: boolean,
   ): TurnIslandLook => ({
-    stepKey: key,
+    key,
+    hold,
     label,
-    ariaLabel: label,
-    orbIcon,
+    orbIcon: <Icon aria-hidden className="size-3 stroke-2" />,
     tone,
-    equalizer: equalizer ?? tone === "live",
-    clockStartedAt,
+    equalizer: tone === "live",
+    clockStartedAt: live.startedAt,
   });
 
   // Only the starting run's island says so, never an older one still finishing.
@@ -420,113 +408,85 @@ function useIslandLook(live: TurnFoldLive | undefined, runId: RunId): TurnIsland
     activity.providerStarting !== null &&
     (runId === activity.latestRunId || runId === "pending")
   ) {
-    return plain(
-      "starting",
-      activity.providerStartingLabel === null ? gt("Starting…") : m(activity.providerStartingLabel),
-      <ProviderStartingIcon
-        environmentId={ctx.activeThreadEnvironmentId ?? null}
-        instanceId={activity.providerStarting.instanceId}
-        driver={activity.providerStarting.driver}
-      />,
-      "neutral",
-      true,
-    );
+    return {
+      key: "starting",
+      hold: "immediate",
+      label:
+        activity.providerStartingLabel === null
+          ? gt("Starting…")
+          : m(activity.providerStartingLabel),
+      orbIcon: (
+        <ProviderStartingIcon
+          environmentId={ctx.activeThreadEnvironmentId ?? null}
+          instanceId={activity.providerStarting.instanceId}
+          driver={activity.providerStarting.driver}
+        />
+      ),
+      tone: "neutral",
+      equalizer: true,
+      clockStartedAt: live.startedAt,
+    };
   }
   if (activity.isPreparingWorktree) {
-    return plain(
-      "worktree",
-      gt("Setting up worktree…"),
-      <GitBranchIcon aria-hidden className="size-3 stroke-2" />,
-    );
+    return look("worktree", gt("Setting up worktree…"), GitBranchIcon, "immediate");
   }
   if (live.activity === "compacting" || activity.isCompacting) {
-    return plain(
-      "compacting",
-      gt("Compacting…"),
-      <Minimize2Icon aria-hidden className="size-3 stroke-2" />,
-    );
+    return look("compacting", gt("Compacting…"), Minimize2Icon, "immediate");
   }
-  if (live.label) {
-    return plain("subagents", live.label, <UsersIcon aria-hidden className="size-3 stroke-2" />);
-  }
+  if (live.label) return look("subagents", live.label, UsersIcon, "immediate");
   if (live.activity === "approval") {
-    return plain(
-      "approval",
-      gt("Waiting for approval"),
-      <HandIcon aria-hidden className="size-3 stroke-2" />,
-      "neutral",
-    );
+    return look("approval", gt("Waiting for approval"), HandIcon, "immediate", "neutral");
   }
   if (activity.awaitingInput) {
-    return plain(
+    return look(
       "input",
       gt("Waiting for your answer"),
-      <MessageCircleQuestionIcon aria-hidden className="size-3 stroke-2" />,
+      MessageCircleQuestionIcon,
+      "immediate",
       "neutral",
     );
   }
   if (live.activity === "writing") {
-    return plain(
+    return look(
       "writing",
       gt("Writing", { $context: "the agent is writing its answer" }),
-      <AlignLeftIcon aria-hidden className="size-3 stroke-2" />,
+      AlignLeftIcon,
     );
   }
-  if (step === null) {
-    return plain(
-      `thinking:${live.thoughtId ?? ""}`,
-      gt("Thinking"),
-      <BrainIcon aria-hidden className="size-3 stroke-2" />,
-    );
+  switch (live.activity === "tool" ? live.tool : undefined) {
+    case "explore":
+      return look(
+        "tool:explore",
+        gt("Exploring", { $context: "the agent is reading and searching files" }),
+        SearchIcon,
+      );
+    case "edit":
+      return look(
+        "tool:edit",
+        gt("Editing", { $context: "the agent is editing files" }),
+        SquarePenIcon,
+      );
+    case "run":
+      return look(
+        "tool:run",
+        gt("Running commands", { $context: "the agent is running shell commands" }),
+        TerminalIcon,
+      );
+    case "web":
+      return look(
+        "tool:web",
+        gt("Browsing", { $context: "the agent is searching or browsing the web" }),
+        GlobeIcon,
+      );
+    case "tools":
+      return look(
+        "tool:tools",
+        gt("Using tools", { $context: "the agent is calling tools" }),
+        WrenchIcon,
+      );
+    case undefined:
+      return look("thinking", gt("Thinking"), BrainIcon, "settle");
   }
-
-  const settled = step.toolLifecycleStatus === "stopped" || step.toolLifecycleStatus === "declined";
-  const failed = !settled && workEntryDisplayIndicatesToolFailure(step);
-  const running = step.toolLifecycleStatus === "inProgress";
-  const parts = workStepParts(step, ctx.workspaceRoot, m);
-  const plainLabel = liveWorkEntryLabel(step, ctx.workspaceRoot, running, m);
-  const threadLabel = threadReadLabel(plainLabel, step, threadTarget, m);
-  // Stopped and declined steps keep their verb and target; the tone says they ended early.
-  const showsVerb = threadLabel === null && parts.verb !== null;
-  const target = workStepIslandTarget(step, parts, ctx.workspaceRoot, m);
-  const labelText =
-    threadLabel?.text ??
-    (showsVerb && parts.verb !== null
-      ? gt("{verb} {target}", {
-          verb: parts.verb,
-          target,
-          $context:
-            "a tool step: a short verb such as Read or Run, then what it acted on, such as a file path or a command",
-        })
-      : plainLabel);
-  return {
-    stepKey: `${step.id}:${failed ? "failed" : running ? "live" : "done"}`,
-    label: threadLabel ? (
-      <ThreadReadLabel
-        label={threadLabel}
-        environmentId={ctx.activeThreadEnvironmentId}
-        linked={false}
-      />
-    ) : showsVerb && parts.verb !== null ? (
-      <StepVerbLabel verb={parts.verb} target={target} />
-    ) : (
-      plainLabel
-    ),
-    orbIcon: failed ? (
-      <XIcon aria-hidden strokeWidth={2.5} className="size-3" />
-    ) : (
-      <ToolActivityIconView
-        icon={step.toolIcon ?? step.toolSource?.icon}
-        fallbackName={workEntryIconName(step)}
-        className="block size-3 shrink-0 stroke-2"
-        muted={false}
-      />
-    ),
-    tone: failed ? "failed" : settled ? "neutral" : "live",
-    equalizer: !failed && !settled,
-    clockStartedAt,
-    ariaLabel: failed ? gt("{label}, tool call failed", { label: labelText }) : labelText,
-  };
 }
 
 /** A turn's island row: the live header of a running turn, then the summary its steps fold into. */
@@ -553,21 +513,12 @@ export function TurnIslandRow({
     workStepChip(entry, workStepParts(entry, ctx.workspaceRoot, m)),
   );
   const steps = row.stepCount;
-  const summary =
-    row.duration !== null && steps > 0
-      ? gt("{duration} · {count, plural, one {{count} step} other {{count} steps}}", {
-          duration: row.duration,
-          count: steps,
-          $context: "a finished turn: how long it took, then how many steps it took",
-        })
-      : row.duration !== null
-        ? row.duration
-        : steps > 0
-          ? gt("{count, plural, one {{count} step} other {{count} steps}}", { count: steps })
-          : gt("Worked");
+  const summary = turnIslandSummary(row.outcome, row.duration, m);
   const summaryName =
     row.duration === null
-      ? summary
+      ? steps > 0
+        ? gt("{count, plural, one {{count} step} other {{count} steps}}", { count: steps })
+        : gt("Worked")
       : row.outcome === "interrupted"
         ? gt(
             "You stopped after {duration}, {count, plural, one {{count} step} other {{count} steps}}",
@@ -599,9 +550,7 @@ export function TurnIslandRow({
       }
       expanded={row.expanded}
       onToggle={row.foldable || error ? onToggle : undefined}
-      ariaLabel={
-        row.live && look ? look.ariaLabel : error ? `${summaryName} · ${error}` : summaryName
-      }
+      ariaLabel={error ? `${summaryName} · ${error}` : summaryName}
       busy={busy}
       caption={
         row.live && captionLine ? (

@@ -38,9 +38,7 @@ describe("long active tool groups", () => {
       });
       const island = rows.find((row) => row.kind === "turn-fold");
       if (island?.kind !== "turn-fold") throw new Error("Expected the turn's island");
-      const step = island.live?.step;
-      expect(step?.id).toBe("work-999");
-      expect(step && liveWorkEntryLabel(step, undefined, true)).toContain("999");
+      expect(island.live).toMatchObject({ activity: "tool", tool: "run" });
       expect(island.live?.caption).toEqual({ id: "work-entry-998", text: "Thought 998" });
       expect(island.stepCount).toBe(1_000);
       // The film holds only the newest finished commands; older ones count into "+N".

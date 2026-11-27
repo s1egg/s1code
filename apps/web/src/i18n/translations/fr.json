@@ -4473,30 +4473,6 @@
   "03b4e66f5b485ff2": "Refusé",
   "cc418c86810e6182": "Arrêté",
   "d01789a385b4f08e": "Sortie {code}",
-  "f1ef232141b5dfee": {
-    "t": "span",
-    "i": 1,
-    "c": [
-      {
-        "t": "span",
-        "i": 2,
-        "c": {
-          "i": 3,
-          "k": "_gt_value_3",
-          "v": "v"
-        }
-      },
-      {
-        "t": "span",
-        "i": 4,
-        "c": {
-          "i": 5,
-          "k": "_gt_value_5",
-          "v": "v"
-        }
-      }
-    ]
-  },
   "87f63288c0f1ca07": "Texte collé",
   "c336d59042368fd6": "Fichier",
   "04dd955e428e1430": "Envoi de la pièce jointe",
@@ -4630,6 +4606,12 @@
   ],
   "91aadfc843c600de": "Vérifier le compte Google",
   "a2aaca7ff8310186": "Ouvrir la discussion",
+  "f6b1fd2b4edb8d69": "Arrêté",
+  "e83369adf921ba1a": "Arrêté {duration}",
+  "ddfad0ee02bf9db8": "Échec",
+  "0a077d1ff06c9455": "Échec {duration}",
+  "f7942286dc12566c": "Travail",
+  "aa58e14c45f51d3b": "Travail {duration}",
   "a3048aaa541b7744": "Activité",
   "4a3cbccb2beedeb0": "image",
   "36fb7b9046d2e288": "Appels d’outils",
@@ -4638,7 +4620,11 @@
   "0ba1f43e53ce79b7": "Configuration du worktree…",
   "cff84ea88171b008": "En attente de votre réponse",
   "386d6525ac8bf5f7": "Rédaction",
-  "9a3b68c5ebc0d19b": "{duration} · {count, plural, one {{count} étape} other {{count} étapes}}",
+  "5e3a20441ac1dc93": "Exploration",
+  "714cb4c83518cfcd": "Modification",
+  "cb4985d81a891960": "Exécution de commandes",
+  "c1070d83741c38c4": "Navigation",
+  "e91cddc2e0055183": "Utilisation d’outils",
   "43aeffb7e3aa5337": "{count, plural, one {{count} étape} other {{count} étapes}}",
   "ea45064fb0582c38": "A travaillé",
   "319bafc310a565f5": "Vous avez arrêté après {duration}, {count, plural, one {{count} étape} other {{count} étapes}}",

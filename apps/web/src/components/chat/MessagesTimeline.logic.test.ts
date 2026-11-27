@@ -38,7 +38,9 @@ import {
   type MessagesTimelineRow,
   workEntryDisplayLabel,
   workEntryReadOutput,
+  workEntryToolActivity,
 } from "./MessagesTimeline.logic";
+import { toolGroupAction } from "@s1tools/client-runtime/work-log/presentation";
 import { workEntryIconName } from "./TimelineWorkEntryRow.logic";
 
 type TurnFoldRow = Extract<MessagesTimelineRow, { kind: "turn-fold" }>;
@@ -214,12 +216,10 @@ describe("deriveMessagesTimelineRows", () => {
         turnDiffSummaries: [],
         supportsConversationRollback: false,
       });
-      // The task update folds into the island like any step, but never becomes its live step.
+      // The task update folds into the island like any step, but never sets its activity.
       expect(rows.some((row) => row.kind === "work")).toBe(false);
       expect(liveIslandOf(rows)?.live).toMatchObject(
-        placement === "alone"
-          ? { activity: "thinking" }
-          : { activity: "step", step: { id: "tool" } },
+        placement === "alone" ? { activity: "thinking" } : { activity: "tool", tool: "run" },
       );
     },
   );
@@ -282,10 +282,7 @@ describe("deriveMessagesTimelineRows", () => {
         turnDiffSummaries: [],
         supportsConversationRollback: false,
       });
-    expect(liveIslandOf(rows([first]))?.live).toMatchObject({
-      activity: "thinking",
-      thoughtId: "first-thought",
-    });
+    expect(liveIslandOf(rows([first]))?.live).toMatchObject({ activity: "thinking" });
     // A steer settles the island above it; a live one thinks right below it.
     const afterSteer = rows([first, steer]);
     expect(afterSteer.map((row) => row.id)).toEqual([
@@ -295,7 +292,6 @@ describe("deriveMessagesTimelineRows", () => {
     ]);
     expect(afterSteer[0]).not.toHaveProperty("live");
     expect(liveIslandOf(afterSteer)?.live).toMatchObject({ activity: "thinking" });
-    expect(liveIslandOf(afterSteer)?.live?.thoughtId).toBeUndefined();
     const opened = deriveMessagesTimelineRows({
       timelineEntries: [first, steer],
       runningRunId: runId,
@@ -315,8 +311,9 @@ describe("deriveMessagesTimelineRows", () => {
     ]) {
       const derived = rows(entries);
       expect(turnFoldsOf(derived).filter((row) => row.live)).toHaveLength(1);
-      const live = liveIslandOf(derived)?.live;
-      expect(live?.step?.id ?? live?.thoughtId).toBe(entries.at(-1)!.id);
+      expect(liveIslandOf(derived)?.live).toMatchObject(
+        entries.at(-1) === tool ? { activity: "tool", tool: "run" } : { activity: "thinking" },
+      );
     }
     expect(first.kind === "work" && first.entry.toolLifecycleStatus).toBe("inProgress");
   });
@@ -1411,10 +1408,7 @@ describe("deriveMessagesTimelineRows", () => {
       isWorking: true,
       activeTurnStartedAt: input.latestRun.startedAt,
     });
-    expect(liveIslandOf(pendingRows)?.live).toMatchObject({
-      activity: "step",
-      step: { id: "work-after-text-0" },
-    });
+    expect(liveIslandOf(pendingRows)?.live).toMatchObject({ activity: "tool", tool: "run" });
   });
 
   it("derives a sane duration for a steer-superseded turn with one instant commentary message", () => {
@@ -1857,9 +1851,10 @@ describe("deriveMessagesTimelineRows", () => {
           supportsConversationRollback: false,
         }),
       )?.live;
-    // The finished command stays the island's step; the plan only names a turn that did nothing else.
-    expect(live([plan, command])).toMatchObject({ activity: "step", step: { id: "command" } });
-    expect(live([plan])).toMatchObject({ activity: "step", step: { id: "plan" } });
+    // A plan update leaves the island where it was, even when it is the newest step.
+    expect(live([plan, command])).toMatchObject({ activity: "tool", tool: "run" });
+    expect(live([command, plan])).toMatchObject({ activity: "tool", tool: "run" });
+    expect(live([plan])).toMatchObject({ activity: "thinking" });
   });
 
   it("stacks back-to-back steers as one burst with a single steer label", () => {
@@ -2169,7 +2164,7 @@ describe("deriveMessagesTimelineRows", () => {
     });
     expect(liveIslandOf(rows)).toMatchObject({
       id: "turn-fold:turn-after-restart",
-      live: { activity: "step", step: { id: "new-work" }, startedAt: "2026-01-01T00:01:00Z" },
+      live: { activity: "tool", tool: "run", startedAt: "2026-01-01T00:01:00Z" },
     });
   });
 
@@ -2222,8 +2217,8 @@ describe("deriveMessagesTimelineRows", () => {
     });
 
     expect(liveIslandOf(rows)?.live).toMatchObject({
-      activity: "step",
-      step: { id: "running-command" },
+      activity: "tool",
+      tool: "run",
       caption: { id: "new-thought-entry", text: "Found the cause." },
     });
   });
@@ -2289,11 +2284,11 @@ describe("deriveMessagesTimelineRows", () => {
       supportsConversationRollback: false,
     });
 
-    // The running step heads the island even after later steps finished; those fill the film.
+    // The running step's kind heads the island even after later steps finished; those fill the film.
     expect(rows.map((row) => row.kind)).toEqual(["turn-fold"]);
     expect(rows[0]).toMatchObject({
       stepCount: 3,
-      live: { activity: "step", step: { id: "running-command" } },
+      live: { activity: "tool", tool: "run" },
       film: [{ id: "completed-edit" }, { id: "completed-command" }],
       filmHiddenCount: 0,
     });
@@ -2811,7 +2806,6 @@ describe("deriveMessagesTimelineRows", () => {
 
     // The island heads the run; the runless command never becomes its live step.
     expect(rows[0]).toMatchObject({ kind: "turn-fold", live: { activity: "thinking" } });
-    expect(liveIslandOf(rows)?.live?.step).toBeUndefined();
   });
 
   it("shows the latest of separated in-progress tool runs on the island", () => {
@@ -2877,7 +2871,7 @@ describe("deriveMessagesTimelineRows", () => {
     expect(rows.map((row) => row.kind)).toEqual(["turn-fold"]);
     expect(rows[0]).toMatchObject({
       stepCount: 2,
-      live: { activity: "step", step: { id: "second-running" } },
+      live: { activity: "tool", tool: "run" },
     });
   });
 
@@ -2925,7 +2919,6 @@ describe("deriveMessagesTimelineRows", () => {
       id: "turn-fold:pending",
       live: { activity: "thinking" },
     });
-    expect(liveIslandOf(rows)?.live?.step).toBeUndefined();
   });
 
   it.each([
@@ -2966,10 +2959,7 @@ describe("deriveMessagesTimelineRows", () => {
       });
 
       // A finished or failed step keeps the island until the next one starts.
-      expect(liveIslandOf(rows)?.live).toMatchObject({
-        activity: "step",
-        step: { id: "task-progress", toolLifecycleStatus },
-      });
+      expect(liveIslandOf(rows)?.live).toMatchObject({ activity: "tool", tool: "tools" });
       expect(active === true).toBe(toolLifecycleStatus === "inProgress");
     },
   );
@@ -3024,16 +3014,9 @@ describe("deriveMessagesTimelineRows", () => {
       expect(turnFoldsOf(rows).map((row) => row.id)).toEqual(["turn-fold:turn-1"]);
     }
     expect(liveIslandOf(initialRows)?.live).toMatchObject({ activity: "thinking" });
-    for (const [rows, status] of [
-      [runningRows, "inProgress"],
-      [completedRows, "completed"],
-      [failedRows, "failed"],
-      [declinedRows, "declined"],
-    ] as const) {
-      expect(liveIslandOf(rows)?.live).toMatchObject({
-        activity: "step",
-        step: { id: "latest-command", toolLifecycleStatus: status },
-      });
+    // A finished, failed or declined step keeps its kind; the film and rows show how it ended.
+    for (const rows of [runningRows, completedRows, failedRows, declinedRows]) {
+      expect(liveIslandOf(rows)?.live).toMatchObject({ activity: "tool", tool: "run" });
     }
     expect(deriveRows("failed", new Set([RunId.make("turn-1")])).slice(-2)).toMatchObject([
       { kind: "turn-fold", expanded: true },
@@ -5596,8 +5579,8 @@ describe("the turn island", () => {
       duration: null,
       film: [{ id: "read" }],
       live: {
-        activity: "step",
-        step: { id: "command" },
+        activity: "tool",
+        tool: "run",
         startedAt: time(0),
         caption: { id: "commentary", text: "commentary text" },
       },
@@ -5645,7 +5628,7 @@ describe("the turn island", () => {
     expect(frames.map((rows) => turnFoldsOf(rows)[0]?.live?.activity)).toEqual([
       "thinking",
       "thinking",
-      "step",
+      "tool",
       undefined,
     ]);
     expect(turnFoldsOf(frames[3]!)[0]).toMatchObject({ duration: "27s", stepCount: 3 });
@@ -5835,18 +5818,88 @@ describe("the turn island", () => {
     ).toBe(false);
   });
 
-  it("films only the steps before the one the island names", () => {
+  it("films every finished step, the latest included", () => {
     const live = deriveWith([prompt, read, command("completed")]);
     expect(live[1]).toMatchObject({
-      live: { activity: "step", step: { id: "command" } },
+      live: { activity: "tool", tool: "run" },
+      film: [{ id: "read" }, { id: "command" }],
+    });
+    // A running step joins the film once it finishes.
+    expect(deriveWith([prompt, read, command("inProgress")])[1]).toMatchObject({
+      live: { activity: "tool", tool: "run" },
       film: [{ id: "read" }],
     });
-    // The finish adds the last step's chip.
     const done = deriveRows(
       [prompt, read, command("completed"), message("answer", 8, "assistant")],
       "done",
     );
     expect(done[1]).toMatchObject({ film: [{ id: "read" }, { id: "command" }] });
+  });
+
+  it.each([
+    ["read", { requestKind: "file-read", changedFiles: ["src/a.ts"] }, "read", "explore"],
+    ["image view", { itemType: "dynamic_tool", viewedImagePath: "/repo/a.png" }, "read", "explore"],
+    [
+      "file search",
+      { itemType: "file_search", structuredPayload: { type: "file_search", pattern: "x" } },
+      "code-search",
+      "explore",
+    ],
+    ["edit", { itemType: "file_change", changedFiles: ["src/a.ts"] }, "edit", "edit"],
+    ["command", { itemType: "command_execution", command: "vp lint" }, "command", "run"],
+    ["web search", { itemType: "web_search" }, "search", "web"],
+    [
+      "preview browser",
+      { itemType: "dynamic_tool", label: "mcp__s1-code__preview_click" },
+      "browser",
+      "web",
+    ],
+    [
+      "MCP tool",
+      {
+        itemType: "dynamic_tool",
+        toolTitle: "get_issue",
+        structuredPayload: { type: "dynamic_tool", toolName: "mcp__linear__get_issue" },
+      },
+      "other",
+      "tools",
+    ],
+    ["thread", { itemType: "thread_created" }, "thread-create", "tools"],
+  ] as const)("classifies a %s step as %s", (_name, fields, action, activity) => {
+    const step = work("step", 3, fields as never);
+    if (step.kind !== "work") throw new Error("Expected a work entry");
+    expect(toolGroupAction(step.entry)).toBe(action);
+    expect(workEntryToolActivity(step.entry)).toBe(activity);
+  });
+
+  it("keeps the latest finished step's kind between tool calls until commentary", () => {
+    const thinkingAgain = work("thinking-again", 7, {
+      tone: "thinking",
+      itemType: "reasoning",
+      detail: "Next",
+      toolLifecycleStatus: "inProgress",
+    });
+    expect(liveIslandOf(deriveWith([prompt, read]))?.live).toMatchObject({
+      activity: "tool",
+      tool: "explore",
+    });
+    expect(liveIslandOf(deriveWith([prompt, read, thinkingAgain]))?.live).toMatchObject({
+      activity: "thinking",
+    });
+    // Commentary clears the kind; a plan update after it does not bring it back.
+    const plan = work("plan", 8, {
+      tone: "info",
+      itemType: "todo_list",
+      toolLifecycleStatus: "completed",
+      structuredPayload: {
+        type: "todo_list",
+        planId: "plan",
+        steps: [{ id: "a", text: "Read", status: "running" }],
+      } as never,
+    });
+    expect(liveIslandOf(deriveWith([prompt, read, commentary, plan]))?.live).toMatchObject({
+      activity: "thinking",
+    });
   });
 
   it("keeps saying Writing while the answer is the tail, streaming or not", () => {
@@ -5860,15 +5913,15 @@ describe("the turn island", () => {
     }
   });
 
-  it("never names an approval request as the island's step", () => {
+  it("never takes an approval request as the island's step", () => {
     const gated = deriveWith([
       prompt,
       command("inProgress"),
       approvalRequest("approval", "completed"),
     ]);
-    expect(liveIslandOf(gated)?.live).toMatchObject({ activity: "step", step: { id: "command" } });
+    expect(liveIslandOf(gated)?.live).toMatchObject({ activity: "tool", tool: "run" });
     const settled = deriveWith([prompt, read, approvalRequest("approval", "completed")]);
-    expect(liveIslandOf(settled)?.live).toMatchObject({ activity: "step", step: { id: "read" } });
+    expect(liveIslandOf(settled)?.live).toMatchObject({ activity: "tool", tool: "explore" });
   });
 
   const steerAt = (second: number): TimelineEntry => ({
@@ -5941,8 +5994,8 @@ describe("the turn island", () => {
     });
   });
 
-  // regression: a task list update counted as no step and never named the island
-  it("counts a plan update as a step", () => {
+  // regression: a task list update counted as no step
+  it("counts a plan update as a step without making it the island's activity", () => {
     const plan = work("plan", 2, {
       tone: "info",
       itemType: "todo_list",
@@ -5957,9 +6010,10 @@ describe("the turn island", () => {
         ],
       } as never,
     });
-    expect(liveIslandOf(deriveWith([prompt, plan]))?.live).toMatchObject({
-      activity: "step",
-      step: { id: "plan" },
+    expect(liveIslandOf(deriveWith([prompt, plan]))?.live).toMatchObject({ activity: "thinking" });
+    expect(liveIslandOf(deriveWith([prompt, read, plan]))?.live).toMatchObject({
+      activity: "tool",
+      tool: "explore",
     });
     expect(
       turnFoldsOf(deriveRows([prompt, plan, message("answer", 8, "assistant")], "done"))[0],
@@ -6001,9 +6055,76 @@ describe("the turn island", () => {
       activity: "writing",
     });
     expect(liveIslandOf(deriveWith([prompt, old, replacement]))?.live).toMatchObject({
-      activity: "step",
-      step: { id: "read" },
+      activity: "tool",
+      tool: "explore",
     });
+    // Before the replacement emits anything, the abandoned command is not the latest step either.
+    const finishedOld = { ...command("completed"), attempt: attempt("old", "superseded") };
+    expect(liveIslandOf(deriveWith([prompt, finishedOld]))?.live).toMatchObject({
+      activity: "thinking",
+    });
+  });
+
+  // regression: a thought with no text yet was skipped, so the previous tool stayed on the island
+  it("shows Thinking for a running thought with no text yet", () => {
+    const silent = work("silent", 7, {
+      tone: "thinking",
+      itemType: "reasoning",
+      detail: "",
+      toolLifecycleStatus: "inProgress",
+    });
+    expect(liveIslandOf(deriveWith([prompt, command("completed"), silent]))?.live).toMatchObject({
+      activity: "thinking",
+    });
+  });
+
+  // regression: Claude's plan tool calls, recorded beside the plan they rewrite, showed as "Using tools"
+  it("keeps Claude's plan tool calls from taking over the island", () => {
+    const ref = (driver: string, nativeId: string) => ({ driver, nativeId, strength: "strong" });
+    const edit = work("edit", 3, {
+      itemType: "file_change",
+      changedFiles: ["src/a.ts"],
+      toolLifecycleStatus: "completed",
+    });
+    // The task tools rewrite one list per turn, under an id that is not the tool call's.
+    const plan = work("plan", 4, {
+      tone: "info",
+      itemType: "todo_list",
+      toolLifecycleStatus: "inProgress",
+      structuredPayload: {
+        type: "todo_list",
+        steps: [
+          { step: "Edit", status: "completed" },
+          { step: "Test", status: "inProgress" },
+        ],
+      } as never,
+      projectedItem: {
+        item: { type: "todo_list", nativeItemRef: ref("claudeAgent", "claude-tasks:turn-1") },
+      } as never,
+    });
+    const tool = (toolName: string, status: "inProgress" | "completed", driver = "claudeAgent") =>
+      work(`tool-${toolName}`, 5, {
+        itemType: "dynamic_tool",
+        toolLifecycleStatus: status,
+        structuredPayload: { type: "dynamic_tool", toolName, input: {} } as never,
+        projectedItem: {
+          item: { type: "dynamic_tool", nativeItemRef: ref(driver, `toolu_${toolName}`) },
+        } as never,
+      });
+    for (const toolName of ["TodoWrite", "TaskCreate", "TaskUpdate", "TaskList"]) {
+      for (const status of ["inProgress", "completed"] as const) {
+        expect(
+          liveIslandOf(deriveWith([prompt, edit, plan, tool(toolName, status)]))?.live,
+        ).toMatchObject({ activity: "tool", tool: "edit" });
+      }
+    }
+    // Any other tool still names its kind, as does another provider's tool of the same name.
+    for (const other of [tool("lookup", "inProgress"), tool("TaskUpdate", "inProgress", "codex")]) {
+      expect(liveIslandOf(deriveWith([prompt, edit, plan, other]))?.live).toMatchObject({
+        activity: "tool",
+        tool: "tools",
+      });
+    }
   });
 
   // regression: stopping promoted a message the provider labelled commentary to the answer

@@ -4472,30 +4472,6 @@
   "03b4e66f5b485ff2": "Rechazado",
   "cc418c86810e6182": "Detenido",
   "d01789a385b4f08e": "Salida {code}",
-  "f1ef232141b5dfee": {
-    "t": "span",
-    "i": 1,
-    "c": [
-      {
-        "t": "span",
-        "i": 2,
-        "c": {
-          "i": 3,
-          "k": "_gt_value_3",
-          "v": "v"
-        }
-      },
-      {
-        "t": "span",
-        "i": 4,
-        "c": {
-          "i": 5,
-          "k": "_gt_value_5",
-          "v": "v"
-        }
-      }
-    ]
-  },
   "87f63288c0f1ca07": "Texto pegado",
   "c336d59042368fd6": "Archivo",
   "04dd955e428e1430": "Enviando adjunto",
@@ -4629,6 +4605,12 @@
   ],
   "91aadfc843c600de": "Verificar cuenta de Google",
   "a2aaca7ff8310186": "Abrir chat",
+  "f6b1fd2b4edb8d69": "Detenido",
+  "e83369adf921ba1a": "Detenido {duration}",
+  "ddfad0ee02bf9db8": "Falló",
+  "0a077d1ff06c9455": "Falló {duration}",
+  "f7942286dc12566c": "Trabajó",
+  "aa58e14c45f51d3b": "Trabajó {duration}",
   "a3048aaa541b7744": "Actividad",
   "4a3cbccb2beedeb0": "imagen",
   "36fb7b9046d2e288": "Llamadas a herramientas",
@@ -4637,7 +4619,11 @@
   "0ba1f43e53ce79b7": "Configurando el worktree…",
   "cff84ea88171b008": "Esperando tu respuesta",
   "386d6525ac8bf5f7": "Escribiendo",
-  "9a3b68c5ebc0d19b": "{duration} · {count, plural, one {{count} paso} other {{count} pasos}}",
+  "5e3a20441ac1dc93": "Explorando",
+  "714cb4c83518cfcd": "Editando",
+  "cb4985d81a891960": "Ejecutando comandos",
+  "c1070d83741c38c4": "Navegando",
+  "e91cddc2e0055183": "Usando herramientas",
   "43aeffb7e3aa5337": "{count, plural, one {{count} paso} other {{count} pasos}}",
   "ea45064fb0582c38": "Trabajó",
   "319bafc310a565f5": "Lo detuviste tras {duration}, {count, plural, one {{count} paso} other {{count} pasos}}",

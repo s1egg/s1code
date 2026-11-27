@@ -1,9 +1,17 @@
 import { ChevronDownIcon } from "lucide-react";
-import { T, useGT, useMessages, Var } from "gt-react";
+import { useGT, useMessages } from "gt-react";
 import { toServerClock } from "@s1tools/client-runtime/clock";
 import { formatDuration } from "@s1tools/shared/orchestrationTimingCopy";
 import type { RunId } from "@s1tools/contracts";
-import { use, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  use,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { cn } from "~/lib/utils";
 import { tickTextContent } from "~/lib/tickTextContent";
 import { observeVisibleAnimation } from "~/lib/visibleAnimation";
@@ -11,7 +19,15 @@ import { formatCompactDiffCount } from "./DiffStatLabel";
 import { TimelineRowCtx } from "./timelineRowContext";
 import { failedToolIconClassName, ToolActivityIconView } from "./TimelineToolActivityIcon";
 import { type WorkStepChip, type WorkStepResult } from "./TimelineWorkEntryRow.logic";
-import { formatTurnClock, formatWorkingTimerNow } from "./TimelineWorkGroupRows.logic";
+import {
+  formatTurnClock,
+  formatWorkingTimerNow,
+  advanceIslandHold,
+  MIN_SHOW_MS,
+  showIslandLook,
+  THINK_SETTLE_MS,
+  type IslandHold,
+} from "./TimelineWorkGroupRows.logic";
 
 const SPRING = "cubic-bezier(.3,1.35,.5,1)";
 const EXPAND_STAGGER_WINDOW_MS = 400;
@@ -88,15 +104,15 @@ function outOfView(element: HTMLElement) {
 
 function sameLook(a: TurnIslandLook | null, b: TurnIslandLook | null) {
   return (
-    a?.stepKey === b?.stepKey &&
-    a?.ariaLabel === b?.ariaLabel &&
+    a?.key === b?.key &&
+    a?.label === b?.label &&
     a?.tone === b?.tone &&
     a?.equalizer === b?.equalizer &&
     a?.clockStartedAt === b?.clockStartedAt
   );
 }
 
-type TraceOrbTone = "live" | "failed" | "neutral" | "quiet" | "quiet-failed";
+type TraceOrbTone = "live" | "neutral" | "quiet" | "quiet-failed";
 
 function TraceOrb({ tone, children }: { tone: TraceOrbTone; children: ReactNode }) {
   return (
@@ -106,7 +122,6 @@ function TraceOrb({ tone, children }: { tone: TraceOrbTone; children: ReactNode 
         "relative grid shrink-0 place-items-center rounded-full",
         tone === "quiet" || tone === "quiet-failed" ? "size-4.5" : "size-5",
         tone === "live" && "bg-linear-140 from-primary/75 to-primary/50 text-primary-foreground",
-        tone === "failed" && "bg-tool-error-icon/15 text-tool-error-icon/80",
         (tone === "neutral" || tone === "quiet") && "bg-muted text-muted-foreground",
         tone === "quiet-failed" && "bg-tool-error-icon/12 text-tool-error-icon/70",
       )}
@@ -258,21 +273,6 @@ function TurnClock({ startedAt, frozen }: { startedAt: string; frozen: boolean }
   );
 }
 
-export function StepVerbLabel({ verb, target }: { verb: string; target: ReactNode }) {
-  return (
-    <T context="a tool step: a short verb such as Read or Run, then what it acted on, such as a file path or a command">
-      <span className="flex min-w-0 max-w-full items-baseline gap-1">
-        <span className="shrink-0 text-muted-foreground">
-          <Var>{verb}</Var>
-        </span>
-        <span className="min-w-0 truncate font-medium text-foreground">
-          <Var>{target}</Var>
-        </span>
-      </span>
-    </T>
-  );
-}
-
 export function StepResultLabel({ result }: { result: WorkStepResult }) {
   const gt = useGT();
   const m = useMessages();
@@ -334,14 +334,61 @@ export function StepResultLabel({ result }: { result: WorkStepResult }) {
 
 /** What the island shows while its turn runs. */
 export interface TurnIslandLook {
-  /** Changes whenever the shown step changes, which replays the island's entrance. */
-  readonly stepKey: string;
-  readonly label: ReactNode;
-  readonly ariaLabel: string;
+  /** The activity state, such as "tool:explore" or "thinking"; a new one replays the entrance. */
+  readonly key: string;
+  /** How long the shown state holds before this one replaces it. */
+  readonly hold: IslandHold;
+  readonly label: string;
   readonly orbIcon: ReactNode;
-  readonly tone: "live" | "failed" | "neutral";
+  readonly tone: "live" | "neutral";
   readonly equalizer: boolean;
   readonly clockStartedAt: string | null;
+}
+
+/**
+ * Holds each shown state long enough to read, so quick thoughts between tool calls do not flip the
+ * label. Fields of the shown state, such as a subagent count, update in place.
+ */
+function useHeldIslandLook(look: TurnIslandLook | null, live: boolean): TurnIslandLook | null {
+  const [hold, setHold] = useState(() => (live && look ? showIslandLook(look) : null));
+  if (live && look) {
+    const next = advanceIslandHold(hold, look, sameLook);
+    if (next !== hold) setHold(next);
+  } else if (hold !== null) {
+    // A finished turn drops its pending switch and timers; going live again starts a fresh hold.
+    setHold(null);
+  }
+  const shownKey = hold?.shown.key ?? null;
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- times the shown state's minimum hold
+  useEffect(() => {
+    if (shownKey === null) return;
+    const timer = setTimeout(
+      () =>
+        setHold((current) =>
+          current?.shown.key === shownKey ? { ...current, minShown: true } : current,
+        ),
+      MIN_SHOW_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [shownKey]);
+  const settlingKey =
+    hold && hold.wanted.hold === "settle" && hold.wanted.key !== hold.shown.key
+      ? hold.wanted.key
+      : null;
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- times how long Thinking has been wanted before it may show
+  useEffect(() => {
+    if (settlingKey === null) return;
+    const timer = setTimeout(
+      () =>
+        setHold((current) =>
+          current?.wanted.key === settlingKey ? { ...current, settled: true } : current,
+        ),
+      THINK_SETTLE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [settlingKey]);
+  if (!hold || !look) return look;
+  return look.key === hold.shown.key ? look : hold.shown;
 }
 
 type IslandPhase = "live" | "finishing" | "absorbing" | "settled" | "done";
@@ -375,6 +422,7 @@ export function TurnIsland({
   expanded: boolean;
   /** Unset while the fold hides nothing. */
   onToggle: (() => void) | undefined;
+  /** The finished island's accessible name; a running one is named by its shown state. */
   ariaLabel: string;
   busy?: boolean | undefined;
   caption: ReactNode;
@@ -391,25 +439,28 @@ export function TurnIsland({
     // Each finish owns its beats; one that skips them must not re-arm an earlier finish's.
     setFinishRun(animates ? finishRun + 1 : 0);
   }
-  // The finish keeps the look the island had when its turn ended; nothing after relabels it.
-  const [lastLiveLook, setLastLiveLook] = useState(look);
-  if (live && look && !sameLook(look, lastLiveLook)) setLastLiveLook(look);
-  const shownLook = live ? look : lastLiveLook;
-  const [step, setStep] = useState({ key: look?.stepKey ?? "", changed: false });
-  if (live && look && step.key !== look.stepKey) setStep({ key: look.stepKey, changed: true });
+  const heldLook = useHeldIslandLook(look, live);
+  // The finish keeps the look the island showed when its turn ended; nothing after relabels it.
+  const [lastLiveLook, setLastLiveLook] = useState(heldLook);
+  if (live && heldLook && !sameLook(heldLook, lastLiveLook)) setLastLiveLook(heldLook);
+  const shownLook = live ? heldLook : lastLiveLook;
+  const [entrance, setEntrance] = useState({ key: heldLook?.key ?? "", changed: false });
+  if (live && heldLook && entrance.key !== heldLook.key) {
+    setEntrance({ key: heldLook.key, changed: true });
+  }
   const [initialChipIds] = useState(() => new Set(chips.map((chip) => chip.id)));
   const pillRef = useRef<HTMLSpanElement>(null);
   const morphRef = useRef({ key: "", width: 0 });
   const settleFromRef = useRef<{ width: number; height: number } | null>(null);
 
-  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- morphs the pill between the measured widths of consecutive steps
+  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- morphs the pill between the measured widths of consecutive states
   useLayoutEffect(() => {
     const pill = pillRef.current;
-    if (!pill || !live || morphRef.current.key === step.key) return;
+    if (!pill || !live || morphRef.current.key === entrance.key) return;
     const previous = morphRef.current.width;
-    morphRef.current = { key: step.key, width: pill.offsetWidth };
+    morphRef.current = { key: entrance.key, width: pill.offsetWidth };
     if (previous > 0) morphSize(pill, { width: previous });
-  }, [live, step.key]);
+  }, [live, entrance.key]);
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- chains the finishing beats on timers, which a throttled tab cannot strand the way animationend can
   useLayoutEffect(() => {
     if (finishRun === 0 || live) return;
@@ -449,7 +500,7 @@ export function TurnIsland({
 
   const showsLive = phase === "live" || phase === "finishing" || phase === "absorbing";
   const settling = phase === "settled";
-  const animateStep = step.changed && phase === "live";
+  const animateEntrance = entrance.changed && phase === "live";
   const showsFilm = showsLive && (chips.length > 0 || hiddenChipCount > 0);
   const absorbing = phase === "absorbing";
   const filmOffset = hiddenChipCount > 0 ? 1 : 0;
@@ -479,13 +530,16 @@ export function TurnIsland({
             {showsLive && shownLook ? (
               <>
                 <TraceOrb tone={shownLook.tone}>
-                  <span key={step.key} className={cn("flex", animateStep && "trace-orb-pop")}>
+                  <span
+                    key={entrance.key}
+                    className={cn("flex", animateEntrance && "trace-orb-pop")}
+                  >
                     {shownLook.orbIcon}
                   </span>
                 </TraceOrb>
                 <span
-                  key={step.key}
-                  className={cn("min-w-0 truncate", animateStep && "trace-label-in")}
+                  key={entrance.key}
+                  className={cn("min-w-0 truncate", animateEntrance && "trace-label-in")}
                 >
                   {shownLook.label}
                 </span>
@@ -493,9 +547,9 @@ export function TurnIsland({
                 {shownLook.clockStartedAt ? (
                   <TurnClock startedAt={shownLook.clockStartedAt} frozen={phase !== "live"} />
                 ) : null}
-                {animateStep ? (
+                {animateEntrance ? (
                   <span
-                    key={`sheen:${step.key}`}
+                    key={`sheen:${entrance.key}`}
                     aria-hidden
                     className="trace-sheen pointer-events-none absolute inset-0"
                   />
@@ -555,14 +609,14 @@ export function TurnIsland({
             <button
               type="button"
               aria-expanded={expanded}
-              aria-label={ariaLabel}
+              aria-label={live && shownLook ? shownLook.label : ariaLabel}
               aria-busy={busy}
               data-scroll-anchor-ignore
               onClick={onToggle}
               className={cn("absolute inset-0 cursor-pointer", islandFocusClassName)}
             />
           ) : (
-            <span className="sr-only">{ariaLabel}</span>
+            <span className="sr-only">{live && shownLook ? shownLook.label : ariaLabel}</span>
           )}
         </div>
         {trailing}

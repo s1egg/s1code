@@ -94,7 +94,7 @@ import {
   workStepParts,
 } from "./TimelineWorkEntryRow.logic";
 
-export function useThreadReadTarget(entry: TimelineWorkEntry | null, environmentId: EnvironmentId) {
+function useThreadReadTarget(entry: TimelineWorkEntry | null, environmentId: EnvironmentId) {
   const rawThreadId = entry === null ? null : threadReadTargetId(entry);
   const threadId = rawThreadId === null ? null : ThreadId.make(rawThreadId);
   const shell = useThreadShell(threadId ? scopeThreadRef(environmentId, threadId) : null);
@@ -127,7 +127,7 @@ function threadReadStatus(
   return null;
 }
 
-export function threadReadLabel(
+function threadReadLabel(
   label: string,
   entry: TimelineWorkEntry,
   target: ReturnType<typeof useThreadReadTarget>,
@@ -147,7 +147,7 @@ export function threadReadLabel(
   };
 }
 
-export function ThreadReadLabel({
+function ThreadReadLabel({
   label,
   environmentId,
   linked,

@@ -517,15 +517,33 @@ export interface TurnFoldPosition {
   readonly index: number;
 }
 
+/** The kind of tool work a running island names, rather than the step itself. */
+export type TurnToolActivity = "explore" | "edit" | "run" | "web" | "tools";
+
+export function workEntryToolActivity(entry: WorkLogEntry): TurnToolActivity {
+  switch (toolGroupAction(entry)) {
+    case "read":
+    case "code-search":
+      return "explore";
+    case "edit":
+      return "edit";
+    case "command":
+      return "run";
+    case "search":
+    case "browser":
+      return "web";
+    default:
+      return "tools";
+  }
+}
+
 /** What a running turn's island shows. */
 export interface TurnFoldLive {
   /** When the turn started; the island's clock counts from here. */
   readonly startedAt: string | null;
-  readonly activity: "step" | "thinking" | "writing" | "approval" | "compacting";
-  /** The tool step the island shows while `activity` is "step". */
-  readonly step?: WorkLogEntry;
-  /** The thought behind "Thinking", so each new one replays the island's entrance. */
-  readonly thoughtId?: string;
+  readonly activity: "tool" | "thinking" | "writing" | "approval" | "compacting";
+  /** The kind of tool work while `activity` is "tool". */
+  readonly tool?: TurnToolActivity;
   /** Replaces "Thinking" while the run waits on subagents. */
   readonly label?: string;
   /** The latest folded thought or commentary, while no answer shows below. */
@@ -1676,6 +1694,24 @@ function workEntryIsIslandStep(entry: WorkLogEntry): boolean {
   );
 }
 
+// Claude records each of these beside the plan it rewrites, as an ordinary tool call.
+const CLAUDE_PLAN_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "TodoWrite",
+  "TaskCreate",
+  "TaskUpdate",
+  "TaskList",
+]);
+
+function workEntryUpdatesPlan(entry: WorkLogEntry): boolean {
+  const item = entry.structuredPayload;
+  return (
+    item?.type === "todo_list" ||
+    (item?.type === "dynamic_tool" &&
+      entry.projectedItem?.item.nativeItemRef?.driver === "claudeAgent" &&
+      CLAUDE_PLAN_TOOL_NAMES.has(item.toolName ?? ""))
+  );
+}
+
 /** A finished step the agent took itself, as the island's film shows it. */
 function workEntryIsFilmStep(entry: WorkLogEntry): boolean {
   return (
@@ -1939,21 +1975,19 @@ export function deriveMessagesTimelineRows(
     for (const entry of folded) {
       if (entry.kind === "message" && entry.message.role === "assistant") latestWork = undefined;
       if (entry.kind !== "work") continue;
-      const work = workOf(entry);
-      if (!workEntryIsVisibleInGroup(work, true)) continue;
-      // A request gates the tool call that asked for it; the call is the step.
-      if (workEntryIsRequest(work)) continue;
-      latestWork = work;
       // A superseded attempt's work is over even when it never said so.
       if (entry.attempt?.status === "superseded") continue;
+      const work = workOf(entry);
+      // A thought with no text yet still means the agent is thinking.
+      if (work.itemType !== "reasoning" && !workEntryIsVisibleInGroup(work, true)) continue;
+      // A request gates the tool call that asked for it; the call is the step.
+      if (workEntryIsRequest(work)) continue;
+      // A plan stays in progress while any task is open; it never takes over the island.
+      if (workEntryUpdatesPlan(work)) continue;
+      latestWork = work;
       if (work.itemType === "reasoning") {
         if (work.toolLifecycleStatus === "inProgress") runningThought = work;
-      } else if (
-        workEntryIsIslandStep(work) &&
-        workEntryIsActiveTurnActivity(work) &&
-        // A plan stays in progress while any task is open; it must not take over between tool calls.
-        work.structuredPayload?.type !== "todo_list"
-      ) {
+      } else if (workEntryIsIslandStep(work) && workEntryIsActiveTurnActivity(work)) {
         runningTool = work;
       }
     }
@@ -1990,14 +2024,16 @@ export function deriveMessagesTimelineRows(
       return { ...base, activity: "thinking", label: waitingOnSubagentsLabel(waitingOn, resolve) };
     }
     if (approvalPending) return { ...base, activity: "approval" };
-    if (runningTool) return { ...base, activity: "step", step: runningTool };
-    if (runningThought) return { ...base, activity: "thinking", thoughtId: runningThought.id };
+    if (runningTool) {
+      return { ...base, activity: "tool", tool: workEntryToolActivity(runningTool) };
+    }
+    if (runningThought) return { ...base, activity: "thinking" };
     // Writing until newer work starts, whether or not the message still streams.
     if (answer?.kind === "message" && !hiddenWorkFollows(answer)) {
       return { ...base, activity: "writing" };
     }
     if (latestWork && latestWork.itemType !== "reasoning" && workEntryIsIslandStep(latestWork)) {
-      return { ...base, activity: "step", step: latestWork };
+      return { ...base, activity: "tool", tool: workEntryToolActivity(latestWork) };
     }
     return { ...base, activity: "thinking" };
   };
@@ -2107,8 +2143,7 @@ export function deriveMessagesTimelineRows(
           stepCount += 1;
         }
       }
-      // The island names its current step, so the film shows only the ones before it.
-      if (workEntryIsFilmStep(work) && work.id !== live?.step?.id) filmSteps.push(work);
+      if (workEntryIsFilmStep(work)) filmSteps.push(work);
     }
     const film = filmSteps.slice(-FILM_STEP_LIMIT);
     return {
@@ -2845,11 +2880,10 @@ function sameTurnFoldLive(a: TurnFoldLive | undefined, b: TurnFoldLive | undefin
   return (
     a.startedAt === b.startedAt &&
     a.activity === b.activity &&
-    a.thoughtId === b.thoughtId &&
+    a.tool === b.tool &&
     a.label === b.label &&
     a.caption?.id === b.caption?.id &&
-    a.caption?.text === b.caption?.text &&
-    Equal.equals(a.step, b.step)
+    a.caption?.text === b.caption?.text
   );
 }
 

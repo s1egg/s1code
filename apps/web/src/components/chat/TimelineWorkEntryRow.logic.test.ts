@@ -5,7 +5,6 @@ import {
   captionSourceLine,
   workEntryIconName,
   workStepChip,
-  workStepIslandTarget,
   workStepParts,
 } from "./TimelineWorkEntryRow.logic";
 
@@ -263,30 +262,6 @@ describe("workStepChip", () => {
   });
 });
 
-describe("workStepIslandTarget", () => {
-  it("names one file, counts several, and keeps other targets", () => {
-    const read = (changedFiles: string[]) =>
-      entry({
-        itemType: "dynamic_tool",
-        requestKind: "file-read",
-        changedFiles,
-        toolLifecycleStatus: "completed",
-      });
-    const one = read(["/repo/src/lib/truncate.ts"]);
-    expect(workStepIslandTarget(one, workStepParts(one, "/repo"), "/repo")).toBe("truncate.ts");
-    const many = read(["/repo/a.ts", "/repo/b.ts", "/repo/c.ts", "/repo/d.ts"]);
-    expect(workStepIslandTarget(many, workStepParts(many, "/repo"), "/repo")).toBe("4 files");
-    const command = entry({
-      itemType: "command_execution",
-      command: "vp test run",
-      toolLifecycleStatus: "inProgress",
-    });
-    expect(workStepIslandTarget(command, workStepParts(command, undefined), undefined)).toBe(
-      "vp test run",
-    );
-  });
-});
-
 describe("captionSourceLine", () => {
   // regression: the caption showed the first sentence, not what the agent said latest
   it("keeps the last non-empty line, whole", () => {
@@ -381,26 +356,12 @@ describe("plan steps", () => {
 });
 
 describe("URL targets", () => {
-  it("shortens a URL to its host and last segment on the island", () => {
-    const fetch = (url: string) =>
-      entry({
-        itemType: "web_search",
-        toolLifecycleStatus: "completed",
-        structuredPayload: item("web_search", { patterns: [url] }),
-      });
-    const target = (url: string) => {
-      const step = fetch(url);
-      return workStepIslandTarget(step, workStepParts(step, undefined), undefined);
-    };
-    expect(
-      target(
-        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter",
-      ),
-    ).toBe("developer.mozilla.org/…/Segmenter");
-    expect(target("https://example.com/docs")).toBe("example.com/docs");
-    expect(target("https://example.com/")).toBe("example.com");
-    expect(workStepParts(fetch("https://example.com/a/b"), undefined).target).toBe(
-      "https://example.com/a/b",
-    );
+  it("keeps a fetch's whole URL as its target", () => {
+    const fetch = entry({
+      itemType: "web_search",
+      toolLifecycleStatus: "completed",
+      structuredPayload: item("web_search", { patterns: ["https://example.com/a/b"] }),
+    });
+    expect(workStepParts(fetch, undefined).target).toBe("https://example.com/a/b");
   });
 });

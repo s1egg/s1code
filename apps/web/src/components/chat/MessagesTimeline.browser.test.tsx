@@ -2664,7 +2664,7 @@ describe("MessagesTimeline tool trace", () => {
     document.querySelector<HTMLElement>(`${islandRowSelector} button[aria-expanded]`);
   const chips = () => document.querySelectorAll(`${islandRowSelector} [data-trace-chip]`);
 
-  it("heads a running turn with the current step and its finished steps as chips", async () => {
+  it("heads a running turn with its activity and its finished steps as chips", async () => {
     setup();
     await using screen = await renderTimeline(
       [
@@ -2680,13 +2680,13 @@ describe("MessagesTimeline tool trace", () => {
       row.getAttribute("data-timeline-row-kind"),
     );
     expect(kinds).toEqual(["message", "turn-fold"]);
-    const toggle = screen.button("Run vp test run");
+    const toggle = screen.button("Running commands");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(island()?.getAttribute("data-island-state")).toBe("live");
-    expect(island()?.textContent).toMatch(/^Runvp test run[\d:]+$/);
+    expect(island()?.textContent).toMatch(/^Running commands[\d:]+$/);
     expect([...chips()].map((chip) => chip.textContent)).toEqual(["✓", "+2−1"]);
     await click(toggle);
-    expect(screen.button("Run vp test run").getAttribute("aria-expanded")).toBe("true");
+    expect(screen.button("Running commands").getAttribute("aria-expanded")).toBe("true");
     await vi.waitFor(() =>
       expect(document.querySelector('[data-work-entry-id="test"]')?.textContent).toContain(
         "vp test run",
@@ -2700,12 +2700,13 @@ describe("MessagesTimeline tool trace", () => {
 
   it("keeps one island node from thinking through its steps to its settled summary", async () => {
     setup();
+    using _timers = fakeTimers();
     const props = baseProps();
     const view = (entries: Entry[], phase: Partial<TimelineProps>) => (
       <MessagesTimeline {...props} {...phase} timelineEntries={entries} />
     );
     await using screen = await renderElement(view([prompt], workingProps));
-    await vi.waitFor(() => expect(island()?.textContent).toContain("Thinking"));
+    expect(island()?.textContent).toContain("Thinking");
     const node = island();
     await screen.rerender(
       view(
@@ -2717,7 +2718,10 @@ describe("MessagesTimeline tool trace", () => {
         workingProps,
       ),
     );
-    await vi.waitFor(() => expect(island()?.textContent).toContain("vp lint"));
+    // Thinking holds for its minimum time before the command replaces it.
+    expect(island()?.textContent).toContain("Thinking");
+    await act(() => vi.advanceTimersByTime(1_000));
+    expect(island()?.textContent).toContain("Running commands");
     expect(island()).toBe(node);
     const finished = [
       prompt,
@@ -2728,21 +2732,47 @@ describe("MessagesTimeline tool trace", () => {
     ];
     await screen.rerender(view(finished, endedProps()));
     // It absorbs its film, then settles in place: same node, its summary, and a drawn check.
-    await vi.waitFor(() => expect(document.querySelector(".trace-chip-absorb")).not.toBeNull(), {
-      timeout: 2_000,
-    });
-    await vi.waitFor(() => expect(island()?.getAttribute("data-island-state")).toBe("done"), {
-      timeout: 3_000,
-    });
+    await act(() => vi.advanceTimersByTime(550));
+    expect(document.querySelector(".trace-chip-absorb")).not.toBeNull();
+    expect(island()?.getAttribute("data-island-state")).toBe("live");
+    await act(() => vi.advanceTimersByTime(700));
+    expect(island()?.getAttribute("data-island-state")).toBe("done");
     expect(island()).toBe(node);
     expect(island()?.classList.contains("trace-pulse")).toBe(true);
     expect(island()?.querySelector('path[pathLength="1"]')?.parentElement?.classList).toContain(
       "trace-check-draw",
     );
-    expect(island()?.textContent).toBe("27s · 3 steps");
+    expect(island()?.textContent).toBe("Work 27s");
     expect(chips()).toHaveLength(0);
     expect(islandToggle()?.getAttribute("aria-label")).toBe("Worked for 27s, 3 steps");
     expect(screen.text()).toContain("Lint is clean.");
+  });
+
+  it("holds each activity long enough to read before the next replaces it", async () => {
+    setup();
+    using _timers = fakeTimers();
+    const props = baseProps();
+    const view = (entries: Entry[]) => (
+      <MessagesTimeline {...props} {...workingProps} timelineEntries={entries} />
+    );
+    const lint = command("lint", "vp lint", "completed", 0);
+    await using screen = await renderElement(view([prompt, lint]));
+    const label = () => island()?.children[1];
+    expect(label()?.textContent).toBe("Running commands");
+    const shownLabel = label();
+    // Another step of the same kind keeps the label as it is, without replaying its entrance.
+    const test = command("test", "vp test run", "inProgress");
+    await screen.rerender(view([prompt, lint, test]));
+    expect(label()).toBe(shownLabel);
+    // A quick thought waits out the shown state's hold; an edit that follows it skips it.
+    const passed = command("test", "vp test run", "completed", 0);
+    await screen.rerender(view([prompt, lint, passed, thought("next", "Fix it", "inProgress")]));
+    await act(() => vi.advanceTimersByTime(500));
+    expect(label()?.textContent).toBe("Running commands");
+    await screen.rerender(view([prompt, lint, passed, thought("next", "Fix it"), edit("edit")]));
+    expect(label()?.textContent).toBe("Running commands");
+    await act(() => vi.advanceTimersByTime(600));
+    expect(label()?.textContent).toBe("Editing");
   });
 
   it("settles at once under reduced motion", async () => {
@@ -2757,7 +2787,7 @@ describe("MessagesTimeline tool trace", () => {
       await using screen = await renderElement(
         <MessagesTimeline {...props} {...workingProps} timelineEntries={steps} />,
       );
-      await vi.waitFor(() => expect(island()?.textContent).toContain("vp lint"));
+      await vi.waitFor(() => expect(island()?.textContent).toContain("Running commands"));
       await screen.rerender(
         <MessagesTimeline
           {...props}
@@ -2766,7 +2796,7 @@ describe("MessagesTimeline tool trace", () => {
         />,
       );
       expect(island()?.getAttribute("data-island-state")).toBe("done");
-      expect(island()?.textContent).toBe("27s · 1 step");
+      expect(island()?.textContent).toBe("Work 27s");
       expect(document.querySelector(".trace-chip-absorb, .trace-pulse")).toBeNull();
     } finally {
       await session.send("Emulation.setEmulatedMedia", { features: [] });
@@ -2817,9 +2847,9 @@ describe("MessagesTimeline tool trace", () => {
   });
 
   it.each([
-    ["interrupted", "You stopped after 27s, 1 step", ".rounded-xs"],
-    ["failed", "Failed after 27s, 1 step", 'path[d^="M7 7"]'],
-  ] as const)("marks a %s turn with its own glyph", async (status, name, glyph) => {
+    ["interrupted", "You stopped after 27s, 1 step", ".rounded-xs", "Stopped 27s"],
+    ["failed", "Failed after 27s, 1 step", 'path[d^="M7 7"]', "Failed 27s"],
+  ] as const)("marks a %s turn with its own glyph", async (status, name, glyph, summary) => {
     setup();
     await using screen = await renderTimeline(
       [prompt, command("lint", "vp lint", "completed", 0), reply("Stopped here.")],
@@ -2828,17 +2858,20 @@ describe("MessagesTimeline tool trace", () => {
     expect(screen.button(name)).toBeTruthy();
     expect(island()?.querySelector(glyph)).not.toBeNull();
     expect(island()?.querySelector('path[pathLength="1"]')).toBeNull();
+    expect(island()?.textContent).toBe(summary);
   });
 
-  it("keeps a stopped step's verb and target on the island, without the equalizer", async () => {
+  it("keeps a stopped or failed step's activity on the island, with the equalizer", async () => {
     setup();
-    await using screen = await renderTimeline(
-      [prompt, command("stopped-test", "npm test", "stopped")],
-      workingProps,
-    );
-    expect(screen.button("Run npm test").getAttribute("aria-expanded")).toBe("false");
-    expect(island()?.textContent).toMatch(/^Runnpm test/);
-    expect(island()?.querySelector(".trace-eq-bar")).toBeNull();
+    for (const status of ["stopped", "failed"] as const) {
+      await using screen = await renderTimeline(
+        [prompt, command(`${status}-test`, "npm test", status, 1)],
+        workingProps,
+      );
+      expect(screen.button("Running commands").getAttribute("aria-expanded")).toBe("false");
+      expect(island()?.textContent).toMatch(/^Running commands/);
+      expect(island()?.querySelector(".trace-eq-bar")).not.toBeNull();
+    }
   });
 
   // regression: the caption showed the first sentence of folded commentary, not its end
@@ -3035,8 +3068,8 @@ describe("MessagesTimeline tool trace", () => {
         timelineEntries={running}
       />,
     );
-    // The live step heads the island; the newest finished tool steps fill the film.
-    expect(screen.button("Run vp build")).toBeTruthy();
+    // The live step's activity heads the island; the newest finished tool steps fill the film.
+    expect(screen.button("Running commands")).toBeTruthy();
     expect(chips()).toHaveLength(5);
     // 12 finished steps, the plan update among them: 5 chips and "+7".
     expect(document.querySelector(islandRowSelector)?.textContent).toContain("+7");
@@ -3159,7 +3192,7 @@ describe("MessagesTimeline tool trace", () => {
     await using screen = await renderElement(
       <MessagesTimeline {...props} {...workingProps} timelineEntries={running} />,
     );
-    await vi.waitFor(() => expect(island()?.textContent).toContain("vp lint"));
+    await vi.waitFor(() => expect(island()?.textContent).toContain("Running commands"));
     using _timers = fakeTimers();
     await screen.rerender(
       <MessagesTimeline
@@ -3178,7 +3211,7 @@ describe("MessagesTimeline tool trace", () => {
     await act(() => vi.advanceTimersByTime(1_600));
     expect(island()?.getAttribute("data-island-state")).toBe("live");
     expect(island()?.classList.contains("trace-pulse")).toBe(false);
-    expect(island()?.textContent).toContain("vp test run");
+    expect(island()?.textContent).toContain("Running commands");
     // regression: a second finish that skips its beats must not replay the first one's
     const session = cdp();
     await session.send("Emulation.setEmulatedMedia", {
@@ -3201,7 +3234,7 @@ describe("MessagesTimeline tool trace", () => {
       await act(() => vi.advanceTimersByTime(600));
       expect(island()?.getAttribute("data-island-state")).toBe("done");
       await act(() => vi.advanceTimersByTime(1_000));
-      expect(island()?.textContent).toBe("27s · 2 steps");
+      expect(island()?.textContent).toBe("Work 27s");
       expect(island()?.classList.contains("trace-pulse")).toBe(false);
     } finally {
       await session.send("Emulation.setEmulatedMedia", { features: [] });
@@ -3219,7 +3252,7 @@ describe("MessagesTimeline tool trace", () => {
         timelineEntries={[prompt, command("lint", "vp lint", "inProgress")]}
       />,
     );
-    await vi.waitFor(() => expect(island()?.textContent).toContain("vp lint"));
+    await vi.waitFor(() => expect(island()?.textContent).toContain("Running commands"));
     const nextRun = RunId.make("starting-run");
     await screen.rerender(
       <MessagesTimeline
@@ -3245,7 +3278,7 @@ describe("MessagesTimeline tool trace", () => {
     );
     // The ended turn finishes under its own label; the new turn's island says it is starting.
     expect(island()?.getAttribute("data-island-state")).toBe("live");
-    expect(island()?.textContent).toContain("vp lint");
+    expect(island()?.textContent).toContain("Running commands");
     expect(island()?.textContent).not.toContain("Starting");
     expect(screen.text()).toContain("Starting Codex…");
   });
