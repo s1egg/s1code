@@ -3023,7 +3023,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   };
   const addComposerFoldersStable = useStableCallback(addComposerFolders);
 
-  const pickComposerFolderStable = useStableCallback(async () => {
+  const pickComposerFolderStable = useStableCallback(() => {
     const target = readComposerFolderTarget();
     const bridge = window.desktopBridge;
     if (!bridge || target === "remote" || isLocalEnvironmentDisabled()) {
@@ -3033,8 +3033,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
 
     const draftKey = attachmentTargetKeyRef.current;
     const wslBackendId = typeof target === "string" ? undefined : target.wslBackendId;
-    pendingDraftWork.begin(draftKey);
-    try {
+    const insertPickedFolder = async () => {
       const selectedPath = await bridge.pickFolder({
         initialPath: gitCwd,
         ...(wslBackendId ? { targetEnvironmentId: wslBackendId } : {}),
@@ -3053,12 +3052,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       insertComposerTextAtEndStable(`${serializeComposerFileLink(path)} `, {
         ensureLeadingBoundary: true,
       });
-    } catch {
-      if (!composerMountedRef.current || attachmentTargetKeyRef.current !== draftKey) return;
-      insertComposerTextStable("@", "cursor", { ensureLeadingBoundary: true });
-    } finally {
-      pendingDraftWork.end(draftKey);
-    }
+    };
+    // A promise chain rather than try/finally: React Compiler skips components with `finally`.
+    pendingDraftWork.begin(draftKey);
+    void insertPickedFolder()
+      .catch(() => {
+        if (!composerMountedRef.current || attachmentTargetKeyRef.current !== draftKey) return;
+        insertComposerTextStable("@", "cursor", { ensureLeadingBoundary: true });
+      })
+      .finally(() => pendingDraftWork.end(draftKey));
   });
   const openComposerConnectorsStable = useStableCallback(() => openUseInAnotherApp(environmentId));
 

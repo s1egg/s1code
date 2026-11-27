@@ -10793,8 +10793,8 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         }),
       );
       const categories = [
-        { name: "Messages", tokens: 1_500, kind: "used" },
-        { name: "MCP tools (deferred)", tokens: 500, kind: "deferred" },
+        { name: "Messages", tokens: 1_500, kind: "used" as const },
+        { name: "MCP tools (deferred)", tokens: 500, kind: "deferred" as const },
       ];
       const uuid = "00000000-0000-4000-8000-000000000663";
       yield* Queue.offer(

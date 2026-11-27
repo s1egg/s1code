@@ -38,6 +38,8 @@ it("shows the titled preview inside and outside search results from a collapsed 
   await page.viewport(1400, 900);
   const first = threadWithHistory("visible", 1);
   const second = { ...threadWithHistory("search-target", 1), settled: true as const };
+  // Browser test files share storage, and another one leaves the Settled shelf open.
+  localStorage.removeItem("s1code:sidebar:settled-expanded");
   using _environment = installFakeEnvironment([first, second]);
   __setClientSettingsForTests({
     ...DEFAULT_CLIENT_SETTINGS,

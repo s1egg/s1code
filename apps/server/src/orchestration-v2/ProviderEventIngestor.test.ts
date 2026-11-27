@@ -1826,7 +1826,7 @@ layer("ProviderEventIngestorV2", (it) => {
         id: string,
         ordinal: number,
         diffStr: string,
-      ): OrchestrationV2TurnItem => ({
+      ): Extract<OrchestrationV2TurnItem, { type: "file_change" }> => ({
         id: TurnItemId.make(id),
         threadId: threadEvent.threadId,
         runId: null,
@@ -1883,7 +1883,7 @@ layer("ProviderEventIngestorV2", (it) => {
       assert.equal(projectedLarge.fileName, "src/generated.ts");
       assert.isBelow(projectedLarge.diffStr?.length ?? 0, 40_000);
       assert.isTrue(largeDiff.startsWith(projectedLarge.diffStr?.split("\n…")[0] ?? "-"));
-      assert.deepEqual(projectedSmall, small);
+      assert.deepEqual(projectedSmall, { ...small, additions: 1, deletions: 1 });
     }),
   );
 
