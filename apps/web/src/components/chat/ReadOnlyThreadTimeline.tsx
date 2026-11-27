@@ -86,8 +86,6 @@ export function ReadOnlyThreadTimeline(props: {
     serverProjection: null,
     threadStatus: "live",
     activeActivityRun: activityRun,
-    activeRunningTurnId: runningRunId,
-    timelineEntries: entries,
     timelineAnchorMessageId: null,
     setTimelineAnchor: ignore,
   });

@@ -41,8 +41,15 @@ describe("transitionTimelineFollow", () => {
   const releasedAway: TimelineFollow = { mode: "released", atEnd: false };
 
   it("releases on navigation and stays released", () => {
-    expect(transitionTimelineFollow(FOLLOWING, { type: "navigated" })).toEqual(releasedAtEnd);
-    expect(transitionTimelineFollow(releasedAway, { type: "navigated" })).toBe(releasedAway);
+    const navigated = { type: "navigated", awayFromEnd: false } as const;
+    expect(transitionTimelineFollow(FOLLOWING, navigated)).toEqual(releasedAtEnd);
+    expect(transitionTimelineFollow(releasedAway, navigated)).toBe(releasedAway);
+  });
+
+  it("re-arms when the reader reaches an anchored reply that already ran past the end", () => {
+    const away = transitionTimelineFollow(FOLLOWING, { type: "navigated", awayFromEnd: true });
+    expect(away).toEqual(releasedAway);
+    expect(transitionTimelineFollow(away, { type: "reachedEnd" })).toBe(FOLLOWING);
   });
 
   it("ignores the end band flicker while following", () => {
@@ -67,18 +74,21 @@ describe("transitionTimelineFollow", () => {
 });
 
 describe("navigationReleasesFollow", () => {
-  const viewport = (contentScrollsUp: boolean, awayFromEnd: boolean) => ({
+  const viewport = (contentScrollsUp: boolean, awayFromEnd: boolean, anchored = false) => ({
     contentScrollsUp: () => contentScrollsUp,
     awayFromEnd: () => awayFromEnd,
+    anchored,
   });
 
   it("releases on upward input only when the content can scroll up", () => {
     const up = { source: "wheel", direction: "up" } as const;
     expect(navigationReleasesFollow(up, viewport(true, false))).toBe(true);
     expect(navigationReleasesFollow(up, viewport(false, true))).toBe(false);
-    expect(
-      navigationReleasesFollow({ source: "wheel", direction: "down" }, viewport(true, true)),
-    ).toBe(false);
+    const down = { source: "wheel", direction: "down" } as const;
+    expect(navigationReleasesFollow(down, viewport(true, true))).toBe(false);
+    // An anchored reply is not followed, so wheeling down toward it is the reader's own scroll.
+    expect(navigationReleasesFollow(down, viewport(true, true, true))).toBe(true);
+    expect(navigationReleasesFollow(down, viewport(true, false, true))).toBe(false);
   });
 
   it("releases on downward keys, touch and row clicks only away from the end", () => {

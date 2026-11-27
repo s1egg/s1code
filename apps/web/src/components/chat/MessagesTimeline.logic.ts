@@ -337,6 +337,22 @@ interface TimelineEndState {
   readonly scrollLength?: number;
 }
 
+/**
+ * The row a newly sent turn holds at the top of the view: its own user message,
+ * whichever turn of the thread it starts.
+ */
+export function resolveTimelineAnchorIndex(
+  rows: ReadonlyArray<MessagesTimelineRow>,
+  anchorMessageId: MessageId | null,
+): number | undefined {
+  if (anchorMessageId === null) return undefined;
+  const index = rows.findIndex(
+    (row) =>
+      row.kind === "message" && row.message.role === "user" && row.message.id === anchorMessageId,
+  );
+  return index < 0 ? undefined : index;
+}
+
 // Streaming can briefly unset isAtEnd; re-arm near the content bottom.
 const TIMELINE_FOLLOW_REARM_THRESHOLD_PX = 40;
 

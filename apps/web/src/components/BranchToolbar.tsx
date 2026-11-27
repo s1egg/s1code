@@ -117,6 +117,10 @@ interface BranchToolbarProps {
   onComposerFocusRequest?: () => void;
   /** Shown at the end of the composer strip, such as the new thread's permissions. */
   trailing?: ReactNode;
+  /** The new thread's project picker, shown with the run context. */
+  project?: ReactNode;
+  /** Sits at the start of the composer's control row instead of in its own strip under it. */
+  inRow?: boolean;
   availableEnvironments?: readonly EnvironmentOption[];
   onEnvironmentChange?: (environmentId: EnvironmentId) => void;
 }
@@ -479,6 +483,14 @@ const RunContextSelector = memo(function RunContextSelector({
   );
 });
 
+// In the control row the context controls take the type of the model and mode controls beside
+// them; the strip under a mobile composer keeps its smaller one.
+const COMPOSER_ROW_CONTEXT_CLASS = cn(
+  "sm:[&_button]:h-7 sm:[&_button]:text-sm [&_button]:font-medium [&_button]:text-foreground/80",
+  "[&_[data-composer-context-control]:not(button)]:text-sm [&_[data-composer-context-control]:not(button)]:text-foreground/80",
+  "[&_svg]:size-3.5 [&_svg:not([class*='text-'])]:text-muted-foreground",
+);
+
 const COMPOSER_CONTEXT_MOTION_DURATION_MS = 180;
 const COMPOSER_CONTEXT_MOTION_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
 const COMPOSER_CONTEXT_LABEL_SELECTOR = "[data-composer-label]";
@@ -667,6 +679,8 @@ export const BranchToolbar = memo(function BranchToolbar({
   availableEnvironments,
   onEnvironmentChange,
   trailing,
+  project,
+  inRow = false,
 }: BranchToolbarProps) {
   const m = useMessages();
   const branchSelectorRef = useRef<BranchToolbarBranchSelectorHandle>(null);
@@ -796,12 +810,100 @@ export const BranchToolbar = memo(function BranchToolbar({
     );
   }
 
+  const environmentSelector =
+    showEnvironmentIndicator && availableEnvironments ? (
+      <BranchToolbarEnvironmentSelector
+        autoEnvironmentLabel={autoEnvironmentLabel}
+        onAutoEnvironment={onAutoEnvironment}
+        envLocked={envLocked}
+        environmentId={environmentId}
+        availableEnvironments={availableEnvironments}
+        {...(showEnvironmentPicker ? { onEnvironmentChange } : {})}
+        {...(addTargets.length > 0 ? { onAddToMachine: () => onAddToMachine(null) } : {})}
+      />
+    ) : null;
+  const envModeSelector = showGitControls ? (
+    <BranchToolbarEnvModeSelector
+      forceNewWorktree={forceNewWorktree}
+      envLocked={envModeLocked}
+      effectiveEnvMode={effectiveEnvMode}
+      activeWorktreePath={activeWorktreePath}
+      onEnvModeChange={onEnvModeChange}
+      previousWorktreeLabel={previousWorktreeLabel}
+      previousWorktreeBranch={previousWorktreeSeed?.branch ?? null}
+      onUsePreviousWorktree={onUsePreviousWorktree}
+    />
+  ) : null;
+  const repositoriesControl = offersRepositoryChoice ? (
+    <WorktreeRepositoriesControl
+      project={activeProject}
+      draftTarget={draftId ?? threadRef}
+      offersBaseBranch={!showBranchControls}
+    />
+  ) : null;
+  // The strip pushes the branch to its far edge; the row keeps it with the run context.
+  const branchEdgeClass = inRow ? undefined : "@xl/composer-surface:ml-auto";
+  const branchControl = !showGitControls ? null : !showBranchControls ? (
+    startsNewWorktree ? (
+      <span
+        className={cn("min-w-0 flex-initial truncate px-1.75", branchEdgeClass)}
+        data-composer-context-control
+      >
+        {plainProjectBaseBranch === ""
+          ? m(msg("Each repository starts from its own default branch"))
+          : m(
+              msg("Repositories start from {branch} where they have it", {
+                branch: plainProjectBaseBranch,
+              }),
+            )}
+      </span>
+    ) : null
+  ) : (
+    <BranchToolbarBranchSelector
+      forceNewWorktree={forceNewWorktree}
+      ref={branchSelectorRef}
+      className={cn("min-w-0 flex-initial", !inRow && "justify-end", branchEdgeClass)}
+      environmentId={environmentId}
+      threadId={threadId}
+      {...(draftId ? { draftId } : {})}
+      envLocked={envLocked}
+      effectiveEnvModeOverride={effectiveEnvMode}
+      {...(activeThreadBranchOverride !== undefined ? { activeThreadBranchOverride } : {})}
+      {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
+      startFromOrigin={startFromOrigin}
+      onStartFromOriginChange={onStartFromOriginChange}
+      {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
+      {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
+    />
+  );
+
+  if (inRow) {
+    // One group, so the label measurement counts each control's full width. Labels fold to
+    // icons when the row is narrow, which replaces the strip's combined run context menu.
+    return (
+      <ComposerSurface.ContextStrip
+        ref={attachStrip}
+        data-compact={labelsOverflow ? "" : undefined}
+        className={cn("min-w-0 flex-1", COMPOSER_ROW_CONTEXT_CLASS)}
+      >
+        <div className="flex min-h-7 min-w-0 items-center gap-0.5">
+          {environmentSelector}
+          {project}
+          {envModeSelector}
+          {repositoriesControl}
+          {branchControl}
+        </div>
+      </ComposerSurface.ContextStrip>
+    );
+  }
+
   return (
     <ComposerSurface.ContextStrip
       ref={attachStrip}
       data-compact={labelsOverflow ? "" : undefined}
-      className={cn("gap-1 text-xs font-normal text-foreground/70 dark:text-muted-foreground")}
+      className="w-full gap-1 px-2 pt-2 text-xs font-normal text-foreground/70 dark:text-muted-foreground"
     >
+      {project}
       {showGitControls ? (
         <div className="contents @xl/composer-surface:hidden">
           <RunContextSelector
@@ -835,81 +937,19 @@ export const BranchToolbar = memo(function BranchToolbar({
             "flex-1",
           )}
         >
-          {showEnvironmentIndicator && availableEnvironments && (
-            <>
-              <BranchToolbarEnvironmentSelector
-                autoEnvironmentLabel={autoEnvironmentLabel}
-                onAutoEnvironment={onAutoEnvironment}
-                envLocked={envLocked}
-                environmentId={environmentId}
-                availableEnvironments={availableEnvironments}
-                {...(showEnvironmentPicker ? { onEnvironmentChange } : {})}
-                {...(addTargets.length > 0 ? { onAddToMachine: () => onAddToMachine(null) } : {})}
-              />
-              {showGitControls ? (
-                <Separator
-                  orientation="vertical"
-                  className="mx-0.5 h-3.5!"
-                  data-composer-context-control
-                />
-              ) : null}
-            </>
-          )}
-          {showGitControls ? (
-            <BranchToolbarEnvModeSelector
-              forceNewWorktree={forceNewWorktree}
-              envLocked={envModeLocked}
-              effectiveEnvMode={effectiveEnvMode}
-              activeWorktreePath={activeWorktreePath}
-              onEnvModeChange={onEnvModeChange}
-              previousWorktreeLabel={previousWorktreeLabel}
-              previousWorktreeBranch={previousWorktreeSeed?.branch ?? null}
-              onUsePreviousWorktree={onUsePreviousWorktree}
+          {environmentSelector}
+          {environmentSelector && showGitControls ? (
+            <Separator
+              orientation="vertical"
+              className="mx-0.5 h-3.5!"
+              data-composer-context-control
             />
           ) : null}
+          {envModeSelector}
         </div>
       ) : null}
-
-      {offersRepositoryChoice ? (
-        <WorktreeRepositoriesControl
-          project={activeProject}
-          draftTarget={draftId ?? threadRef}
-          offersBaseBranch={!showBranchControls}
-        />
-      ) : null}
-      {!showGitControls ? null : !showBranchControls ? (
-        startsNewWorktree ? (
-          <span
-            className="min-w-0 flex-initial truncate px-1.75 @xl/composer-surface:ml-auto"
-            data-composer-context-control
-          >
-            {plainProjectBaseBranch === ""
-              ? m(msg("Each repository starts from its own default branch"))
-              : m(
-                  msg("Repositories start from {branch} where they have it", {
-                    branch: plainProjectBaseBranch,
-                  }),
-                )}
-          </span>
-        ) : null
-      ) : (
-        <BranchToolbarBranchSelector
-          forceNewWorktree={forceNewWorktree}
-          ref={branchSelectorRef}
-          className="min-w-0 flex-initial justify-end @xl/composer-surface:ml-auto"
-          environmentId={environmentId}
-          threadId={threadId}
-          {...(draftId ? { draftId } : {})}
-          envLocked={envLocked}
-          effectiveEnvModeOverride={effectiveEnvMode}
-          {...(activeThreadBranchOverride !== undefined ? { activeThreadBranchOverride } : {})}
-          {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
-          startFromOrigin={startFromOrigin}
-          onStartFromOriginChange={onStartFromOriginChange}
-          {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
-          {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
-        />
-      )}
+      {repositoriesControl}
+      {branchControl}
       {trailing}
     </ComposerSurface.ContextStrip>
   );

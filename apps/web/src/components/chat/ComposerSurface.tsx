@@ -70,13 +70,13 @@ function Main({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
-/** A row under the card (environment, worktree, branch); page-coloured glass hides the timeline scrolling behind it. */
+/** Where the thread runs (environment, project, worktree, branch); the composer's backdrop hides the timeline behind it. */
 function ContextStrip({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="composer-context-strip"
       className={cn(
-        "group/composer-context surface-glass relative flex w-full items-center gap-2 overflow-x-clip px-2 pt-2 text-muted-foreground",
+        "group/composer-context relative flex items-center gap-2 overflow-x-clip text-muted-foreground",
         className,
       )}
       {...props}

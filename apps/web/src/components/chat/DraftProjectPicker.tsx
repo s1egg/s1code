@@ -1,0 +1,346 @@
+import type { DraftId } from "~/composerDraftStore";
+import { composerDraftHasUserContent, useComposerDraftStore } from "~/composerDraftStore";
+import { resolveEnvironmentMachineKind, type ScopedProjectRef } from "@s1tools/contracts";
+import { scopedProjectKey, scopeProjectRef } from "@s1tools/client-runtime/environment";
+import { isScratchProject } from "@s1tools/client-runtime/state/projects";
+import { T, useGT } from "gt-react";
+import { FolderIcon, FolderPlusIcon, MessageSquareDashedIcon } from "lucide-react";
+import { useAtomValue } from "@effect/atom-react";
+import { useRef, useState } from "react";
+
+import { openCommandPalette } from "~/commandPaletteBus";
+import { shortcutLabelForCommand } from "~/keybindings";
+import { primaryServerKeybindingsAtom } from "~/state/server";
+import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
+import { useOrderWhileOpen } from "~/hooks/useOrderWhileOpen";
+import { useProjectPin } from "~/hooks/useProjectGroupUpdate";
+import { useScratchProject } from "~/hooks/useScratchProject";
+import { useClientSettings } from "~/hooks/useSettings";
+import { seedDraftModelSelection } from "~/lib/seedDraftModelSelection";
+import {
+  deriveLogicalProjectKeyFromSettings,
+  pickableProjectGroups,
+  selectProjectGroupingSettings,
+} from "@s1tools/client-runtime/state/project-grouping";
+import {
+  buildSidebarProjectPickerEntries,
+  projectGroupsSpanEnvironments,
+} from "~/sidebarProjectGrouping";
+import { useProjects } from "~/state/entities";
+import { useEnvironments, usePrimaryEnvironmentId } from "~/state/environments";
+import { ComposerContextLabel } from "../ComposerContextLabel";
+import { ProjectEnvironmentBadge } from "../ProjectEnvironmentBadge";
+import { ProjectFavicon } from "../ProjectFavicon";
+import { isProjectPinShortcut, ProjectPinButton } from "../ProjectPinButton";
+import { useSortedProjectGroups } from "../CommandPaletteLookups";
+import {
+  Combobox,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxPopup,
+  ComboboxSearchInput,
+  ComboboxTrigger,
+  useComboboxFilter,
+} from "../ui/combobox";
+import { Tooltip, TooltipPopup, TooltipScrollDismissArea, TooltipTrigger } from "../ui/tooltip";
+import { ComposerControl } from "./ComposerControl";
+import { useComposerMenuProps } from "./composerEventScope";
+import { DraftProjectName } from "./DraftProjectName";
+
+const ADD_PROJECT_VALUE = "add-project";
+const NO_PROJECT_VALUE = "no-project";
+
+interface PickerItem {
+  readonly value: string;
+  readonly label: string;
+}
+
+interface DraftProjectPickerProps {
+  readonly draftId: DraftId | null;
+  readonly activeProjectRef: ScopedProjectRef | null;
+  readonly activeProjectTitle: string | null;
+}
+
+/** The project a new thread starts in, chosen from the composer's control row. */
+export function DraftProjectPicker({
+  draftId,
+  activeProjectRef,
+  activeProjectTitle,
+}: DraftProjectPickerProps) {
+  const gt = useGT();
+  const projects = useProjects();
+  const { environments } = useEnvironments();
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
+  const setLogicalProjectDraftThreadId = useComposerDraftStore(
+    (store) => store.setLogicalProjectDraftThreadId,
+  );
+  const getComposerDraft = useComposerDraftStore((store) => store.getComposerDraft);
+  const openAddProject = () => openCommandPalette({ open: "add-project" });
+  const { scratchEnvironmentId, scratchWorkspaceRootFor, openScratchProject } = useScratchProject();
+  const openProjectDraft = useNewThreadHandler();
+  const keybindings = useAtomValue(primaryServerKeybindingsAtom);
+  const composerMenuProps = useComposerMenuProps();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const pickerFilter = useComboboxFilter();
+  const highlightedPickerValueRef = useRef<string | null>(null);
+  const { canPinProjectGroup, toggleProjectGroupPin } = useProjectPin();
+
+  const environmentLabelById = new Map(
+    environments.map((environment) => [environment.environmentId, environment.label] as const),
+  );
+  const projectGroups = useSortedProjectGroups(environmentLabelById);
+  const showProjectEnvironments = projectGroupsSpanEnvironments(projectGroups);
+  const environmentMachineById = new Map(
+    environments.map(
+      (environment) =>
+        [
+          environment.environmentId,
+          resolveEnvironmentMachineKind(environment.serverConfig),
+        ] as const,
+    ),
+  );
+  const projectPickerEntries = buildSidebarProjectPickerEntries({
+    groups: pickableProjectGroups(projectGroups),
+    preferredProjectRef: activeProjectRef,
+  });
+  const projectEntryByKey = new Map(
+    projectPickerEntries.map((entry) => [entry.group.projectKey, entry] as const),
+  );
+  const activeProjectGroup =
+    activeProjectRef === null
+      ? null
+      : (projectGroups.find((group) =>
+          group.memberProjectRefs.some(
+            (projectRef) => scopedProjectKey(projectRef) === scopedProjectKey(activeProjectRef),
+          ),
+        ) ?? null);
+  const activeProjectKey = activeProjectGroup?.projectKey ?? "";
+  const menuEntries = projectPickerEntries.filter(
+    ({ targetProject }) =>
+      !isScratchProject(targetProject, scratchWorkspaceRootFor(targetProject.environmentId)),
+  );
+  const activeProject =
+    activeProjectRef === null
+      ? null
+      : (projects.find(
+          (project) =>
+            project.environmentId === activeProjectRef.environmentId &&
+            project.id === activeProjectRef.projectId,
+        ) ?? null);
+  const scratchTargetEnvironmentId = scratchEnvironmentId(activeProjectRef?.environmentId ?? null);
+  const isScratchDraft =
+    activeProject !== null &&
+    isScratchProject(activeProject, scratchWorkspaceRootFor(activeProject.environmentId));
+  const offersNoProject =
+    scratchTargetEnvironmentId !== null &&
+    scratchWorkspaceRootFor(scratchTargetEnvironmentId) !== null &&
+    !isScratchDraft;
+  const noProjectShortcut = shortcutLabelForCommand(keybindings, "chat.newWithoutProject");
+
+  // Pinning from a row keeps rows in place while the picker is open.
+  const pickerItems: readonly PickerItem[] = useOrderWhileOpen(
+    [
+      ...menuEntries.map(({ group }) => ({ value: group.projectKey, label: group.displayName })),
+      ...(offersNoProject ? [{ value: NO_PROJECT_VALUE, label: gt("No project") }] : []),
+      { value: ADD_PROJECT_VALUE, label: gt("Add project") },
+    ],
+    (item) => item.value,
+    pickerOpen,
+  );
+  const pickerSearch = pickerQuery.trim();
+  const filteredPickerItems =
+    pickerSearch.length === 0
+      ? pickerItems
+      : pickerItems.filter(
+          (item) =>
+            item.value !== ADD_PROJECT_VALUE &&
+            pickerFilter.contains(item, pickerSearch, (candidate) => candidate.label),
+        );
+  const selectedPickerItem = pickerItems.find((item) => item.value === activeProjectKey) ?? null;
+
+  // The picker can change the draft's target while the no-project home is
+  // still being opened; a stale continuation must not retarget it again. Picking
+  // a project clears the pending request, and the draft session is compared
+  // against the store when the scratch project arrives.
+  const pendingScratchRef = useRef<symbol | null>(null);
+  const draftTargetKey = () => {
+    const session = draftId ? useComposerDraftStore.getState().getDraftSession(draftId) : null;
+    return session
+      ? `${session.environmentId}:${session.projectId}:${session.logicalProjectKey}`
+      : null;
+  };
+  // Retargeting an empty draft would overwrite the project's draft and strand browser tabs.
+  const selectProject = (project: (typeof projects)[number], logicalProjectKey: string) => {
+    if (!draftId) {
+      return;
+    }
+    pendingScratchRef.current = null;
+    const projectRef = scopeProjectRef(project.environmentId, project.id);
+    if (!composerDraftHasUserContent(getComposerDraft(draftId))) {
+      void openProjectDraft(projectRef);
+      return;
+    }
+    setLogicalProjectDraftThreadId(logicalProjectKey, projectRef, draftId);
+    seedDraftModelSelection(draftId, projectRef);
+  };
+  const startScratch = async () => {
+    if (scratchTargetEnvironmentId === null || isScratchDraft) {
+      return;
+    }
+    const request = Symbol("scratch");
+    pendingScratchRef.current = request;
+    const requestedTarget = draftTargetKey();
+    const project = await openScratchProject(scratchTargetEnvironmentId);
+    if (!project || pendingScratchRef.current !== request || draftTargetKey() !== requestedTarget) {
+      return;
+    }
+    pendingScratchRef.current = null;
+    selectProject(project, deriveLogicalProjectKeyFromSettings(project, projectGroupingSettings));
+  };
+
+  if (projectPickerEntries.length === 0) {
+    return (
+      <ComposerControl
+        size="xs"
+        onClick={openAddProject}
+        className="min-w-0 flex-initial justify-start"
+        data-composer-context-control
+      >
+        <FolderPlusIcon className="size-3 shrink-0" />
+        <ComposerContextLabel>{activeProjectTitle ?? gt("Add a project")}</ComposerContextLabel>
+      </ComposerControl>
+    );
+  }
+
+  const triggerLabel = isScratchDraft
+    ? gt("No project")
+    : (activeProjectTitle ?? gt("Choose a project"));
+  return (
+    <Combobox
+      items={pickerItems}
+      filteredItems={filteredPickerItems}
+      autoHighlight
+      itemToStringLabel={(item) => item.label}
+      isItemEqualToValue={(a, b) => a.value === b.value}
+      open={pickerOpen}
+      onItemHighlighted={(item) => {
+        highlightedPickerValueRef.current = item?.value ?? null;
+      }}
+      onOpenChange={(open) => {
+        setPickerOpen(open);
+        setPickerQuery("");
+      }}
+      value={selectedPickerItem}
+      onValueChange={(item) => {
+        if (!item) return;
+        setPickerOpen(false);
+        if (item.value === ADD_PROJECT_VALUE) {
+          openAddProject();
+          return;
+        }
+        if (item.value === NO_PROJECT_VALUE) {
+          void startScratch();
+          return;
+        }
+        const entry = projectEntryByKey.get(item.value);
+        if (!entry || item.value === activeProjectKey) {
+          return;
+        }
+        selectProject(entry.targetProject, entry.group.projectKey);
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <ComboboxTrigger
+              render={<ComposerControl size="xs" />}
+              data-draft-project-trigger=""
+              data-composer-context-control
+              className="min-w-0 flex-initial justify-start"
+            />
+          }
+        >
+          {isScratchDraft ? (
+            <MessageSquareDashedIcon className="size-3 shrink-0" />
+          ) : (
+            <FolderIcon className="size-3 shrink-0" />
+          )}
+          <ComposerContextLabel>{triggerLabel}</ComposerContextLabel>
+        </TooltipTrigger>
+        <TooltipPopup side="top">{triggerLabel}</TooltipPopup>
+      </Tooltip>
+      <ComboboxPopup
+        side="top"
+        align="start"
+        className="w-72 overflow-hidden"
+        render={<TooltipScrollDismissArea holdPositionOnExit />}
+        {...composerMenuProps}
+      >
+        <ComboboxSearchInput
+          aria-label={gt("Search projects")}
+          placeholder={gt("Search projects...")}
+          value={pickerQuery}
+          onChange={(event) => setPickerQuery(event.target.value)}
+          onKeyDown={(event) => {
+            const highlighted = highlightedPickerValueRef.current;
+            const group = highlighted ? projectEntryByKey.get(highlighted)?.group : undefined;
+            if (!group || !canPinProjectGroup(group) || !isProjectPinShortcut(event, keybindings)) {
+              return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            toggleProjectGroupPin(group);
+          }}
+        />
+        <ComboboxEmpty>
+          <T>No matching projects.</T>
+        </ComboboxEmpty>
+        <ComboboxList>
+          {(item: PickerItem) => {
+            const entry = projectEntryByKey.get(item.value);
+            return (
+              <ComboboxItem key={item.value} hideIndicator value={item}>
+                {item.value === ADD_PROJECT_VALUE ? (
+                  <FolderPlusIcon className="size-4 shrink-0" />
+                ) : item.value === NO_PROJECT_VALUE ? (
+                  <MessageSquareDashedIcon className="size-4 shrink-0" />
+                ) : entry ? (
+                  <ProjectFavicon project={entry.group} className="size-4 shrink-0" />
+                ) : null}
+                <Tooltip>
+                  <TooltipTrigger render={<span className="min-w-0 flex-1 text-sm" />}>
+                    <DraftProjectName value={item.label} />
+                  </TooltipTrigger>
+                  <TooltipPopup side="top">{item.label}</TooltipPopup>
+                </Tooltip>
+                {item.value === NO_PROJECT_VALUE && noProjectShortcut ? (
+                  <span className="shrink-0 text-muted-foreground text-xs">
+                    {noProjectShortcut}
+                  </span>
+                ) : null}
+                {entry && canPinProjectGroup(entry.group) ? (
+                  <ProjectPinButton
+                    name={entry.group.displayName}
+                    pinned={entry.group.pinned}
+                    shortcutLabel={shortcutLabelForCommand(keybindings, "thread.pin")}
+                    onToggle={() => toggleProjectGroupPin(entry.group)}
+                  />
+                ) : null}
+                {entry && showProjectEnvironments ? (
+                  <ProjectEnvironmentBadge
+                    group={entry.group}
+                    primaryEnvironmentId={primaryEnvironmentId}
+                    machineByEnvironmentId={environmentMachineById}
+                  />
+                ) : null}
+              </ComboboxItem>
+            );
+          }}
+        </ComboboxList>
+      </ComboboxPopup>
+    </Combobox>
+  );
+}
