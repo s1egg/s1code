@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import { converter } from "culori/fn";
-import { BUILT_IN_THEMES, S1_PAIRED_THEMES } from "@s1tools/shared/themePalettes";
+import { BUILT_IN_THEMES } from "@s1tools/shared/themePalettes";
 
 import { CONTEXT_CHIP_ACCENTS, contextChipColorVariable } from "./lib/contextChipAccents";
 import { appAtomRegistry } from "./rpc/atomRegistry";
 
 import {
   applyThemePalette,
-  canonicalThemePreference,
   contextChipVariables,
   getThemeDefinition,
+  isKnownThemePreference,
   getThemeColorsForMode,
   getThemeModes,
   getCustomThemes,
@@ -25,13 +25,10 @@ import {
   resolveDesktopTheme,
   resolveThemeAppearance,
   serializeThemeFile,
-  S1_CHAT_THEME,
-  GROVE_THEME,
   updateCustomTheme,
   updateThemeColorFamily,
   CUSTOM_THEMES_STORAGE_KEY,
   createVividThemeColors,
-  getDefaultThemeColors,
   themeColorToHex,
   toCanonicalThemeColor,
   THEME_FILE_VERSION,
@@ -66,6 +63,13 @@ function contrastRatio(first: string, second: string): number {
 }
 
 describe("theme files", () => {
+  it("resolves retired built-in ids to nothing so preferences fall back to the default", () => {
+    for (const id of ["s1-chat", "grove", "ocean", "ember", "iris", "s1-chat-dark", "s1-grove"]) {
+      expect(getThemeDefinition(id)).toBeNull();
+      expect(isKnownThemePreference(id)).toBe(false);
+    }
+  });
+
   it("gives non-Latin theme names distinct stable ids", () => {
     const file = {
       version: THEME_FILE_VERSION,
@@ -106,7 +110,7 @@ describe("theme files", () => {
     }
   });
 
-  const pairedHalves = S1_PAIRED_THEMES.flatMap((theme) =>
+  const pairedHalves = BUILT_IN_THEMES.flatMap((theme) =>
     (["light", "dark"] as const).map((mode) => ({
       name: `${theme.label} ${mode}`,
       colors: getThemeColorsForMode(theme, mode)!,
@@ -185,7 +189,7 @@ describe("theme files", () => {
       colors: { canvas: "#101010" },
     });
     expect(legacy.colors.searchMatchBackground).toBe(
-      getDefaultThemeColors("dark").searchMatchBackground,
+      getStandardThemeColors("dark").searchMatchBackground,
     );
     const theme = parseThemeFile({
       version: THEME_FILE_VERSION,
@@ -207,7 +211,7 @@ describe("theme files", () => {
   it.each(["searchMatchBackground", "searchMatchActiveBackground"] as const)(
     "editing %s derives readable text without changing the other match or warning colours",
     (role) => {
-      const original = getDefaultThemeColors("dark");
+      const original = getStandardThemeColors("dark");
       const foreground =
         role === "searchMatchBackground" ? "searchMatchForeground" : "searchMatchActiveForeground";
       for (const value of ["#ffffff", "#000000", "#33669980"]) {
@@ -356,11 +360,12 @@ describe("theme files", () => {
       canvas: canonical("#101827"),
       text: canonical("#eef5ff"),
     });
-    expect(getThemeModes(S1_CHAT_THEME)).toEqual(["light", "dark"]);
-    expect(resolveThemeAppearance(S1_CHAT_THEME.id, true, true)).toBe("dark");
-    expect(resolveDesktopTheme(S1_CHAT_THEME.id, true)).toBe("system");
-    expect(resolveThemeAppearance(S1_CHAT_THEME.id, false, false, "dark")).toBe("dark");
-    expect(resolveDesktopTheme(S1_CHAT_THEME.id, false, "dark")).toBe("dark");
+    const graphite = BUILT_IN_THEMES.find((candidate) => candidate.id === "s1-graphite")!;
+    expect(getThemeModes(graphite)).toEqual(["light", "dark"]);
+    expect(resolveThemeAppearance(graphite.id, true, true)).toBe("dark");
+    expect(resolveDesktopTheme(graphite.id, true)).toBe("system");
+    expect(resolveThemeAppearance(graphite.id, false, false, "dark")).toBe("dark");
+    expect(resolveDesktopTheme(graphite.id, false, "dark")).toBe("dark");
     expect(JSON.parse(serializeThemeFile(theme)).variants.dark).toMatchObject({
       canvas: canonical("#101827"),
       text: canonical("#eef5ff"),
@@ -723,7 +728,7 @@ describe("context chip colors", () => {
       for (const mode of ["light", "dark"] as const) {
         applyThemePalette("s1-midnight", mode);
         expect(dataset.messageBubble).toBe("filled");
-        applyThemePalette("ocean", mode);
+        applyThemePalette("system", mode);
         expect(dataset.messageBubble).toBeUndefined();
       }
     } finally {
@@ -734,8 +739,8 @@ describe("context chip colors", () => {
 
   it("reads at 5:1 on the standard surfaces as index.css paints them", () => {
     const painted = {
-      light: ["#fcfcfc", "#ffffff", "#ebebed"],
-      dark: ["#000000", "#0a0a0a", "#111111", "#141414", "#1e1e1e"],
+      light: ["#ffffff", "#f3f3f3"],
+      dark: ["#191919", "#1f1f1f", "#252525", "#303030"],
     } as const;
     const properties = new Map<string, string>();
     vi.stubGlobal("window", { localStorage: { getItem: () => null } });
@@ -832,13 +837,12 @@ describe("stored theme preferences", () => {
     invalidateCustomThemes();
     try {
       expect(resolveThemeAppearance("paper", true, true)).toBe("light");
-      const halves = { dark: GROVE_THEME.id };
+      const halves = { dark: "s1-graphite" };
       expect(resolveThemeAppearance("paper", true, true, undefined, halves)).toBe("dark");
       expect(resolveThemeAppearance("paper", false, false, "dark", halves)).toBe("dark");
       expect(resolveDesktopTheme("paper", true, undefined, halves)).toBe("system");
 
       expect(getThemeDefinition("constructor")).toEqual(publishedTheme);
-      expect(canonicalThemePreference("constructor")).toBe("constructor");
       const publishedHalves = parseThemeHalves(JSON.stringify({ dark: "constructor" }));
       expect(publishedHalves).toEqual({ dark: "constructor" });
       expect(resolveThemeAppearance("paper", true, true, undefined, publishedHalves)).toBe("dark");
@@ -873,7 +877,7 @@ describe("stored theme preferences", () => {
     expect(themes).toHaveLength(1);
     expect(themes[0]).toMatchObject({
       id: "aurora",
-      colors: { canvas: canonical("#f8fbff"), accent: getDefaultThemeColors("light").accent },
+      colors: { canvas: canonical("#f8fbff"), accent: getStandardThemeColors("light").accent },
     });
     expect(getThemeModes(themes[0]!)).toEqual(["light", "dark"]);
     expect(getThemeColorsForMode(themes[0]!, "dark")?.canvas).toBe(canonical("rgb(16 24 39)"));

@@ -11,13 +11,14 @@ Use **Change appearance** in the command palette to choose System, Light, or Dar
 the theme. **Cmd+Option+Shift+A** on macOS or **Ctrl+Alt+Shift+A** on Windows/Linux cycles through
 those modes. Customize these shortcuts under **Settings → Keybindings**.
 
-Mist / Midnight, Paper / Graphite, Sand / Charcoal, and Shallows / Deep Sea pair a light theme
+The default **S1 Code** theme is a flat, neutral look in light and dark. Four built-in themes,
+Mist / Midnight, Paper / Graphite, Sand / Charcoal, and Shallows / Deep Sea, each pair a light theme
 with a dark one. When you follow the system appearance, switching between light and dark keeps you
 in the same pair. These themes also fill your own messages with the accent color.
 
-On web and desktop, the window background carries a soft glow in the theme's accent color, fainter
-in light mode. Set **Background glow** in **Settings → Appearance** to 0 for a flat background.
-Touch devices always show a flat background.
+On web and desktop, raise **Background glow** in **Settings → Appearance** to add a soft glow in
+the theme's accent color behind the window, fainter in light mode. It is off by default. Touch
+devices always show a flat background.
 
 On mobile, choose any of the same four pairs in **Settings → Appearance**. The phone stores its
 own theme selection and text, code, and terminal preferences. Environment theme defaults apply to
@@ -76,7 +77,7 @@ to another site. For a full-size image, use a [background image](#background-ima
 Class names in the app change between releases. For rules that keep working, target `data-slot`
 and other `data-` attributes, such as `[data-chat-header]` or `[data-slot="button"]`.
 
-If a rule hides something you need, run `s1 theme set s1-chat` on the server to switch to a
+If a rule hides something you need, run `s1 theme set s1-graphite` on the server to switch to a
 built-in theme, or press **Cmd+Option+A** on macOS or **Ctrl+Alt+A** on Windows/Linux to pick
 another theme.
 

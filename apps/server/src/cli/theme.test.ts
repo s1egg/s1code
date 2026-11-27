@@ -72,12 +72,26 @@ describe("s1 theme", () => {
         somethingFromANewerBuild: { nested: true },
       });
 
-      yield* runCli(["theme", "set", "ocean", "--base-dir", baseDir]);
+      yield* runCli(["theme", "set", "s1-deepsea", "--base-dir", baseDir]);
 
       const settings = readSettings(baseDir);
-      assert.equal(settings.defaultTheme, "ocean");
+      assert.equal(settings.defaultTheme, "s1-deepsea");
       assert.equal(settings.enableProviderUpdateChecks, false);
       assert.deepEqual(settings.somethingFromANewerBuild, { nested: true });
+    }),
+  );
+
+  it.effect("rejects a retired built-in theme id", () =>
+    Effect.gen(function* () {
+      const baseDir = makeBaseDir();
+      writeSettings(baseDir, { enableProviderUpdateChecks: false });
+
+      const failure = yield* runCli(["theme", "set", "grove", "--base-dir", baseDir]).pipe(
+        Effect.flip,
+      );
+
+      assert.include(String(failure), 'No theme named "grove"');
+      assert.equal(Object.hasOwn(readSettings(baseDir), "defaultTheme"), false);
     }),
   );
 
@@ -86,7 +100,7 @@ describe("s1 theme", () => {
       const baseDir = makeBaseDir();
       writeSettings(baseDir, { enableProviderUpdateChecks: false });
 
-      yield* runCli(["theme", "set", "ocean", "--base-dir", baseDir]);
+      yield* runCli(["theme", "set", "s1-deepsea", "--base-dir", baseDir]);
       yield* runCli(["theme", "clear", "--base-dir", baseDir]);
 
       const settings = readSettings(baseDir);
@@ -112,7 +126,7 @@ describe("s1 theme", () => {
         })}\n`,
       );
 
-      const result = yield* runCli(["theme", "set", "ocean"]).pipe(
+      const result = yield* runCli(["theme", "set", "s1-deepsea"]).pipe(
         Effect.provideService(HostProcess.HomeDirectory, home),
         Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} }))),
         Effect.result,
@@ -124,7 +138,10 @@ describe("s1 theme", () => {
       );
       if (result._tag === "Success") {
         const devSettings = NodePath.join(devStateDir, "settings.json");
-        assert.equal(JSON.parse(NodeFS.readFileSync(devSettings, "utf8")).defaultTheme, "ocean");
+        assert.equal(
+          JSON.parse(NodeFS.readFileSync(devSettings, "utf8")).defaultTheme,
+          "s1-deepsea",
+        );
       }
     }),
   );
@@ -362,7 +379,7 @@ describe("s1 theme", () => {
       writeSettings(baseDir, { enableProviderUpdateChecks: false });
       NodeFS.chmodSync(settingsPathFor(baseDir), 0o000);
 
-      const failure = yield* runCli(["theme", "set", "ocean", "--base-dir", baseDir]).pipe(
+      const failure = yield* runCli(["theme", "set", "s1-deepsea", "--base-dir", baseDir]).pipe(
         Effect.flip,
       );
 

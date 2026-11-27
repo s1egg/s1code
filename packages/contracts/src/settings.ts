@@ -156,7 +156,7 @@ export const BackgroundGlow = Schema.Int.check(
   }),
 );
 export type BackgroundGlow = typeof BackgroundGlow.Type;
-const DEFAULT_BACKGROUND_GLOW: BackgroundGlow = 30;
+const DEFAULT_BACKGROUND_GLOW: BackgroundGlow = 0;
 
 export const MIN_APPEARANCE_CONTRAST = 50;
 export const MAX_APPEARANCE_CONTRAST = 200;

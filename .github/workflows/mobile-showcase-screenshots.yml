@@ -22,17 +22,16 @@ on:
           - dark
           - light
       theme:
-        description: Palette to capture (all multiplies the run by six)
+        description: Palette to capture (all multiplies the run by five)
         required: true
         default: s1-code
         type: choice
         options:
           - s1-code
-          - s1-chat
-          - grove
-          - ocean
-          - ember
-          - iris
+          - s1-midnight
+          - s1-graphite
+          - s1-charcoal
+          - s1-deepsea
           - all
 
 permissions:
@@ -46,7 +45,7 @@ jobs:
     name: iPhone, iPhone Duo, and iPad 13
     if: inputs.platform == 'all' || inputs.platform == 'ios'
     runs-on: macos-26-intel
-    # Capturing every palette multiplies the device matrix by six, and only the
+    # Capturing every palette multiplies the device matrix by five, and only the
     # one native build is shared between them.
     timeout-minutes: ${{ inputs.theme == 'all' && 300 || 60 }}
     steps:
@@ -109,7 +108,7 @@ jobs:
     name: Android phone, 7-inch tablet, and 10-inch tablet
     if: inputs.platform == 'all' || inputs.platform == 'android'
     runs-on: ubuntu-24.04
-    # Capturing every palette multiplies the device matrix by six, and only the
+    # Capturing every palette multiplies the device matrix by five, and only the
     # one native build is shared between them.
     timeout-minutes: ${{ inputs.theme == 'all' && 300 || 60 }}
     env:

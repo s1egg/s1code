@@ -47,7 +47,7 @@ it("drops theme defaults from a client's settings patch", () => {
   expect(
     decodeClientServerSettingsPatch({
       newWorktreesStartFromOrigin: false,
-      defaultTheme: "grove",
+      defaultTheme: "s1-graphite",
       defaultThemeSetAt: "2026-11-13T00:00:00.000Z",
       defaultAppearance: "dark",
       defaultAppearanceSetAt: "2026-11-13T00:00:00.000Z",
@@ -151,8 +151,8 @@ describe("ClientSettings retired keys", () => {
 });
 
 describe("ClientSettings background glow", () => {
-  it("defaults to 30 and accepts 0 through 48 whole steps", () => {
-    expect(decodeClientSettings({}).backgroundGlow).toBe(30);
+  it("defaults to off and accepts 0 through 48 whole steps", () => {
+    expect(decodeClientSettings({}).backgroundGlow).toBe(0);
     expect(decodeClientSettingsPatch({ backgroundGlow: 0 }).backgroundGlow).toBe(0);
     expect(decodeClientSettingsPatch({ backgroundGlow: 48 }).backgroundGlow).toBe(48);
     expect(() => decodeClientSettingsPatch({ backgroundGlow: 49 })).toThrow();

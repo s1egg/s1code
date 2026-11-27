@@ -161,7 +161,9 @@ function PreviewPanelShellFrame(
       onMouseDown={props.onMouseDown}
       onMouseUp={props.onMouseUp}
       className={cn(
-        "relative flex h-full min-h-0 min-w-0 max-w-full flex-col self-stretch bg-background",
+        "relative flex h-full min-h-0 min-w-0 max-w-full flex-col self-stretch",
+        // Inline and embedded panels sit on the chat's own background, so both read as one surface.
+        (props.mode === "sheet" || props.mode === "sidebar") && "bg-background",
         isInline
           ? maximized
             ? // Maximizing meets the sidebar border or window edge; omit the duplicate border.

@@ -1,6 +1,5 @@
 import {
   BUILT_IN_THEMES,
-  S1_CHAT_THEME,
   S1_CODE_LIGHT_THEME_COLORS,
   S1_CODE_DARK_THEME_COLORS,
   getThemeColorsForAppearance,
@@ -440,10 +439,7 @@ export function createMobileThemeVariables(
     "--color-user-bubble-foreground-muted": filledBubble
       ? c.messageForeground
       : withAlpha(c.messageForeground, 0.78),
-    "--color-user-bubble-skill-foreground": themeColorWithContrast(
-      c.messageAction,
-      c.messageSurface,
-    ),
+    "--color-user-bubble-skill-foreground": themeColorWithContrast(c.accent, c.messageSurface),
     "--color-backdrop": withAlpha("#000000", appearance === "dark" ? 0.48 : 0.22),
     "--color-drawer": sidebar,
     "--color-drawer-foreground": c.sidebarForeground,
@@ -463,10 +459,10 @@ export function getMobileThemeColors(
   themeId: SharedMobileThemeId,
   appearance: MobileThemeAppearance,
 ): ThemeColors {
-  if (themeId === DEFAULT_MOBILE_THEME_ID) {
+  const theme = BUILT_IN_THEMES.find((candidate) => candidate.id === themeId);
+  if (!theme) {
     return appearance === "dark" ? S1_CODE_DARK_THEME_COLORS : S1_CODE_LIGHT_THEME_COLORS;
   }
-  const theme = BUILT_IN_THEMES.find((candidate) => candidate.id === themeId) ?? S1_CHAT_THEME;
   return getThemeColorsForAppearance(theme, appearance) ?? theme.colors;
 }
 
@@ -476,40 +472,11 @@ export function getMobileThemeVariables(
   overrides: Partial<MobileThemeVariables> | null = null,
 ): MobileThemeVariables {
   const colors = getMobileThemeColors(themeId, appearance);
-  const groupedCard =
-    themeId === DEFAULT_MOBILE_THEME_ID
-      ? appearance === "light"
-        ? colors.toolbarControlHover
-        : colors.sidebarRowActive
-      : themeId === "s1-chat"
-        ? appearance === "light"
-          ? colors.toolbarControl
-          : colors.surface
-        : colors.muted;
-  // The mobile default draws user bubbles in its accent, like the desktop design; built-in
-  // themes keep the message roles they share with web. The label needs 6.5:1 on the bubble so
-  // it still reads on inline code, which lightens the bubble by 18%.
-  const mobileColors =
-    themeId === DEFAULT_MOBILE_THEME_ID
-      ? {
-          ...colors,
-          messageSurface: themeAccentWithContrast(
-            themeColorToNativeColor(colors.messageAction),
-            [themeColorToNativeColor(colors.messageActionForeground)],
-            6.5,
-          ),
-          messageForeground: colors.messageActionForeground,
-        }
-      : colors;
   const baseVariables = createMobileThemeVariables(
-    mobileColors,
+    colors,
     appearance,
-    groupedCard,
-    themeId === "s1-chat" && appearance === "dark"
-      ? [colors.messageActionForeground, colors.messageAction]
-      : themeId !== DEFAULT_MOBILE_THEME_ID && themeId !== "s1-chat"
-        ? [colors.messageAction, colors.messageActionForeground]
-        : undefined,
+    themeId === DEFAULT_MOBILE_THEME_ID ? colors.secondary : colors.muted,
+    [colors.messageAction, colors.messageActionForeground],
   );
 
   return overrides ? ({ ...baseVariables, ...overrides } as MobileThemeVariables) : baseVariables;
@@ -519,9 +486,8 @@ export function getMobileThemePreviewColors(
   themeId: MobileThemeId,
   appearance: MobileThemeAppearance,
 ): ThemePreviewColors {
-  if (themeId === DEFAULT_MOBILE_THEME_ID || themeId === "material-you")
-    return STANDARD_THEME_PREVIEW_COLORS[appearance];
-  const theme = BUILT_IN_THEMES.find((candidate) => candidate.id === themeId) ?? S1_CHAT_THEME;
+  const theme = BUILT_IN_THEMES.find((candidate) => candidate.id === themeId);
+  if (!theme) return STANDARD_THEME_PREVIEW_COLORS[appearance];
   const colors = getThemeColorsForAppearance(theme, appearance) ?? theme.colors;
   return {
     canvas: themeColorToNativeColor(colors.canvas),

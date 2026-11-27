@@ -48,7 +48,7 @@ export function ComposerContextUsage({
   const tone =
     used !== null && used >= 90 ? "error" : used !== null && used >= 80 ? "warning" : "primary";
   const usageFill =
-    tone === "error" ? "bg-error" : tone === "warning" ? "bg-warning" : "bg-primary";
+    tone === "error" ? "bg-error" : tone === "warning" ? "bg-warning" : "bg-context-meter";
   const fallbackRows = [
     { label: gt("Used tokens"), value: usage?.usedTokens, percentage: used, swatch: usageFill },
     { label: gt("Input tokens"), value: usage?.inputTokens, swatch: "bg-blue-500" },
@@ -104,10 +104,10 @@ export function ComposerContextUsage({
                   ? "text-error"
                   : tone === "warning"
                     ? "text-warning"
-                    : "text-primary",
+                    : "text-context-meter",
               )}
               style={{
-                backgroundImage: `conic-gradient(currentColor ${used ?? 0}%, color-mix(in srgb, var(--muted-foreground) 30%, transparent) 0)`,
+                backgroundImage: `conic-gradient(currentColor ${used ?? 0}%, var(--context-meter-track) 0)`,
               }}
             />
           </PopoverTrigger>
@@ -153,7 +153,7 @@ export function ComposerContextUsage({
           {used !== null ? (
             <div
               aria-hidden="true"
-              className="relative h-1 w-full rounded-full bg-muted-foreground/20"
+              className="relative h-1 w-full rounded-full bg-context-meter-track"
             >
               <div className={cn("h-full rounded-full", usageFill)} style={{ width: `${used}%` }} />
               {tick !== null ? (

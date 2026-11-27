@@ -6,14 +6,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#191919" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <script>
       (() => {
         const LIGHT_BACKGROUND = "#ffffff";
-        const DARK_BACKGROUND = "#000000";
+        const DARK_BACKGROUND = "#191919";
         const CUSTOM_THEMES_STORAGE_KEY = "s1code:themes:v1";
         const ENVIRONMENT_THEMES_STORAGE_KEY = "s1code:environment-themes:v1";
         const THEME_FOLLOW_SYSTEM_STORAGE_KEY = "s1code:theme-follow-system";
@@ -22,13 +22,13 @@
         const SPLASH_COLORS = {
           light: {
             background: "#ffffff",
-            foreground: "#262626",
-            accent: "#4f46e5",
+            foreground: "#191919",
+            accent: "#d97757",
           },
           dark: {
-            background: "#000000",
-            foreground: "#f5f5f5",
-            accent: "#818cf8",
+            background: "#191919",
+            foreground: "#efefef",
+            accent: "#d97757",
           },
         };
         // These are the runtime defaults used to complete a custom palette
@@ -37,91 +37,21 @@
         // app colors before React mounts.
         const DEFAULT_THEME_PALETTES = {
           light: {
-            background: "oklch(0.982446 0.010114 325.653)",
-            foreground: "oklch(0.325698 0.116116 325.037)",
-            accent: "oklch(0.591646 0.217985 0.584)",
-            chrome: "oklch(0.982446 0.010114 325.653)",
+            background: "oklch(1 0 0)",
+            foreground: "oklch(0.213423 0 0)",
+            accent: "oklch(0.67242 0.13084 38.756)",
+            chrome: "oklch(1 0 0)",
           },
           dark: {
-            background: "oklch(0.22813 0.020366 307.469)",
-            foreground: "oklch(0.980735 0.004092 301.426)",
-            accent: "oklch(0.460685 0.185347 4.099)",
-            chrome: "oklch(0.22813 0.020366 307.469)",
+            background: "oklch(0.213423 0 0)",
+            foreground: "oklch(0.952131 0 0)",
+            accent: "oklch(0.67242 0.13084 38.756)",
+            chrome: "oklch(0.213423 0 0)",
           },
         };
         // Keep this small boot-time copy in sync with the built-in palettes so
         // the selected theme is visible before the app has mounted.
         const BUILT_IN_THEME_PALETTES = {
-          "s1-chat": {
-            light: {
-              background: "oklch(0.982446 0.010114 325.653)",
-              foreground: "oklch(0.325698 0.116116 325.037)",
-              accent: "oklch(0.591646 0.217985 0.584)",
-              chrome: "oklch(0.982446 0.010114 325.653)",
-            },
-            dark: {
-              background: "oklch(0.22813 0.020366 307.469)",
-              foreground: "oklch(0.980735 0.004092 301.426)",
-              accent: "oklch(0.460685 0.185347 4.099)",
-              chrome: "oklch(0.22813 0.020366 307.469)",
-            },
-          },
-          grove: {
-            light: {
-              background: "oklch(0.972369 0.005497 157.15)",
-              foreground: "oklch(0.222003 0.03479 328.979)",
-              accent: "oklch(0.523295 0.112292 158.089)",
-              chrome: "oklch(0.972369 0.005497 157.15)",
-            },
-            dark: {
-              background: "oklch(0.260865 0.02152 162.75)",
-              foreground: "oklch(0.990339 0.008411 325.64)",
-              accent: "oklch(0.796228 0.133058 157.319)",
-              chrome: "oklch(0.260865 0.02152 162.75)",
-            },
-          },
-          ocean: {
-            light: {
-              background: "oklch(0.974199 0.002856 241.597)",
-              foreground: "oklch(0.222003 0.03479 328.979)",
-              accent: "oklch(0.536684 0.120219 247.01)",
-              chrome: "oklch(0.974199 0.002856 241.597)",
-            },
-            dark: {
-              background: "oklch(0.242641 0.024125 250.573)",
-              foreground: "oklch(0.990339 0.008411 325.64)",
-              accent: "oklch(0.758933 0.105833 241.548)",
-              chrome: "oklch(0.242641 0.024125 250.573)",
-            },
-          },
-          ember: {
-            light: {
-              background: "oklch(0.976527 0.002685 60.725)",
-              foreground: "oklch(0.222003 0.03479 328.979)",
-              accent: "oklch(0.552831 0.129438 44.656)",
-              chrome: "oklch(0.976527 0.002685 60.725)",
-            },
-            dark: {
-              background: "oklch(0.245899 0.019144 42.044)",
-              foreground: "oklch(0.990339 0.008411 325.64)",
-              accent: "oklch(0.762174 0.124117 52.082)",
-              chrome: "oklch(0.245899 0.019144 42.044)",
-            },
-          },
-          iris: {
-            light: {
-              background: "oklch(0.976531 0.003855 303.226)",
-              foreground: "oklch(0.222003 0.03479 328.979)",
-              accent: "oklch(0.525348 0.15373 294.176)",
-              chrome: "oklch(0.976531 0.003855 303.226)",
-            },
-            dark: {
-              background: "oklch(0.225975 0.031062 293.741)",
-              foreground: "oklch(0.990339 0.008411 325.64)",
-              accent: "oklch(0.671712 0.169136 293.929)",
-              chrome: "oklch(0.225975 0.031062 293.741)",
-            },
-          },
           "s1-midnight": {
             dark: {
               background: "#101119",
@@ -189,15 +119,15 @@
           "system",
           "light",
           "dark",
+          "s1-midnight",
+          "s1-graphite",
+          "s1-charcoal",
+          "s1-deepsea",
           "s1-chat",
           "grove",
           "ocean",
           "ember",
           "iris",
-          "s1-midnight",
-          "s1-graphite",
-          "s1-charcoal",
-          "s1-deepsea",
           "s1-chat-dark",
           "s1-grove",
           "s1-ocean",
@@ -281,17 +211,7 @@
         try {
           const storedTheme = window.localStorage.getItem("s1code:theme");
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          const LEGACY_THEME_IDS = {
-            "s1-chat-dark": "s1-chat",
-            "s1-grove": "grove",
-            "s1-ocean": "ocean",
-            "s1-ember": "ember",
-            "s1-iris": "iris",
-          };
-          const isLegacyT3ChatDark = storedTheme === "s1-chat-dark";
-          const themeId =
-            storedTheme === null ? "" : (LEGACY_THEME_IDS[storedTheme] ?? storedTheme);
-          const legacyMode = isLegacyT3ChatDark ? "dark" : null;
+          const themeId = storedTheme ?? "";
           const builtInModes = BUILT_IN_THEME_MODES[themeId] ?? null;
           const customTheme = builtInModes ? null : findCustomTheme(themeId);
           const themeModes =
@@ -317,8 +237,7 @@
             THEME_APPEARANCE_MODE_STORAGE_KEY,
           );
           const storedFollowSystem = window.localStorage.getItem(THEME_FOLLOW_SYSTEM_STORAGE_KEY);
-          const preferenceMode =
-            theme === "light" || theme === "dark" ? theme : (legacyMode ?? baseAppearance);
+          const preferenceMode = theme === "light" || theme === "dark" ? theme : baseAppearance;
           const appearanceMode = isThemePreferenceMode(storedAppearanceMode)
             ? storedAppearanceMode
             : storedFollowSystem === "true"
@@ -340,7 +259,7 @@
             );
             const candidate = isRecord(halvesRaw) ? halvesRaw[wantedMode] : null;
             if (typeof candidate === "string") {
-              const halfId = LEGACY_THEME_IDS[candidate] ?? candidate;
+              const halfId = candidate;
               const halfBuiltIn = BUILT_IN_THEME_MODES[halfId] ?? null;
               const halfCustom = halfBuiltIn ? null : findCustomTheme(halfId);
               const halfModes =
@@ -466,14 +385,14 @@
 
       body {
         background: #ffffff;
-        color: #262626;
+        color: #191919;
         font-family:
           -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
       }
 
       html.dark body {
-        background: #000000;
-        color: #f5f5f5;
+        background: #191919;
+        color: #efefef;
       }
 
       #boot-shell {
@@ -525,7 +444,7 @@
       }
 
       #boot-error {
-        --boot-error-fg: #262626;
+        --boot-error-fg: #191919;
         --boot-error-bg: #ffffff;
         --boot-error-line: color-mix(in srgb, currentColor 12%, transparent);
         display: flex;
@@ -539,8 +458,8 @@
       }
 
       html.dark #boot-error {
-        --boot-error-fg: #f5f5f5;
-        --boot-error-bg: #000000;
+        --boot-error-fg: #efefef;
+        --boot-error-bg: #191919;
       }
 
       html[data-theme-selected="true"] #boot-error {

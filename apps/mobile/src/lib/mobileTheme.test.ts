@@ -2,7 +2,6 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   BUILT_IN_THEME_IDS,
   BUILT_IN_THEMES,
-  S1_CHAT_THEME,
   S1_CODE_LIGHT_THEME_COLORS,
   S1_CODE_DARK_THEME_COLORS,
   MOBILE_THEME_IDS,
@@ -58,7 +57,7 @@ function compositeOver(overlay: string, background: string): string {
 
 describe("mobile themes", () => {
   it("declares every runtime theme variable in the static stylesheet", () => {
-    const generatedVariables = createMobileThemeVariables(S1_CHAT_THEME.colors, "light");
+    const generatedVariables = createMobileThemeVariables(S1_CODE_LIGHT_THEME_COLORS, "light");
     expect(Object.keys(readDefaultMobileThemeVariables("light")).sort()).toEqual(
       Object.keys(generatedVariables).sort(),
     );
@@ -100,11 +99,7 @@ describe("mobile themes", () => {
         themeColorToNativeColor(colors.sidebarForeground),
       );
       expect(variables["--color-primary"]).toBe(themeColorToNativeColor(colors.messageAction));
-      if (themeId !== DEFAULT_MOBILE_THEME_ID) {
-        expect(variables["--color-user-bubble"]).toBe(
-          themeColorToNativeColor(colors.messageSurface),
-        );
-      }
+      expect(variables["--color-user-bubble"]).toBe(themeColorToNativeColor(colors.messageSurface));
       expect(
         contrastRatio(variables["--color-foreground"], variables["--color-screen"]),
       ).toBeGreaterThanOrEqual(4.5);
@@ -229,30 +224,43 @@ describe("mobile themes", () => {
   });
 
   it("migrates one theme choice to both appearances and preserves independent choices", () => {
-    expect(resolveMobileThemeIds({ themeId: "grove" })).toEqual({
-      light: "grove",
-      dark: "grove",
+    expect(resolveMobileThemeIds({ themeId: "s1-graphite" })).toEqual({
+      light: "s1-graphite",
+      dark: "s1-graphite",
     });
     expect(
-      resolveMobileThemeIds({ themeId: "grove", lightThemeId: "iris", darkThemeId: "ocean" }),
-    ).toEqual({ light: "iris", dark: "ocean" });
-    expect(resolveMobileThemeIds({ themeId: "grove", lightThemeId: "missing" })).toEqual({
+      resolveMobileThemeIds({
+        themeId: "s1-graphite",
+        lightThemeId: "s1-midnight",
+        darkThemeId: "s1-deepsea",
+      }),
+    ).toEqual({ light: "s1-midnight", dark: "s1-deepsea" });
+    expect(resolveMobileThemeIds({ themeId: "s1-graphite", lightThemeId: "missing" })).toEqual({
       light: DEFAULT_MOBILE_THEME_ID,
-      dark: "grove",
+      dark: "s1-graphite",
     });
   });
 
+  it("drops retired built-in theme ids to the default", () => {
+    for (const themeId of ["s1-chat", "grove", "ocean", "ember", "iris"]) {
+      expect(resolveMobileThemeIds({ themeId, darkThemeId: themeId })).toEqual({
+        light: DEFAULT_MOBILE_THEME_ID,
+        dark: DEFAULT_MOBILE_THEME_ID,
+      });
+    }
+  });
+
   it("changes either theme without switching the active appearance", () => {
-    const themeIds = { light: "s1-chat", dark: "grove" } as const;
-    expect(createMobileThemeSelectionPatch(themeIds, "light", "dark", "ocean")).toEqual({
-      lightThemeId: "s1-chat",
-      darkThemeId: "ocean",
-      themeId: "s1-chat",
+    const themeIds = { light: "s1-charcoal", dark: "s1-graphite" } as const;
+    expect(createMobileThemeSelectionPatch(themeIds, "light", "dark", "s1-deepsea")).toEqual({
+      lightThemeId: "s1-charcoal",
+      darkThemeId: "s1-deepsea",
+      themeId: "s1-charcoal",
     });
-    expect(createMobileThemeSelectionPatch(themeIds, "light", "light", "iris")).toEqual({
-      lightThemeId: "iris",
-      darkThemeId: "grove",
-      themeId: "iris",
+    expect(createMobileThemeSelectionPatch(themeIds, "light", "light", "s1-midnight")).toEqual({
+      lightThemeId: "s1-midnight",
+      darkThemeId: "s1-graphite",
+      themeId: "s1-midnight",
     });
   });
 

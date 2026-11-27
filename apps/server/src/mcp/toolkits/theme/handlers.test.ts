@@ -75,7 +75,10 @@ it.effect("applies the theme through the service and reports a refusal as an inv
         themeId: "agent-look",
         published: true,
       });
-      expect(yield* call({ themeId: "grove" })).toEqual({ themeId: "grove", published: false });
+      expect(yield* call({ themeId: "s1-graphite" })).toEqual({
+        themeId: "s1-graphite",
+        published: false,
+      });
       expect(yield* call({ appearance: "dark" })).toEqual({
         appearance: "dark",
         published: false,

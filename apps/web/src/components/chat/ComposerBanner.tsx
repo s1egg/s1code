@@ -16,11 +16,10 @@ const surfaceColors = cn(
 );
 
 const neutralOutline = cn(
-  "[--chat-composer-attached-outline:var(--chat-composer-outline,color-mix(in_srgb,var(--contrast-foreground)_8%,transparent))]",
-  "dark:[--chat-composer-attached-outline:var(--chat-composer-outline,color-mix(in_srgb,var(--color-white)_5%,transparent))]",
+  "[--chat-composer-attached-outline:var(--chat-composer-outline,var(--input))]",
+  "dark:[--chat-composer-attached-outline:var(--chat-composer-outline,transparent)]",
   "[html[data-theme-id]_&]:[--chat-composer-attached-outline:var(--chat-composer-outline,var(--app-theme-toolbar-border))]",
-  "dark:[html[data-theme-id]:not([data-theme-id=s1-chat])_&]:[--chat-composer-attached-outline:var(--chat-composer-outline,color-mix(in_srgb,var(--app-theme-input)_30%,var(--background)))]",
-  "dark:[html[data-theme-id=s1-chat]_&]:[--chat-composer-attached-outline:#241e28]",
+  "dark:[html[data-theme-id]_&]:[--chat-composer-attached-outline:var(--chat-composer-outline,color-mix(in_srgb,var(--app-theme-input)_30%,var(--background)))]",
 );
 
 const errorColors =
