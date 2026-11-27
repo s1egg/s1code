@@ -8,6 +8,7 @@ import { sourceControlClients } from "@s1tools/client-runtime/source-control-cli
 import { resolveNewThreadModelSelection } from "@s1tools/shared/usageLimits";
 import { queuedRunEditBlockedReason } from "@s1tools/client-runtime/queued-run-edit";
 import { ScrollToEndButton, WorkspaceFileDropOverlay } from "./chat/TimelineOverlays";
+import { forwardWheelToTimeline } from "./chat/timelineMinimapWheel";
 import { usePasteToFocusComposer } from "./chat/usePasteToFocusComposer";
 import { useFocusComposerOnThreadOpen } from "./chat/useFocusComposerOnThreadOpen";
 import { configuredHostedAppUrl } from "../hostedPairing";
@@ -300,6 +301,7 @@ import {
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
+import { DraftProjectPicker } from "./chat/DraftProjectPicker";
 import { ExpandedImageDialogHost, openExpandedImagePreview } from "./chat/ExpandedImageDialog";
 import {
   BranchRestoreConfirmHost,
@@ -1130,24 +1132,6 @@ export default function ChatView(props: ChatViewProps) {
     setTimelineAnchor({ threadKey: activeThreadKey, messageId: null });
   }
   const timelineAnchorMessageId = timelineAnchor.messageId;
-  // LegendList never recomputes anchored end-space geometry, leaving phantom scroll range after content fits.
-  const anchorRunSettled = (() => {
-    if (timelineAnchorMessageId === null) return false;
-    const anchorRun = serverProjection?.runs.find(
-      (run) => run.userMessageId === timelineAnchorMessageId,
-    );
-    if (anchorRun === undefined) return false;
-    return (
-      anchorRun.status !== "preparing" &&
-      anchorRun.status !== "queued" &&
-      anchorRun.status !== "starting" &&
-      anchorRun.status !== "running" &&
-      anchorRun.status !== "waiting"
-    );
-  })();
-  if (anchorRunSettled) {
-    setTimelineAnchor({ threadKey: activeThreadKey, messageId: null });
-  }
   const activeRightPanelKind = useRightPanelStore((state) =>
     selectActiveRightPanel(state.byThreadKey, activeThreadRef),
   );
@@ -2280,8 +2264,6 @@ export default function ChatView(props: ChatViewProps) {
     serverProjection,
     threadStatus,
     activeActivityRun,
-    activeRunningTurnId,
-    timelineEntries,
     timelineAnchorMessageId,
     setTimelineAnchor,
   });
@@ -2462,6 +2444,16 @@ export default function ChatView(props: ChatViewProps) {
     setScrollToEndClearance(clearance);
   };
   const publishComposerOverlayHeightStable = useStableCallback(publishComposerOverlayHeight);
+  // The backdrop hides the timeline below it, so it hands the timeline the wheel it would get.
+  const forwardComposerBackdropWheel = (backdrop: HTMLDivElement | null) => {
+    if (!backdrop) return;
+    const onWheel = (event: WheelEvent) => {
+      const scrollNode = legendListRef.current?.getScrollableNode();
+      if (scrollNode) forwardWheelToTimeline(event, scrollNode);
+    };
+    backdrop.addEventListener("wheel", onWheel, { passive: false });
+    return () => backdrop.removeEventListener("wheel", onWheel);
+  };
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- measures the composer overlay element before paint for a new thread or composer mount
   useLayoutEffect(() => {
     if (!composerOverlayElement) return;
@@ -3531,6 +3523,80 @@ export default function ChatView(props: ChatViewProps) {
     addFolders: addDroppedFoldersToComposer,
   });
 
+  const draftProjectPicker =
+    isDraftHeroState && !embedded ? (
+      <DraftProjectPicker
+        draftId={draftId}
+        activeProjectRef={activeProjectRef}
+        activeProjectTitle={activeProject?.title ?? null}
+      />
+    ) : null;
+  // A new thread without a project still picks one here, with nothing else to show beside it.
+  const composerContextRow = showComposerContextStrip ? (
+    <BranchToolbar
+      inRow={!isMobileViewport}
+      project={draftProjectPicker}
+      forceNewWorktree={multipleModelSelections !== null}
+      ref={branchToolbarRef}
+      environmentId={activeThread.environmentId}
+      threadId={activeThread.id}
+      projectId={activeThread.projectId}
+      worktreePath={activeThread.worktreePath}
+      isServerThread={isServerThread}
+      showGitControls={workspaceModesOffered}
+      showBranchControls={isGitRepo}
+      {...(routeKind === "draft" && draftId ? { draftId } : {})}
+      onEnvModeChange={onEnvModeChangeStable}
+      startFromOrigin={startFromOrigin}
+      onStartFromOriginChange={onStartFromOriginChange}
+      envMode={envMode}
+      {...(canOverrideServerThreadEnvMode
+        ? {
+            activeThreadBranchOverride: activeThreadBranch,
+            onActiveThreadBranchOverrideChange: setPendingServerThreadBranch,
+          }
+        : {})}
+      envLocked={envLocked}
+      onComposerFocusRequest={scheduleComposerFocusStable}
+      {...(canCheckoutPullRequestIntoThread
+        ? { onCheckoutPullRequestRequest: openPullRequestDialogStable }
+        : {})}
+      {...(canChangeEnvironment ? { onEnvironmentChange: onEnvironmentChangeStable } : {})}
+      autoEnvironmentLabel={autoEnvironmentLabel}
+      onAutoEnvironment={
+        draftId &&
+        !envLocked &&
+        canAutoBalanceEnvironments &&
+        loadBalancingSettings.loadBalancingEnabled
+          ? onAutoEnvironmentStable
+          : undefined
+      }
+      availableEnvironments={logicalProjectEnvironments}
+      {...(isServerThread || !isMobileViewport
+        ? {}
+        : {
+            trailing: (
+              <ComposerContextPermissions
+                environmentId={environmentId}
+                runtimeMode={runtimeMode}
+                supportedRuntimeModes={draftSupportedRuntimeModes(
+                  activeProviderStatus?.supportedRuntimeModes,
+                  multipleModelSelections,
+                  providerStatuses,
+                )}
+                onRuntimeModeChange={handleRuntimeModeChangeStable}
+              />
+            ),
+          })}
+    />
+  ) : draftProjectPicker ? (
+    <ComposerSurface.ContextStrip
+      className={isMobileViewport ? "w-full px-2 pt-2" : "min-w-0 flex-1"}
+    >
+      {draftProjectPicker}
+    </ComposerSurface.ContextStrip>
+  ) : null;
+
   const content = (
     <div
       ref={setWorkspaceLayoutElement}
@@ -3782,6 +3848,16 @@ export default function ChatView(props: ChatViewProps) {
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
+              {isDraftHeroState ? null : (
+                // The chat surface's own paint from the composer stack's top edge down, so the
+                // timeline is cut there instead of showing beside and below the composer.
+                <div
+                  aria-hidden
+                  ref={forwardComposerBackdropWheel}
+                  data-chat-composer-backdrop="true"
+                  className="pointer-events-auto absolute inset-x-0 top-1.5 bottom-0 bg-background surface-glow sm:top-2"
+                />
+              )}
               <div ref={draftHeroTransitionGroupRef} className="chat-composer-lane w-full">
                 <div
                   data-chat-composer-stack="true"
@@ -3817,7 +3893,7 @@ export default function ChatView(props: ChatViewProps) {
                     <ChildThreadApprovals threadRef={activeThreadRef} />
                     <div className="relative">
                       <ComposerSurface.Shell
-                        contextRow={showComposerContextStrip}
+                        contextRow={isMobileViewport && composerContextRow !== null}
                         separateControls={composerMounted && !isMobileViewport}
                       >
                         <ComposerSurface.Host
@@ -3966,6 +4042,7 @@ export default function ChatView(props: ChatViewProps) {
                                 permissionsShownInStrip={
                                   isMobileViewport && showComposerContextStrip && !isServerThread
                                 }
+                                contextControls={isMobileViewport ? undefined : composerContextRow}
                                 contextUsage={
                                   showComposerContextUsage ? activeContextWindow : undefined
                                 }
@@ -4022,67 +4099,9 @@ export default function ChatView(props: ChatViewProps) {
                             data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
                             className="relative z-0"
                           >
-                            {showComposerContextStrip && (
-                              <div className="pointer-events-auto">
-                                <BranchToolbar
-                                  forceNewWorktree={multipleModelSelections !== null}
-                                  ref={branchToolbarRef}
-                                  environmentId={activeThread.environmentId}
-                                  threadId={activeThread.id}
-                                  projectId={activeThread.projectId}
-                                  worktreePath={activeThread.worktreePath}
-                                  isServerThread={isServerThread}
-                                  showGitControls={workspaceModesOffered}
-                                  showBranchControls={isGitRepo}
-                                  {...(routeKind === "draft" && draftId ? { draftId } : {})}
-                                  onEnvModeChange={onEnvModeChangeStable}
-                                  startFromOrigin={startFromOrigin}
-                                  onStartFromOriginChange={onStartFromOriginChange}
-                                  envMode={envMode}
-                                  {...(canOverrideServerThreadEnvMode
-                                    ? {
-                                        activeThreadBranchOverride: activeThreadBranch,
-                                        onActiveThreadBranchOverrideChange:
-                                          setPendingServerThreadBranch,
-                                      }
-                                    : {})}
-                                  envLocked={envLocked}
-                                  onComposerFocusRequest={scheduleComposerFocusStable}
-                                  {...(canCheckoutPullRequestIntoThread
-                                    ? { onCheckoutPullRequestRequest: openPullRequestDialogStable }
-                                    : {})}
-                                  {...(canChangeEnvironment
-                                    ? { onEnvironmentChange: onEnvironmentChangeStable }
-                                    : {})}
-                                  autoEnvironmentLabel={autoEnvironmentLabel}
-                                  onAutoEnvironment={
-                                    draftId &&
-                                    !envLocked &&
-                                    canAutoBalanceEnvironments &&
-                                    loadBalancingSettings.loadBalancingEnabled
-                                      ? onAutoEnvironmentStable
-                                      : undefined
-                                  }
-                                  availableEnvironments={logicalProjectEnvironments}
-                                  {...(isServerThread || !isMobileViewport
-                                    ? {}
-                                    : {
-                                        trailing: (
-                                          <ComposerContextPermissions
-                                            environmentId={environmentId}
-                                            runtimeMode={runtimeMode}
-                                            supportedRuntimeModes={draftSupportedRuntimeModes(
-                                              activeProviderStatus?.supportedRuntimeModes,
-                                              multipleModelSelections,
-                                              providerStatuses,
-                                            )}
-                                            onRuntimeModeChange={handleRuntimeModeChangeStable}
-                                          />
-                                        ),
-                                      })}
-                                />
-                              </div>
-                            )}
+                            {isMobileViewport && composerContextRow ? (
+                              <div className="pointer-events-auto">{composerContextRow}</div>
+                            ) : null}
                           </div>
                         </div>
                       </ComposerSurface.Shell>

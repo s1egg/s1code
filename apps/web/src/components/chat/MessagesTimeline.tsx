@@ -36,7 +36,6 @@ const EMPTY_RESPONDING_REQUEST_IDS: TimelineRowSharedState["respondingRequestIds
 
 const NOOP_OPEN_ATTACHMENT = (_attachment: ChatFileAttachment) => {};
 
-import { resolveChatListAnchoredEndSpace } from "@s1tools/shared/chatList";
 import { observeVisibleAnimation } from "../../lib/visibleAnimation";
 import {
   memo,
@@ -84,6 +83,7 @@ import { useAssistantCitationTarget } from "./useAssistantCitationTarget";
 import { worktreeSetupAgentStarted } from "@s1tools/client-runtime/worktree-setup";
 import { resolveCitationPhase, type CitedHistory } from "./citationProcedure";
 import {
+  resolveTimelineAnchorIndex,
   resolveTimelineIsAtEnd,
   resolveTimelineMinimapHasPersistentGutter,
   resolveTimelineMinimapCurrentIndex,
@@ -920,19 +920,16 @@ const ConversationTimeline = memo(function ConversationTimeline({
       onAnchorSizeChanged(anchorMessageId, size);
     }
   };
-  const anchoredEndSpaceConfig = resolveChatListAnchoredEndSpace(
-    rows,
-    anchorMessageId,
-    (row) => (row.kind === "message" && row.message.role === "user" ? row.message.id : null),
-    { anchorOffset: CHAT_TIMELINE_ANCHOR_OFFSET },
-  );
-  const anchoredEndSpace = anchoredEndSpaceConfig
-    ? {
-        ...anchoredEndSpaceConfig,
-        onReady: handleAnchorReady,
-        onSizeChanged: handleAnchorSizeChanged,
-      }
-    : undefined;
+  const anchorIndex = resolveTimelineAnchorIndex(rows, anchorMessageId);
+  const anchoredEndSpace =
+    anchorIndex === undefined
+      ? undefined
+      : {
+          anchorIndex,
+          anchorOffset: CHAT_TIMELINE_ANCHOR_OFFSET,
+          onReady: handleAnchorReady,
+          onSizeChanged: handleAnchorSizeChanged,
+        };
   const maintainVisibleContentPosition = {
     data: true,
     size: true,

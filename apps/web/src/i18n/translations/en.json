@@ -3638,23 +3638,13 @@
   "198ebc7ab395b090": "Click to hide account",
   "6df4c22a9ae17336": "Manage usage",
   "0469747f4bb9caac": "{additions} additions, {deletions} deletions",
+  "06b6bb85f2e34802": "What should we build in {project}?",
+  "5a405f15d9985bd6": "What should we build?",
+  "074db680e148e829": "Add a project",
   "a0e0e2640219f1b0": "Choose a project",
   "165511761be2855c": "Search projects",
   "a46a6467883575a4": "Search projects...",
-  "074db680e148e829": "Add a project",
   "08ff4b5e32bc46b8": "No matching projects.",
-  "1bbfd30a652f7e0f": "or start without a project",
-  "b8e0e89c83a639fa": [
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " to start"
-  ],
-  "99c183d2407cd36d": "Add a project to start",
-  "06b6bb85f2e34802": "What should we build in {project}?",
-  "5a405f15d9985bd6": "What should we build?",
   "613f8257a433cec4": "Media",
   "e3baa1d5c822a835": "Show screenshot",
   "267cc83b60e5e771": "Show accessibility JSON",

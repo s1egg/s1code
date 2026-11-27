@@ -3638,23 +3638,13 @@
   "198ebc7ab395b090": "Clic para ocultar la cuenta",
   "6df4c22a9ae17336": "Gestionar uso",
   "0469747f4bb9caac": "{additions} adiciones, {deletions} eliminaciones",
+  "06b6bb85f2e34802": "¿Qué construimos en {project}?",
+  "5a405f15d9985bd6": "¿Qué construimos?",
+  "074db680e148e829": "Añade un proyecto",
   "a0e0e2640219f1b0": "Elige un proyecto",
   "165511761be2855c": "Buscar proyectos",
   "a46a6467883575a4": "Buscar proyectos...",
-  "074db680e148e829": "Añade un proyecto",
   "08ff4b5e32bc46b8": "No hay proyectos que coincidan.",
-  "1bbfd30a652f7e0f": "o empieza sin proyecto",
-  "b8e0e89c83a639fa": [
-    {
-      "i": 1,
-      "k": "_gt_value_1",
-      "v": "v"
-    },
-    " para empezar"
-  ],
-  "99c183d2407cd36d": "Añade un proyecto para empezar",
-  "06b6bb85f2e34802": "¿Qué construimos en {project}?",
-  "5a405f15d9985bd6": "¿Qué construimos?",
   "613f8257a433cec4": "Multimedia",
   "e3baa1d5c822a835": "Mostrar captura de pantalla",
   "267cc83b60e5e771": "Mostrar JSON de accesibilidad",

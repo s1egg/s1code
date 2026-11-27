@@ -456,6 +456,8 @@ export interface ChatComposerProps {
   /** The new-thread strip names the permissions, so the controls row hides its chip. */
   permissionsShownInStrip: boolean;
   contextUsage: ContextWindowSnapshot | null | undefined;
+  /** Where the thread runs (environment, project, branch), leading the control row under the card. */
+  contextControls?: React.ReactNode;
 
   promptRef: React.RefObject<string>;
   composerImagesRef: React.RefObject<ComposerImageAttachment[]>;
@@ -4275,6 +4277,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         </ComposerSurface.Main>
         {!isMobileViewport ? (
           <div className="flex min-w-0 items-center gap-1 px-2 pt-1.5">
+            {props.contextControls}
             {expandedComposerControls}
             {props.contextUsage !== undefined ? (
               <ComposerContextUsage usage={props.contextUsage} hidden={hiddenThread} />

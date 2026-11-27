@@ -214,18 +214,23 @@ export function attachTimelineViewport(
 }
 
 /**
- * Whether a navigation can carry the viewport away from the live edge. A spurious
- * release while pinned never re-arms, so streaming stops following. Downward input
- * counts only outside the end band: streaming growth makes isAtEnd flicker false
- * for a frame, and a gesture then must not release follow.
+ * Whether a navigation can carry the viewport away from the live edge; a spurious release
+ * never re-arms. Downward input counts only outside the end band, where streaming makes
+ * isAtEnd flicker false, and a downward wheel only while an anchored reply runs past the end.
  */
 export function navigationReleasesFollow(
   navigation: TimelineNavigation,
-  viewport: { readonly contentScrollsUp: () => boolean; readonly awayFromEnd: () => boolean },
+  viewport: {
+    readonly contentScrollsUp: () => boolean;
+    readonly awayFromEnd: () => boolean;
+    readonly anchored: boolean;
+  },
 ): boolean {
   switch (navigation.source) {
     case "wheel":
-      return navigation.direction === "up" && viewport.contentScrollsUp();
+      return navigation.direction === "up"
+        ? viewport.contentScrollsUp()
+        : viewport.anchored && viewport.awayFromEnd();
     case "key":
       return navigation.direction === "up" ? viewport.contentScrollsUp() : viewport.awayFromEnd();
     case "pointer":
@@ -252,7 +257,8 @@ export type TimelineFollow =
   | { readonly mode: "released"; readonly atEnd: boolean };
 
 export type TimelineFollowEvent =
-  | { readonly type: "navigated" }
+  /** awayFromEnd: an anchored turn's reply already ran past the end when the reader moved. */
+  | { readonly type: "navigated"; readonly awayFromEnd: boolean }
   | { readonly type: "followEnd" }
   | { readonly type: "reachedEnd" }
   | { readonly type: "leftEnd" };
@@ -269,7 +275,7 @@ export function transitionTimelineFollow(
 ): TimelineFollow {
   switch (event.type) {
     case "navigated":
-      return state.mode === "released" ? state : { mode: "released", atEnd: true };
+      return state.mode === "released" ? state : { mode: "released", atEnd: !event.awayFromEnd };
     case "followEnd":
       return FOLLOWING;
     case "reachedEnd":
