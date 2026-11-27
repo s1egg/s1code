@@ -1,9 +1,9 @@
 # Use S1 Code as your default browser
 
 On macOS, the desktop app can be your default web browser. Links you open from other apps then
-open in S1 Code. When the thread on screen shows its browser panel, the link opens there as a new
-tab. Otherwise it starts a new thread without a project, with the browser panel maximized on the
-page, so you can ask an agent about it right away.
+open in S1 Code. When the thread on screen shows its browser pane, the link opens there as a new
+page. Otherwise it starts a new thread without a project, with the browser pane filling the window
+on the page, so you can ask an agent about it right away.
 
 Choose **S1 Code** under **System Settings → Desktop & Dock → Default web browser**. To go back,
 choose another browser there.

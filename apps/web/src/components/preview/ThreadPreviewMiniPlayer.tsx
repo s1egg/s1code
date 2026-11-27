@@ -653,7 +653,7 @@ function MiniPlayerShell({
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      aria-label={gt("Open preview in right panel")}
+                      aria-label={gt("Open in a pane")}
                       onPointerDown={(event) => event.stopPropagation()}
                       onClick={onOpenInPanel}
                     />
@@ -662,7 +662,7 @@ function MiniPlayerShell({
                   <PanelRightIcon />
                 </TooltipTrigger>
                 <TooltipPopup side="top">
-                  <T>Open in right panel</T>
+                  <T>Open in a pane</T>
                 </TooltipPopup>
               </Tooltip>
               {pillActions}

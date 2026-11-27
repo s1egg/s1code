@@ -55,7 +55,7 @@ import { composerImageDedupKey } from "./composerAttachmentFiles";
 import { replaceComposerContextReferences } from "@s1tools/shared/composerContextReferences";
 import { resizeSnapShotSource } from "../../lib/snapShotSource";
 import { registerCommands } from "../../shortcuts/dispatcher";
-import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../../terminalUiStateStore";
+import { selectPaneVisible, useRightPanelStore } from "../../rightPanelStore";
 import { toastManager } from "../ui/toast";
 import type { useComposerTriggerState } from "./useComposerTriggerState";
 import {
@@ -787,11 +787,10 @@ export function useComposerStash(input: {
   const embedded = use(BackgroundThreadContext);
   const hiddenThread = use(HiddenThreadContext);
   const readShortcutContext = useStableCallback(() => ({
-    terminalOpen: Boolean(
-      selectThreadTerminalUiState(
-        useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
-        routeThreadRef,
-      ).terminalOpen,
+    terminalOpen: selectPaneVisible(
+      useRightPanelStore.getState().byThreadKey,
+      routeThreadRef,
+      "terminal",
     ),
   }));
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- registers the capture-phase stash shortcut with the command registry while the composer is mounted

@@ -317,7 +317,7 @@ snooze limit stops by default. Providers without a reset time offer manual
 retry and the normal snooze choices.
 
 On web and desktop, use **Agents** to follow work delegated to subagents. Click
-a subagent there or on its conversation card to open it in the right panel,
+a subagent there or on its conversation card to open it in the side chat pane,
 beside the thread you are in. See
 [Open a thread beside the one you are in](#open-a-thread-beside-the-one-you-are-in).
 On mobile, open a subagent from its conversation card or **Agents**. On iOS
@@ -343,8 +343,8 @@ and keeps the agent, the terminal, and S1 Code running. Stop needs terminal
 access to the environment and is not available on Windows.
 
 Thread details sit in a sidebar to the right of the chat. Toggle it with the list
-button at the top right or `mod+shift+b`. While the right panel is open, or the
-window is narrow, the same button opens thread details as a popover instead. They
+button at the top right or `mod+shift+b`. While a pane sits to the right of the chat,
+or the window is narrow, the same button opens thread details as a popover instead. They
 show where the thread runs, its folder, branch, and scripts, its changes, how much
 of the context window it uses, and your usage limits, with a link to **Usage**.
 Click **Context** to see what fills the context window; **Back** or Escape returns.
@@ -359,7 +359,7 @@ back the standard rows.
 
 On web and desktop, a subagent, a side chat, and a
 [thread on a linked machine](remote-access.md#read-a-linked-machines-threads)
-all open the same way. Click one to open it as a tab in the right panel, so the
+all open the same way. Click one to open it in the side chat [pane](panes.md), so the
 thread you are in stays in view. Hold ⌘ (Ctrl on Windows and Linux) while you
 click, or middle-click, to open it in the main view instead. With the keyboard,
 Enter and ⌘/Ctrl + Enter do the same. Right-click for **Open in side panel** and
@@ -369,8 +369,7 @@ To make the main view the place a plain click opens them, set **Settings → Cha
 Open subagents and side chats in** to **Main view**. The modifier then opens
 the side panel.
 
-From a tab, **Open in main view** at the top of the tab, or in the tab's
-right-click menu, moves it to the main view. The bottom of the view depends on
+From the pane, **Open in main view** in its **…** menu moves it to the main view. The bottom of the view depends on
 the thread: a side chat or a subagent you delegated has a composer, a subagent
 the agent started is read-only, and a thread on a linked machine is read-only
 with **Connect to interact**.
@@ -386,8 +385,8 @@ A side chat lets you ask a question about a thread without adding to it. It star
 with what the thread knows, and the thread keeps working while you ask.
 
 On web and desktop, start a message with `/side` or `/btw`, then your question.
-You can also choose **Side chat** from the **+** menu in the right panel. The side
-chat opens as a tab there, with its own composer. Side chats do not show in the
+You can also choose **Side chat** from the **…** menu at the top right. The side
+chat opens in its pane, with its own composer. Side chats do not show in the
 sidebar. Find one again under **Side chats** in thread details, where it opens
 [like a subagent does](#open-a-thread-beside-the-one-you-are-in).
 

@@ -230,7 +230,7 @@ instructions to commits and pull requests.
 
 On web and desktop, **Pull requests** in thread details lists the pull requests of the thread's
 project; change **Project** under **Filters** to see others. Open it there or with **Open pull
-requests** in the command palette. Select a pull request to open it in the thread's right panel,
+requests** in the command palette. Select a pull request to open it in the thread's pull request [pane](panes.md),
 where you can review changes and comments, request reviewers, check out a branch, or merge. You can edit review titles and descriptions and your own comments where the host allows it.
 Where you can edit a description, you can also tick its checkboxes from the Summary tab
 (the Overview tab on mobile).
@@ -429,7 +429,7 @@ each can be loaded further on its own. Agents file new issues in the first team 
 connect another Linear workspace or user, add another account in the same place; each project
 reads its teams through the account you picked them under.
 
-Select an issue to open it in the thread's right panel: description, comments, state changes,
+Select an issue to open it in the thread's issue pane: description, comments, state changes,
 linked pull requests, labels, assignees, and reactions. Linked pull requests open in the same panel. You can
 comment, edit the title and description, change labels and assignees, react, and move it to
 another state when the tracker and your account allow it. Where a GitHub repository has issue

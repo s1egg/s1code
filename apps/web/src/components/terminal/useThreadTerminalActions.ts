@@ -10,7 +10,6 @@ import { nextTerminalId } from "@s1tools/shared/terminalLabels";
 import { useComposerDraftStore } from "../../composerDraftStore";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { randomUUID } from "~/lib/utils";
-import { selectThreadRightPanelState, useRightPanelStore } from "../../rightPanelStore";
 import { useProject, useQuietThreadShell } from "../../state/entities";
 import { readEnvironmentScope } from "../../state/session";
 import { terminalEnvironment } from "../../state/terminal";
@@ -45,11 +44,8 @@ export function useThreadTerminalActions(threadRef: ScopedThreadRef | null) {
     environmentId: threadRef?.environmentId ?? null,
     threadId: threadRef?.threadId ?? null,
   });
-  const drawerTerminalIds = useTerminalUiStateStore(
+  const paneTerminalIds = useTerminalUiStateStore(
     (state) => selectThreadTerminalUiState(state.terminalUiStateByThreadKey, threadRef).terminalIds,
-  );
-  const panelSurfaces = useRightPanelStore(
-    (state) => selectThreadRightPanelState(state.byThreadKey, threadRef).surfaces,
   );
 
   const canWrite = () =>
@@ -59,10 +55,7 @@ export function useThreadTerminalActions(threadRef: ScopedThreadRef | null) {
   const allocateTerminalId = () => {
     const ids = new Set([
       ...(knownSessions ?? []).map((session) => session.target.terminalId),
-      ...drawerTerminalIds,
-      ...panelSurfaces.flatMap((surface) =>
-        surface.kind === "terminal" ? surface.terminalIds : [],
-      ),
+      ...paneTerminalIds,
       ...(threadRef ? closingTerminalIds(threadRef) : []),
     ]);
     const canReuse =

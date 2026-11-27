@@ -468,14 +468,14 @@ const COMMAND_LABELS: Partial<Record<KeybindingCommand, string>> = {
   "terminal.splitVertical": msg("Terminal: Split Vertical"),
   "terminal.new": msg("Terminal: New"),
   "terminal.close": msg("Terminal: Close"),
-  "rightPanel.toggle": msg("Right Panel: Toggle"),
-  "rightPanel.new": msg("Right Panel: New"),
+  "rightPanel.toggle": msg("Panes: Show or Hide All"),
+  "rightPanel.new": msg("Panes: More Panes"),
   "threadPanel.toggle": msg("Thread Panel: Toggle"),
-  "rightPanel.toggleMaximized": msg("Right Panel: Toggle Maximized"),
-  "rightPanel.close": msg("Right Panel: Close"),
+  "rightPanel.toggleMaximized": msg("Panes: Fill Window"),
+  "rightPanel.close": msg("Panes: Close Focused Pane"),
   "pullRequest.copyNumber": msg("Pull Request: Copy Number"),
   "diff.toggle": msg("Diff: Toggle"),
-  "preview.toggle": msg("Preview: Toggle"),
+  "preview.toggle": msg("Browser: Toggle"),
   "preview.refresh": msg("Preview: Refresh"),
   "preview.zoomIn": msg("Preview: Zoom In"),
   "preview.zoomOut": msg("Preview: Zoom Out"),
@@ -529,7 +529,7 @@ const USAGE_COMMAND_LABELS: Record<
 };
 
 const LATE_COMMAND_LABELS: Partial<Record<KeybindingCommand, string>> = {
-  "view.reopenClosed": msg("Reopen Closed Tab"),
+  "view.reopenClosed": msg("Reopen Closed Pane"),
   "preview.focusUrl": msg("Preview: Focus URL"),
   "preview.find": msg("Preview: Find on Page"),
 };

@@ -1,9 +1,7 @@
 import {
   AuthTerminalOperateScope,
-  type EnvironmentId,
   type ResolvedKeybindingsConfig,
   type ScopedThreadRef,
-  type ThreadId,
 } from "@s1tools/contracts";
 import { scopeProjectRef } from "@s1tools/client-runtime/environment";
 import { projectScriptCwd, projectScriptRuntimeEnv } from "@s1tools/shared/projectScripts";
@@ -13,22 +11,15 @@ import { memo, useEffect } from "react";
 import { useComposerDraftStore } from "../composerDraftStore";
 import { useStableCallback } from "../hooks/useStableCallback";
 import type { TerminalContextSelection } from "../lib/terminalContext";
-import { focusActiveDrawerTerminal, focusTerminal } from "../lib/terminalFocus";
-import { cn } from "~/lib/utils";
-import {
-  selectThreadRightPanelState,
-  useRightPanelStore,
-  type RightPanelSurface,
-} from "../rightPanelStore";
+import { focusActiveTerminal, focusTerminal } from "../lib/terminalFocus";
 import { useProject, useQuietThreadShell } from "../state/entities";
 import { useEnvironmentScope } from "../state/session";
-import { useKnownTerminalSessions, useTerminalDrawerSessions } from "../state/terminalSessions";
+import { useTerminalDrawerSessions } from "../state/terminalSessions";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { useThreadTerminalActions } from "./terminal/useThreadTerminalActions";
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
-import { resolveTerminalWorktreePath } from "./ChatView.logic";
 
-/** Where a drawer or panel opens new terminals when a script run overrides the thread's own. */
+/** Where the pane opens new terminals when a script run overrides the thread's own. */
 export type PersistentTerminalLaunchContext = {
   readonly cwd: string;
   readonly worktreePath: string | null;
@@ -40,33 +31,33 @@ interface TerminalLaunchLocationWithEnv {
   readonly runtimeEnv: Record<string, string>;
 }
 
-interface PersistentThreadTerminalDrawerProps {
-  threadRef: { environmentId: EnvironmentId; threadId: ThreadId };
-  threadId: ThreadId;
-  active: boolean;
-  composerHeight: number;
+export interface PersistentThreadTerminalPaneProps {
+  visible: boolean;
+  threadRef: ScopedThreadRef;
   launchContext: PersistentTerminalLaunchContext | null;
-  splitShortcutLabel: string | undefined;
-  splitVerticalShortcutLabel: string | undefined;
-  newShortcutLabel: string | undefined;
-  closeShortcutLabel: string | undefined;
   keybindings: ResolvedKeybindingsConfig;
   onAddTerminalContext: (selection: TerminalContextSelection) => void;
+  splitShortcutLabel?: string | undefined;
+  splitVerticalShortcutLabel?: string | undefined;
+  newShortcutLabel?: string | undefined;
+  closeShortcutLabel?: string | undefined;
 }
 
-export const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDrawer({
+/**
+ * The terminal pane: every terminal of the thread, grouped into splits. Sessions live on the
+ * server, so hiding the pane or switching threads unmounts the views and keeps the shells.
+ */
+export const PersistentThreadTerminalPane = memo(function PersistentThreadTerminalPane({
+  visible,
   threadRef,
-  threadId,
-  active,
-  composerHeight,
   launchContext,
+  keybindings,
+  onAddTerminalContext,
   splitShortcutLabel,
   splitVerticalShortcutLabel,
   newShortcutLabel,
   closeShortcutLabel,
-  keybindings,
-  onAddTerminalContext,
-}: PersistentThreadTerminalDrawerProps) {
+}: PersistentThreadTerminalPaneProps) {
   const messages = useMessages();
   const canOperateTerminal = useEnvironmentScope(threadRef.environmentId, AuthTerminalOperateScope);
   const terminalActions = useThreadTerminalActions(threadRef);
@@ -81,29 +72,17 @@ export const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerm
   const terminalUiState = useTerminalUiStateStore((state) =>
     selectThreadTerminalUiState(state.terminalUiStateByThreadKey, threadRef),
   );
-  const visible = active && terminalUiState.terminalOpen;
-  const metadata = useTerminalDrawerSessions(threadRef.environmentId, threadId);
-  const knownTerminalSessions = metadata?.sessions;
+  const metadata = useTerminalDrawerSessions(threadRef.environmentId, threadRef.threadId);
+  const knownTerminalSessions = metadata?.sessions ?? [];
   const snapshotId = metadata?.snapshotId;
-  const panelSurfaces = useRightPanelStore(
-    (state) => selectThreadRightPanelState(state.byThreadKey, threadRef).surfaces,
-  );
-  const panelTerminalIds = new Set(
-    panelSurfaces.flatMap((surface) => (surface.kind === "terminal" ? surface.terminalIds : [])),
-  );
-  const drawerTerminalSessions =
-    knownTerminalSessions?.filter((session) => !panelTerminalIds.has(session.target.terminalId)) ??
-    [];
   const terminalLabelsById = new Map<string, string>();
-  for (const session of drawerTerminalSessions) {
+  const terminalLaunchLocationsById = new Map<string, TerminalLaunchLocationWithEnv>();
+  for (const session of knownTerminalSessions) {
+    const summary = session.state.summary;
     terminalLabelsById.set(
       session.target.terminalId,
-      resolveTerminalSessionLabel(session.target.terminalId, session.state.summary, messages),
+      resolveTerminalSessionLabel(session.target.terminalId, summary, messages),
     );
-  }
-  const terminalLaunchLocationsById = new Map<string, TerminalLaunchLocationWithEnv>();
-  for (const session of drawerTerminalSessions) {
-    const summary = session.state.summary;
     if (!project || !summary) continue;
     const worktreePathForLaunch =
       launchContext !== null ? launchContext.worktreePath : summary.worktreePath;
@@ -116,10 +95,9 @@ export const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerm
       }),
     });
   }
-  const serverOrderedTerminalIds = drawerTerminalSessions.map(
+  const serverOrderedTerminalIds = knownTerminalSessions.map(
     (session) => session.target.terminalId,
   );
-  const storeSetTerminalHeight = useTerminalUiStateStore((state) => state.setTerminalHeight);
   const storeSplitTerminal = useTerminalUiStateStore((state) => state.splitTerminal);
   const storeSplitTerminalVertical = useTerminalUiStateStore(
     (state) => state.splitTerminalVertical,
@@ -151,11 +129,7 @@ export const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerm
       })
     : {};
 
-  const setTerminalHeight = (height: number) => {
-    storeSetTerminalHeight(threadRef, height);
-  };
-
-  const launchDrawerTerminal = (place: (terminalId: string) => void) => {
+  const launchPaneTerminal = (place: (terminalId: string) => void) => {
     if (!cwd) return;
     const launched = terminalActions.launchTerminal({
       place,
@@ -166,13 +140,13 @@ export const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerm
     void launched.result;
   };
   const splitTerminal = useStableCallback(() =>
-    launchDrawerTerminal((terminalId) => storeSplitTerminal(threadRef, terminalId)),
+    launchPaneTerminal((terminalId) => storeSplitTerminal(threadRef, terminalId)),
   );
   const splitTerminalVertical = useStableCallback(() =>
-    launchDrawerTerminal((terminalId) => storeSplitTerminalVertical(threadRef, terminalId)),
+    launchPaneTerminal((terminalId) => storeSplitTerminalVertical(threadRef, terminalId)),
   );
   const createNewTerminal = useStableCallback(() =>
-    launchDrawerTerminal((terminalId) => storeNewTerminal(threadRef, terminalId)),
+    launchPaneTerminal((terminalId) => storeNewTerminal(threadRef, terminalId)),
   );
 
   const activateTerminal = (terminalId: string) => {
@@ -184,194 +158,41 @@ export const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerm
     if (!terminalActions.canWrite()) return;
     terminalActions.closeTerminalSession(terminalId);
     storeCloseTerminal(threadRef, terminalId);
-    if (visible) focusActiveDrawerTerminal(threadRef);
+    if (visible) focusActiveTerminal(threadRef);
   });
 
   const handleAddTerminalContext = (selection: TerminalContextSelection) => {
-    if (!visible) {
-      return;
-    }
-    onAddTerminalContext(selection);
+    if (visible) onAddTerminalContext(selection);
   };
-
-  if (!project || (!terminalUiState.terminalOpen && !active) || !cwd) {
-    return null;
-  }
-
-  return (
-    <div
-      className={cn(
-        "grid shrink-0 overflow-clip",
-        active ? (visible ? "grid-rows-[1fr]" : "grid-rows-[0fr]") : "hidden",
-        active &&
-          "[[data-panel-animations=true]_&]:transition-[grid-template-rows] [[data-panel-animations=true]_&]:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:ease-out",
-        active && visible && "[[data-panel-animations=true]_&]:starting:grid-rows-[0fr]!",
-      )}
-    >
-      <div className="min-h-0 overflow-clip">
-        <ThreadTerminalDrawer
-          threadRef={threadRef}
-          threadId={threadId}
-          cwd={cwd}
-          worktreePath={effectiveWorktreePath}
-          runtimeEnv={runtimeEnv}
-          visible={visible}
-          height={terminalUiState.terminalHeight}
-          composerHeight={composerHeight}
-          // Known-session order is MRU and changes on focus; persisted store order keeps sidebar labels stable.
-          terminalIds={canOperateTerminal ? terminalUiState.terminalIds : serverOrderedTerminalIds}
-          activeTerminalId={terminalUiState.activeTerminalId}
-          terminalGroups={terminalUiState.terminalGroups}
-          activeTerminalGroupId={terminalUiState.activeTerminalGroupId}
-          onSplitTerminal={splitTerminal}
-          onSplitTerminalVertical={splitTerminalVertical}
-          onNewTerminal={createNewTerminal}
-          splitShortcutLabel={visible ? splitShortcutLabel : undefined}
-          splitVerticalShortcutLabel={visible ? splitVerticalShortcutLabel : undefined}
-          newShortcutLabel={visible ? newShortcutLabel : undefined}
-          closeShortcutLabel={visible ? closeShortcutLabel : undefined}
-          keybindings={keybindings}
-          onActiveTerminalChange={activateTerminal}
-          onCloseTerminal={closeTerminal}
-          onHeightChange={setTerminalHeight}
-          onAddTerminalContext={handleAddTerminalContext}
-          terminalLabelsById={terminalLabelsById}
-          terminalLaunchLocationsById={terminalLaunchLocationsById}
-        />
-      </div>
-    </div>
-  );
-});
-
-export interface PersistentThreadTerminalPanelProps {
-  visible: boolean;
-  threadRef: ScopedThreadRef;
-  surface: Extract<RightPanelSurface, { kind: "terminal" }>;
-  launchContext: PersistentTerminalLaunchContext | null;
-  keybindings: ResolvedKeybindingsConfig;
-  onAddTerminalContext: (selection: TerminalContextSelection) => void;
-  onSplitTerminal: () => void;
-  onSplitTerminalVertical: () => void;
-  onNewTerminal: () => void;
-  onActiveTerminalChange: (terminalId: string) => void;
-  onCloseTerminal: (terminalId: string, threadRef?: ScopedThreadRef) => void;
-  splitShortcutLabel?: string | undefined;
-  splitVerticalShortcutLabel?: string | undefined;
-  newShortcutLabel?: string | undefined;
-  closeShortcutLabel?: string | undefined;
-}
-
-export const PersistentThreadTerminalPanel = memo(function PersistentThreadTerminalPanel({
-  visible,
-  threadRef,
-  surface,
-  launchContext,
-  keybindings,
-  onAddTerminalContext,
-  onSplitTerminal,
-  onSplitTerminalVertical,
-  onNewTerminal,
-  onActiveTerminalChange,
-  onCloseTerminal,
-  splitShortcutLabel,
-  splitVerticalShortcutLabel,
-  newShortcutLabel,
-  closeShortcutLabel,
-}: PersistentThreadTerminalPanelProps) {
-  const messages = useMessages();
-  const serverThread = useQuietThreadShell(threadRef);
-  const draftThread = useComposerDraftStore((store) => store.getDraftThreadByRef(threadRef));
-  const projectRef = serverThread
-    ? scopeProjectRef(serverThread.environmentId, serverThread.projectId)
-    : draftThread
-      ? scopeProjectRef(draftThread.environmentId, draftThread.projectId)
-      : null;
-  const project = useProject(projectRef);
-  const knownTerminalSessions = useKnownTerminalSessions({
-    environmentId: threadRef.environmentId,
-    threadId: threadRef.threadId,
-  });
-  const threadWorktreePath = serverThread?.worktreePath ?? draftThread?.worktreePath ?? null;
-  const activeSummary =
-    knownTerminalSessions?.find((session) => session.target.terminalId === surface.activeTerminalId)
-      ?.state.summary ?? null;
-  const worktreePath = resolveTerminalWorktreePath({
-    launchContext,
-    summary: activeSummary,
-    threadWorktreePath,
-  });
-  const cwd =
-    launchContext?.cwd ??
-    activeSummary?.cwd ??
-    (project ? projectScriptCwd({ project: { cwd: project.workspaceRoot }, worktreePath }) : null);
-  const runtimeEnv = project
-    ? projectScriptRuntimeEnv({ project: { cwd: project.workspaceRoot }, worktreePath })
-    : {};
-  const terminalLabelsById = new Map<string, string>();
-  const terminalLaunchLocationsById = new Map<string, TerminalLaunchLocationWithEnv>();
-  for (const terminalId of surface.terminalIds) {
-    const summary =
-      knownTerminalSessions?.find((session) => session.target.terminalId === terminalId)?.state
-        .summary ?? null;
-    terminalLabelsById.set(terminalId, resolveTerminalSessionLabel(terminalId, summary, messages));
-    if (!project) continue;
-    const terminalWorktreePath = resolveTerminalWorktreePath({
-      launchContext,
-      summary,
-      threadWorktreePath,
-    });
-    terminalLaunchLocationsById.set(terminalId, {
-      cwd:
-        launchContext?.cwd ??
-        summary?.cwd ??
-        projectScriptCwd({
-          project: { cwd: project.workspaceRoot },
-          worktreePath: terminalWorktreePath,
-        }),
-      worktreePath: terminalWorktreePath,
-      runtimeEnv: projectScriptRuntimeEnv({
-        project: { cwd: project.workspaceRoot },
-        worktreePath: terminalWorktreePath,
-      }),
-    });
-  }
 
   if (!project || !cwd) return null;
 
   return (
     <ThreadTerminalDrawer
-      mode="panel"
-      visible={visible}
       threadRef={threadRef}
       threadId={threadRef.threadId}
       cwd={cwd}
-      worktreePath={worktreePath}
+      worktreePath={effectiveWorktreePath}
       runtimeEnv={runtimeEnv}
-      height={0}
-      terminalIds={surface.terminalIds}
-      activeTerminalId={surface.activeTerminalId}
-      terminalGroups={[
-        {
-          id: surface.id,
-          terminalIds: surface.terminalIds,
-          ...(surface.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : {}),
-        },
-      ]}
-      activeTerminalGroupId={surface.id}
-      onSplitTerminal={onSplitTerminal}
-      onSplitTerminalVertical={onSplitTerminalVertical}
-      onNewTerminal={onNewTerminal}
-      splitShortcutLabel={splitShortcutLabel}
-      splitVerticalShortcutLabel={splitVerticalShortcutLabel}
-      newShortcutLabel={newShortcutLabel}
-      closeShortcutLabel={closeShortcutLabel}
-      onActiveTerminalChange={onActiveTerminalChange}
-      onCloseTerminal={onCloseTerminal}
-      onHeightChange={() => undefined}
-      onAddTerminalContext={onAddTerminalContext}
+      visible={visible}
+      // Known-session order is MRU and changes on focus; persisted store order keeps labels stable.
+      terminalIds={canOperateTerminal ? terminalUiState.terminalIds : serverOrderedTerminalIds}
+      activeTerminalId={terminalUiState.activeTerminalId}
+      terminalGroups={terminalUiState.terminalGroups}
+      activeTerminalGroupId={terminalUiState.activeTerminalGroupId}
+      onSplitTerminal={splitTerminal}
+      onSplitTerminalVertical={splitTerminalVertical}
+      onNewTerminal={createNewTerminal}
+      splitShortcutLabel={visible ? splitShortcutLabel : undefined}
+      splitVerticalShortcutLabel={visible ? splitVerticalShortcutLabel : undefined}
+      newShortcutLabel={visible ? newShortcutLabel : undefined}
+      closeShortcutLabel={visible ? closeShortcutLabel : undefined}
+      keybindings={keybindings}
+      onActiveTerminalChange={activateTerminal}
+      onCloseTerminal={closeTerminal}
+      onAddTerminalContext={handleAddTerminalContext}
       terminalLabelsById={terminalLabelsById}
       terminalLaunchLocationsById={terminalLaunchLocationsById}
-      keybindings={keybindings}
     />
   );
 });

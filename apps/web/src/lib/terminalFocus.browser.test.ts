@@ -101,8 +101,11 @@ function mountThread(threadId: string, environmentId = "env") {
       },
     };
   };
-  useTerminalUiStateStore.getState().ensureTerminal(ref, "drawer", { open: true, active: true });
-  useRightPanelStore.getState().openTerminal(ref, "panel");
+  // Two terminals split side by side in the thread's terminal pane.
+  useTerminalUiStateStore.getState().ensureTerminal(ref, "drawer", { active: true });
+  useTerminalUiStateStore.getState().splitTerminal(ref, "panel");
+  useTerminalUiStateStore.getState().setActiveTerminal(ref, "drawer");
+  useRightPanelStore.getState().open(ref, "terminal");
   return {
     ref,
     root,
@@ -116,7 +119,7 @@ function mountThread(threadId: string, environmentId = "env") {
 
 describe("thread focus restoration", () => {
   it.each(["composer", "drawer", "panel", "remounted composer"] as const)(
-    "restores %s focus when returning to a thread with both terminals open",
+    "restores %s focus when returning to a thread with its terminal pane shown",
     (control) => {
       using thread = mountThread(`return-${control}`);
       using drawer = thread.mountTerminal("drawer");
@@ -172,15 +175,15 @@ describe("thread focus restoration", () => {
     expect(document.activeElement).toBe(panel.input);
   });
 
-  it("keeps an explicit drawer-open request while its viewport becomes visible", () => {
+  it("keeps an explicit terminal request while its pane becomes visible", () => {
     using thread = mountThread("drawer-open");
     using drawer = thread.mountTerminal("drawer");
     const leave = thread.enter();
     thread.composer.focus();
     thread.drawerState.visible = false;
-    useTerminalUiStateStore.getState().setTerminalOpen(thread.ref, false);
+    useRightPanelStore.getState().hidePane(thread.ref, "terminal");
     focusTerminal(thread.ref, "drawer");
-    useTerminalUiStateStore.getState().setTerminalOpen(thread.ref, true);
+    useRightPanelStore.getState().open(thread.ref, "terminal");
     leave();
     using _leave = { [Symbol.dispose]: thread.enter() };
     thread.drawerState.visible = true;
@@ -189,13 +192,13 @@ describe("thread focus restoration", () => {
     expect(document.activeElement).toBe(drawer.input);
   });
 
-  it("falls back to the composer when the remembered drawer terminal was closed", () => {
+  it("falls back to the composer when the remembered terminal's pane was hidden", () => {
     using thread = mountThread("closed-remembered");
     using drawer = thread.mountTerminal("drawer");
     const leave = thread.enter();
     expect(document.activeElement).toBe(drawer.input);
     leave();
-    useTerminalUiStateStore.getState().setTerminalOpen(thread.ref, false);
+    useRightPanelStore.getState().hidePane(thread.ref, "terminal");
     thread.drawerState.visible = false;
     using _leave = { [Symbol.dispose]: thread.enter() };
 

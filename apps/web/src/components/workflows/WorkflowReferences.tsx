@@ -11,6 +11,7 @@ import { CircleCheckIcon, CircleDotIcon, ExternalLinkIcon, LinkIcon } from "luci
 import { isElectron } from "~/env";
 import { isTerminalFocused } from "../../lib/terminalFocus";
 import { cn } from "../../lib/utils";
+import type { PaneKind } from "../../paneLayout";
 import { useRightPanelStore } from "../../rightPanelStore";
 import { openInShownThread } from "../chat/openThreadDetails";
 import { IssueDetailPanel } from "../issue/IssueDetailPanel";
@@ -87,17 +88,17 @@ const shortcutContext = () => ({
 });
 
 /**
- * Opens the reference full size in the last thread's right panel, where it has the whole window.
+ * Opens the reference in the last thread's pane, filling the window.
  * Null for a kind with none.
  */
 export function useOpenReferenceFullSize(
   environmentId: EnvironmentId,
 ): (reference: WorkflowRunReference) => (() => void) | null {
   const router = useRouter();
-  const openMaximized = (open: (threadRef: ScopedThreadRef) => void) =>
+  const openFilled = (pane: PaneKind, open: (threadRef: ScopedThreadRef) => void) =>
     void openInShownThread(router, (threadRef) => {
       open(threadRef);
-      useRightPanelStore.getState().requestMaximize(threadRef);
+      useRightPanelStore.getState().setFill(threadRef, pane);
     });
   // Thread tabs name another environment only; the thread's own is implied.
   const scope = (threadRef: ScopedThreadRef) =>
@@ -106,7 +107,7 @@ export function useOpenReferenceFullSize(
     const issue = workflowReferenceIssue(reference);
     if (issue !== null) {
       return () =>
-        openMaximized((threadRef) =>
+        openFilled("issue", (threadRef) =>
           useRightPanelStore.getState().openIssue(threadRef, {
             ...scope(threadRef),
             projectId: issue.projectId,
@@ -121,7 +122,7 @@ export function useOpenReferenceFullSize(
     const pullRequest = workflowReferencePullRequest(reference);
     if (pullRequest !== null) {
       return () =>
-        openMaximized((threadRef) =>
+        openFilled("pull-request", (threadRef) =>
           useRightPanelStore.getState().openPullRequest(threadRef, {
             ...scope(threadRef),
             projectId: pullRequest.projectId,

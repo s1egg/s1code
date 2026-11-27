@@ -2,7 +2,7 @@ import { scopeThreadRef } from "@s1tools/client-runtime/environment";
 import { EnvironmentId, ThreadId } from "@s1tools/contracts";
 import { beforeEach, expect, it } from "vite-plus/test";
 
-import { selectThreadRightPanelState, useRightPanelStore } from "../rightPanelStore";
+import { selectPaneVisible, useRightPanelStore } from "../rightPanelStore";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { revealThreadTerminal } from "./revealThreadTerminal";
 
@@ -17,39 +17,35 @@ beforeEach(() => {
   useRightPanelStore.setState({ byThreadKey: {} });
 });
 
-it("reopens the existing panel and selects a running terminal in its split", () => {
+it("shows the hidden terminal pane where it sat and selects the running terminal", () => {
+  const terminals = useTerminalUiStateStore.getState();
+  terminals.newTerminal(threadRef, "terminal-1");
+  terminals.splitTerminal(threadRef, "setup-install");
+  terminals.setActiveTerminal(threadRef, "terminal-1");
   const panels = useRightPanelStore.getState();
-  panels.openTerminal(threadRef, "terminal-1");
-  const surfaceId = selectThreadRightPanelState(
-    useRightPanelStore.getState().byThreadKey,
-    threadRef,
-  ).activeSurfaceId!;
-  panels.splitTerminal(threadRef, surfaceId, "setup-install");
-  panels.activateTerminal(threadRef, surfaceId, "terminal-1");
-  panels.close(threadRef);
+  panels.open(threadRef, "terminal");
+  panels.movePane(threadRef, "terminal", "chat", "bottom");
+  panels.hidePane(threadRef, "terminal");
 
   revealThreadTerminal(threadRef, "setup-install");
-  expect(
-    selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, threadRef),
-  ).toMatchObject({
-    isOpen: true,
-    activeSurfaceId: surfaceId,
-    surfaces: [
-      {
-        terminalIds: ["terminal-1", "setup-install"],
-        activeTerminalId: "setup-install",
-      },
-    ],
+  const byThreadKey = useRightPanelStore.getState().byThreadKey;
+  expect(selectPaneVisible(byThreadKey, threadRef, "terminal")).toBe(true);
+  expect(byThreadKey[Object.keys(byThreadKey)[0]!]!.layout).toMatchObject({
+    direction: "column",
+    children: [{ type: "chat" }, { type: "pane", pane: "terminal" }],
   });
   expect(
     selectThreadTerminalUiState(
       useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
       threadRef,
-    ).terminalIds,
-  ).toEqual([]);
+    ),
+  ).toMatchObject({
+    terminalIds: ["terminal-1", "setup-install"],
+    activeTerminalId: "setup-install",
+  });
 });
 
-it("reveals terminals in their own environment without changing another environment's drawer", () => {
+it("reveals terminals in their own environment without changing another environment's", () => {
   revealThreadTerminal(threadRef, "default");
   revealThreadTerminal(remoteRef, "setup-install");
   const state = useTerminalUiStateStore.getState().terminalUiStateByThreadKey;

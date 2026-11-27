@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 
 import { acquireBrowserSurface } from "./browserSurfaceStore";
+import { usePaneDragStore } from "../components/panes/paneDragStore";
 import { observeResize } from "../lib/observeResize";
 
 export function BrowserSurfaceSlot(props: {
@@ -21,7 +22,10 @@ export function BrowserSurfaceSlot(props: {
     className,
     fitSourceContent = false,
   } = props;
-  const presentationRef = useRef({ visible, cornerRadius, zIndex });
+  const paneDragging = usePaneDragStore((state) => state.dragging !== null);
+  const paneLayoutRevision = usePaneDragStore((state) => state.layoutRevision);
+  const shown = visible && !paneDragging;
+  const presentationRef = useRef({ visible: shown, cornerRadius, zIndex });
   const updateRef = useRef<(() => void) | null>(null);
 
   // The lease lives as long as this element for one tab, so the ref callback owns it.
@@ -60,9 +64,6 @@ export function BrowserSurfaceSlot(props: {
     updateRef.current = update;
     update();
     const observed: Element[] = [element];
-    // Inline shells animate without resizing the slot, so observe the shell too.
-    const panel = element.closest('[data-preview-panel-mode="inline"]');
-    if (panel) observed.push(panel);
     // Sidebar width changes move the slot without changing its size or column offset.
     observed.push(...document.querySelectorAll('[data-slot="sidebar-gap"]'));
     const stopObserving = observeResize(observed, update);
@@ -79,13 +80,14 @@ export function BrowserSurfaceSlot(props: {
 
   // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- pushes visibility, radius and stacking to the desktop browser surface after layout
   useLayoutEffect(() => {
-    presentationRef.current = { visible, cornerRadius, zIndex };
+    presentationRef.current = { visible: shown, cornerRadius, zIndex };
     updateRef.current?.();
   }, [
     cornerRadius,
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A layoutVersion bump means the slot moved without resizing, so it re-presents at the new position.
     layoutVersion,
-    visible,
+    paneLayoutRevision,
+    shown,
     zIndex,
   ]);
 

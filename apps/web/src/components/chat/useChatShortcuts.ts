@@ -8,7 +8,7 @@ import {
   preventTerminalCloseShortcut,
 } from "../../lib/terminalCloseShortcut";
 import { isInSideChatPane } from "../../lib/sideChatPane";
-import { getTerminalFocusOwner, type TerminalFocusOwner } from "../../lib/terminalFocus";
+import { isTerminalFocused } from "../../lib/terminalFocus";
 import type { ComposerHandleRef } from "../../composerHandleContext";
 import type { BranchToolbarHandle } from "../BranchToolbar";
 import { shouldTypeToFocusComposer } from "./composerFocusRedirect";
@@ -17,7 +17,7 @@ import { composerShortcutCommands } from "./composerShortcuts";
 /** Returning false lets the key through, except for cycling while a terminal owns focus. */
 type ChatShortcutHandler = (context: {
   readonly event: KeyboardEvent;
-  readonly terminalFocusOwner: TerminalFocusOwner | null;
+  readonly terminalFocused: boolean;
 }) => boolean | void;
 
 export type ChatShortcutCommands = Partial<Record<KeybindingCommand, ChatShortcutHandler>>;
@@ -77,8 +77,8 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
     }
     if (!input.enabled || isCommandPaletteOpen()) return;
     const inSideChatPane = isInSideChatPane(event.target);
-    const terminalFocusOwner = getTerminalFocusOwner();
-    if (event.defaultPrevented && terminalFocusOwner === null) return;
+    const terminalFocused = isTerminalFocused();
+    if (event.defaultPrevented && !terminalFocused) return;
     const shortcutContext = input.getShortcutContext(event.target);
 
     if (
@@ -102,11 +102,10 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
       composerShortcutCommands(input.composerRef, input.branchToolbarRef)[command] ??
       input.fallback(command);
     if (!run) return;
-    const handled = run({ event, terminalFocusOwner });
+    const handled = run({ event, terminalFocused });
     if (
       handled === false &&
-      (terminalFocusOwner === null ||
-        (command !== "terminal.previous" && command !== "terminal.next"))
+      (!terminalFocused || (command !== "terminal.previous" && command !== "terminal.next"))
     )
       return;
     event.preventDefault();
@@ -140,7 +139,7 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
     else if (command && event.target instanceof Node && composerElement?.contains(event.target)) {
       run = composerShortcutCommands(input.composerRef, input.branchToolbarRef)[command];
     }
-    if (!run || run({ event, terminalFocusOwner: null }) === false) return;
+    if (!run || run({ event, terminalFocused: false }) === false) return;
     event.preventDefault();
     event.stopPropagation();
   });

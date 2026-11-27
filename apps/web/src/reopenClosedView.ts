@@ -2,6 +2,8 @@ import type { OpenPreviewMutation } from "./browser/openFileInPreview";
 import type { ClosedView, ClosedViewEntry } from "./closedViewStore";
 import { openPreviewSession } from "./components/preview/openPreviewSession";
 import {
+  isPaneVisible,
+  paneKindOf,
   rightPanelHostRef,
   selectThreadRightPanelState,
   type ThreadRightPanelState,
@@ -36,7 +38,8 @@ export function planNextReopen(
     }
     const alreadyOpen =
       entry.kind === "panel-tab"
-        ? owner.panel.isOpen && owner.panel.surfaces.some((s) => s.id === entry.surface.id)
+        ? isPaneVisible(owner.panel, paneKindOf(entry.surface.kind)) &&
+          owner.panel.surfaces.some((s) => s.id === entry.surface.id)
         : owner.panel.surfaces.some(
             (s) => s.kind === "preview" && s.resourceId === entry.snapshot.tabId,
           );

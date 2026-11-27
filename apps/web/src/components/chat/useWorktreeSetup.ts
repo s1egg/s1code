@@ -13,6 +13,7 @@ import { useEnvironmentQuery } from "../../state/query";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { vcsEnvironment } from "../../state/vcs";
+import { useRightPanelStore } from "../../rightPanelStore";
 import { useTerminalUiStateStore } from "../../terminalUiStateStore";
 import type { Thread } from "../../types";
 import { focusTerminal } from "../../lib/terminalFocus";
@@ -152,7 +153,8 @@ export function useWorktreeSetup(input: {
     worktreeSetup && threadRef && worktreeSetup.threadId === threadRef.threadId ? threadRef : null;
   const openSetupTerminal = setupThreadRef
     ? (terminalId: string) => {
-        storeEnsureTerminal(setupThreadRef, terminalId, { open: true, active: true });
+        storeEnsureTerminal(setupThreadRef, terminalId, { active: true });
+        useRightPanelStore.getState().open(setupThreadRef, "terminal");
         focusTerminal(setupThreadRef, terminalId);
       }
     : null;

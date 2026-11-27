@@ -56,11 +56,11 @@ describe("background glow", () => {
     expect(glowAccent.trim()).toBe("#d97757");
   });
 
-  it("paints inline panel panes but skips content inside their scrollers", () => {
+  it("paints panes but skips content inside their scrollers", () => {
     const root = document.documentElement;
     root.style.setProperty("--background-glow", "30%");
     const panel = document.createElement("div");
-    panel.dataset.previewPanelMode = "inline";
+    panel.dataset.paneSurface = "";
     panel.innerHTML = `
       <div class="bg-background" data-probe="pane">
         <div class="overflow-auto"><div class="sticky bg-background" data-probe="cell"></div></div>

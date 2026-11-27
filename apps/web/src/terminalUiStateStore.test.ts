@@ -56,15 +56,15 @@ describe("terminalUiStateStore actions", () => {
 
   it("keeps state isolated per environment when raw thread ids collide", () => {
     const store = useTerminalUiStateStore.getState();
-    store.setTerminalOpen(THREAD_REF, true);
+    store.newTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     store.newTerminal(OTHER_THREAD_REF, "env-b-terminal");
 
     expect(
       selectThreadTerminalUiState(
         useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
         THREAD_REF,
-      ).terminalOpen,
-    ).toBe(true);
+      ).terminalIds,
+    ).toEqual([DEFAULT_THREAD_TERMINAL_ID]);
     expect(
       selectThreadTerminalUiState(
         useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
@@ -73,7 +73,7 @@ describe("terminalUiStateStore actions", () => {
     ).toEqual(["env-b-terminal"]);
   });
 
-  it("drops persisted entries whose thread keys are not valid scoped keys", () => {
+  it("drops persisted entries whose thread keys are not valid scoped keys, and the old drawer's open flag and height", () => {
     const migrated = migratePersistedTerminalUiStateStoreState(
       {
         terminalStateByThreadKey: {
@@ -101,8 +101,6 @@ describe("terminalUiStateStore actions", () => {
     expect(migrated).toEqual({
       terminalUiStateByThreadKey: {
         [scopedThreadKey(THREAD_REF)]: {
-          terminalOpen: true,
-          terminalHeight: 320,
           terminalIds: ["term-1"],
           activeTerminalId: "term-1",
           terminalGroups: [{ id: "group-term-1", terminalIds: ["term-1"] }],
@@ -151,7 +149,7 @@ describe("terminalUiStateStore actions", () => {
     ["terminal-3", DEFAULT_THREAD_TERMINAL_ID, "terminal-3"],
   ])("keeps the split's tab when %s is active and %s closes", (activeId, closedId, nextId) => {
     const store = useTerminalUiStateStore.getState();
-    store.setTerminalOpen(THREAD_REF, true);
+    store.newTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     store.newTerminal(THREAD_REF, "terminal-2");
     store.setActiveTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     store.splitTerminal(THREAD_REF, "terminal-3");
@@ -191,7 +189,7 @@ describe("terminalUiStateStore actions", () => {
 
   it("drops terminals the server stops reporting but keeps ones it has not reported yet", () => {
     const store = useTerminalUiStateStore.getState();
-    store.setTerminalOpen(THREAD_REF, true);
+    store.newTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     store.newTerminal(THREAD_REF, "term-2");
     store.newTerminal(THREAD_REF, "term-3");
     const terminalIds = () =>
@@ -211,7 +209,7 @@ describe("terminalUiStateStore actions", () => {
     const store = useTerminalUiStateStore.getState();
     const firstSnapshot = "manager-1";
     const restartSnapshot = "manager-2";
-    store.setTerminalOpen(THREAD_REF, true);
+    store.newTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     store.splitTerminalVertical(THREAD_REF, "split");
     const beforeRestart = layout();
 
@@ -227,9 +225,9 @@ describe("terminalUiStateStore actions", () => {
     expect(layout().terminalIds).toEqual([DEFAULT_THREAD_TERMINAL_ID]);
   });
 
-  it("drops a background terminal that closed before the drawer reloaded", async () => {
+  it("drops a background terminal that closed before the pane reloaded", async () => {
     const store = useTerminalUiStateStore.getState();
-    store.setTerminalOpen(THREAD_REF, true);
+    store.newTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     store.reconcileTerminalIds(THREAD_REF, [DEFAULT_THREAD_TERMINAL_ID, "old"], "manager-1");
     const { name, storage } = useTerminalUiStateStore.persist.getOptions();
     if (!name || !storage) throw new Error("Terminal layout storage is unavailable");
@@ -247,19 +245,18 @@ describe("terminalUiStateStore actions", () => {
   it.each([
     ["unmounts right after the close", false],
     ["sees the closing terminal once more before it unmounts", true],
-  ])("keeps a reopened terminal when the drawer %s", (_case, staleReconcile) => {
+  ])("keeps a reopened terminal when the pane %s", (_case, staleReconcile) => {
     const store = useTerminalUiStateStore.getState();
-    store.setTerminalOpen(THREAD_REF, true);
+    store.newTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     store.reconcileTerminalIds(THREAD_REF, [DEFAULT_THREAD_TERMINAL_ID], "manager-1");
     store.closeTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     if (staleReconcile) {
       store.reconcileTerminalIds(THREAD_REF, [DEFAULT_THREAD_TERMINAL_ID], "manager-1");
     }
-    // The drawer is gone now, so nothing reconciles the server dropping the terminal.
-    store.ensureTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID, { open: true });
+    // The pane is gone now, so nothing reconciles the server dropping the terminal.
+    store.ensureTerminal(THREAD_REF, DEFAULT_THREAD_TERMINAL_ID);
     store.reconcileTerminalIds(THREAD_REF, [], "manager-1");
 
-    expect(layout().terminalOpen).toBe(true);
     expect(layout().terminalIds).toEqual([DEFAULT_THREAD_TERMINAL_ID]);
   });
 
