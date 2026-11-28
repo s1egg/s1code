@@ -115,6 +115,8 @@ describe("contextChipAccent", () => {
       ...getMobileThemeVariables("s1-code", "dark"),
       "--color-user-bubble": "#161616",
       "--color-user-bubble-foreground": "#f5f5f5",
+      "--color-thread-canvas": "#161616",
+      "--color-composer-surface": "#161616",
     };
     expect(contextChipAccent("#009f6e", theme, theme["--color-md-body"])).toBe("#009f6e");
   });
