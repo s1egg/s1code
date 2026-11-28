@@ -560,6 +560,16 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
       }),
     }).pipe(Effect.asVoid);
 
+  // Either pipe can close first when a child exits. Prefer its status if it arrives promptly.
+  const childExitOr = (fallback: AcpError.AcpError) =>
+    options.terminationError === undefined
+      ? Effect.succeed(fallback)
+      : options.terminationError.pipe(
+          Effect.timeoutOption("250 millis"),
+          Effect.provideService(Clock.Clock, Clock.Clock.defaultValue()),
+          Effect.map(Option.getOrElse(() => fallback)),
+        );
+
   const handleTermination = (classify: () => Effect.Effect<AcpError.AcpError>) =>
     Ref.modify(terminationHandled, (handled) => {
       if (handled) {
@@ -890,16 +900,7 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
         return handleTermination(() => Effect.succeed(normalized));
       },
       onSuccess: () =>
-        handleTermination(() => {
-          const ended = new AcpError.AcpInputStreamEndedError({});
-          if (!options.terminationError) return Effect.succeed(ended);
-          // Stdout can close without process exit; use a live-clock diagnostic grace period.
-          return options.terminationError.pipe(
-            Effect.timeoutOption("250 millis"),
-            Effect.provideService(Clock.Clock, Clock.Clock.defaultValue()),
-            Effect.map(Option.getOrElse(() => ended)),
-          );
-        }),
+        handleTermination(() => childExitOr(new AcpError.AcpInputStreamEndedError({}))),
     }),
     Effect.forkScoped,
   );
@@ -970,11 +971,12 @@ export const makeAcpPatchedProtocol = Effect.fn("makeAcpPatchedProtocol")(functi
               : "Failed to write an outgoing ACP message",
             cause,
           });
-          return failOutgoingWrites(error).pipe(
-            Effect.andThen(
-              Cause.hasInterruptsOnly(cause)
-                ? Effect.void
-                : handleTermination(() => Effect.succeed(error)),
+          if (Cause.hasInterruptsOnly(cause)) return failOutgoingWrites(error);
+          return childExitOr(error).pipe(
+            Effect.flatMap((failure) =>
+              failOutgoingWrites(failure).pipe(
+                Effect.andThen(handleTermination(() => Effect.succeed(failure))),
+              ),
             ),
           );
         },

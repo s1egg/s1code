@@ -696,7 +696,11 @@ describe("sidebar thread menu on a phone", () => {
       </SidebarProvider>,
     );
     await userEvent.click(screen.getByRole("button", { name: "Sheet closed" }));
-    await userEvent.click(screen.getByRole("button", { name: "Add project" }));
+    await userEvent.click(
+      screen
+        .getByRole("navigation", { name: "Projects" })
+        .getByRole("button", { name: "Add project" }),
+    );
     expect(openCommandPalette).toHaveBeenCalledExactlyOnceWith({ open: "add-project" });
     await expect.element(screen.getByRole("button", { name: "Sheet closed" })).toBeInTheDocument();
   });

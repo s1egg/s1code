@@ -291,8 +291,13 @@ it("opens a linked Linear issue from an inactive thread's hover card", async () 
   const issueScrollTop = issueScroller().scrollTop;
   expect(issueScrollTop).toBeGreaterThan(0);
   await userEvent.click(linkedPr);
-  await expect.element(linkedPr).not.toBeInTheDocument();
-  await userEvent.click(page.getByRole("button", { name: issue.key, exact: true }));
+  const linkedRef = scopeThreadRef(ENVIRONMENT_ID, linked.id);
+  await vi.waitFor(() => {
+    const state = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, linkedRef);
+    expect(state.surfaces.find((surface) => surface.id === state.activeSurfaceId)?.kind).toBe(
+      "pull-request",
+    );
+  });
   await vi.waitFor(() => expect(issueScroller().scrollTop).toBe(issueScrollTop));
   await act(() => useRightPanelStore.getState().close(scopeThreadRef(ENVIRONMENT_ID, linked.id)));
   await expect
@@ -1064,7 +1069,7 @@ it("a shortcut conditioned on rightPanelOpen sees the thread's open panes", asyn
   await expect.element(files).toHaveAttribute("aria-pressed", "false");
   await files.click();
   await composer.click();
-  await userEvent.keyboard("{Control>}t{/Control}");
+  await userEvent.keyboard("{Meta>}t{/Meta}");
   await expect.element(page.getByRole("menuitem", { name: "Close all panes" })).toBeVisible();
   await expect.element(files).toHaveAttribute("aria-pressed", "true");
 });
@@ -1110,7 +1115,7 @@ it("thread details dock beside the chat, toggle with their shortcut, and open as
   await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
 });
 
-it("Cmd+W closes the selected right-panel tabs together", async () => {
+it("Cmd+W closes the files in the focused pane together", async () => {
   await page.viewport(1280, 800);
   const thread = threadWithHistory("thread-close-selected-tabs", 1);
   using _environment = installFakeEnvironment([thread]);
@@ -1133,16 +1138,15 @@ it("Cmd+W closes the selected right-panel tabs together", async () => {
     router: false,
   });
 
-  const tab = (name: string) => page.getByRole("button", { name, exact: true });
-  await userEvent.click(tab("notes.md"), { modifiers: ["Shift"] });
-  await expect.element(tab("notes.md")).toHaveAttribute("aria-pressed", "true");
+  const openSurfaces = () =>
+    selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, threadRef).surfaces.map(
+      (surface) => surface.id,
+    );
+  await expect.element(page.getByRole("button", { name: "Close routes.ts" })).toBeVisible();
   await userEvent.keyboard("{Meta>}w{/Meta}");
-  await expect.element(tab("notes.md")).not.toBeInTheDocument();
-  await expect.element(tab("routes.ts")).not.toBeInTheDocument();
-  await expect.element(tab("Diff")).toHaveAttribute("aria-pressed", "true");
-
+  await vi.waitFor(() => expect(openSurfaces()).toEqual(["diff"]));
   await userEvent.keyboard("{Meta>}w{/Meta}");
-  await expect.element(tab("Diff")).not.toBeInTheDocument();
+  await vi.waitFor(() => expect(openSurfaces()).toEqual([]));
 });
 
 it("switching the side chat pane to another side chat focuses its composer", async () => {

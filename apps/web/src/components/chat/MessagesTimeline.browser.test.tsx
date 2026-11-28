@@ -525,7 +525,8 @@ describe("MessagesTimeline work rows", () => {
         }),
       }),
     ]);
-    await click(screen.button("Web search"));
+    const search = await vi.waitFor(() => screen.button(/web search|searched|example\.com/i));
+    await click(search);
     const link = [...screen.container.querySelectorAll("a")].find(
       (anchor) => anchor.textContent === "Example Domain",
     );
@@ -2778,7 +2779,7 @@ it("shows S1 Code's push hooks approval as its own question and another server's
     ".husky/pre-push",
     "pnpm run checks",
   ]);
-  await own.getByRole("button", { name: "Approve", exact: true }).click();
+  await own.getByRole("button", { name: "Allow once", exact: true }).click();
   expect(onRespondToApproval).toHaveBeenLastCalledWith(ownRequest, "accept");
 
   // Any other server keeps the whole message in code style and its name beneath.

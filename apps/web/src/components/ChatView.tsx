@@ -4419,9 +4419,7 @@ export default function ChatView(props: ChatViewProps) {
               ? { onCheckoutPullRequestRequest: openPullRequestDialogStable }
               : {})}
             onComposerFocusRequest={scheduleComposerFocusStable}
-            {...(isServerThread && isGitRepo
-              ? { onOpenChanges: openChangesFromThreadPanelStable }
-              : {})}
+            {...(isGitRepo ? { onOpenChanges: openChangesFromThreadPanelStable } : {})}
             onRunProjectScript={runProjectScriptStable}
             onAddProjectScript={saveProjectScriptStable}
             onUpdateProjectScript={updateProjectScriptStable}
