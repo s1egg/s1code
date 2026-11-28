@@ -2,7 +2,10 @@ import { m } from "../i18n/messages";
 import { thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import { useGT, useMessages } from "gt-react";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
-import { draftSupportedRuntimeModes } from "./chat/runtimeModeConfig";
+import {
+  draftRuntimeModeLimitsInstance,
+  draftSupportedRuntimeModes,
+} from "./chat/runtimeModeConfig";
 import { requestWorkspaceFocus, workspaceAreaProps } from "../lib/workspaceFocus";
 import { sourceControlClients } from "@s1tools/client-runtime/source-control-clients";
 import { resolveNewThreadModelSelection } from "@s1tools/shared/usageLimits";
@@ -3801,7 +3804,10 @@ export default function ChatView(props: ChatViewProps) {
         : {
             trailing: (
               <ComposerContextPermissions
-                instanceId={activeProviderInstanceId ?? undefined}
+                instanceId={draftRuntimeModeLimitsInstance(
+                  activeProviderStatus?.instanceId,
+                  multipleModelSelections,
+                )}
                 cwd={gitCwd}
                 environmentId={environmentId}
                 runtimeMode={runtimeMode}

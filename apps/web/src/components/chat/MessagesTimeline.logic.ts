@@ -2919,8 +2919,10 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
   if (a.kind !== b.kind || a.id !== b.id || a.continuesWorkLog !== b.continuesWorkLog) return false;
 
   switch (a.kind) {
-    case "worktree-setup":
-      return a.snapshot === (b as typeof a).snapshot;
+    case "worktree-setup": {
+      const previous = b as typeof a;
+      return a.snapshot === previous.snapshot && a.embedded === previous.embedded;
+    }
 
     case "assistant-meta": {
       const bm = b as typeof a;

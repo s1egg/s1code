@@ -25,6 +25,7 @@ import {
   paneKindOf,
   paneSurface,
   selectThreadRightPanelState,
+  selectActiveRightPanelSurface,
   sheetPane,
   visiblePanes,
   type RightPanelSurface,
@@ -294,11 +295,15 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
       useRightPanelStore.getState().setFill(activeThreadRef, null);
       return;
     }
-    if (!activeRightPanelSurface) return;
+    const store = useRightPanelStore.getState();
+    if (!rightPanelOpen) store.show(activeThreadRef);
+    const surface = selectActiveRightPanelSurface(
+      useRightPanelStore.getState().byThreadKey,
+      activeThreadRef,
+    );
+    if (!surface) store.open(activeThreadRef, "files");
     requestWorkspaceFocus({ area: "panel" });
-    useRightPanelStore
-      .getState()
-      .setFill(activeThreadRef, paneKindOf(activeRightPanelSurface.kind));
+    store.setFill(activeThreadRef, surface ? paneKindOf(surface.kind) : "files");
   };
   const toggleFillStable = useStableCallback(toggleFill);
   const copyRightPanelFilePath = (relativePath: string) => {
