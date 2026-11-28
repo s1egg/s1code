@@ -125,30 +125,32 @@ function ComposerPermissionsList(props: {
           if (mode !== props.runtimeMode) props.onRuntimeModeChange(mode);
         }}
       >
-        {props.runtimeModeOptions.map((option) => (
-          <MenuRadioItem
-            key={option.mode}
-            value={option.mode}
-            disabled={option.disabledReason !== undefined}
-            label={option.label}
-            aria-label={option.label}
-            aria-describedby={`${descriptionId}-${option.mode}`}
-            closeOnClick
-          >
-            <span className="flex items-center justify-between gap-3">
-              <span className="grid min-w-0 gap-0.5 py-1">
-                <span>{option.label}</span>
-                <span
-                  id={`${descriptionId}-${option.mode}`}
-                  className="text-muted-foreground text-xs"
-                >
-                  {option.disabledReason ?? option.description}
+        <div className="grid gap-px">
+          {props.runtimeModeOptions.map((option) => (
+            <MenuRadioItem
+              key={option.mode}
+              value={option.mode}
+              disabled={option.disabledReason !== undefined}
+              label={option.label}
+              aria-label={option.label}
+              aria-describedby={`${descriptionId}-${option.mode}`}
+              closeOnClick
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="grid min-w-0 gap-0.5 py-1">
+                  <span>{option.label}</span>
+                  <span
+                    id={`${descriptionId}-${option.mode}`}
+                    className="text-muted-foreground text-xs"
+                  >
+                    {option.disabledReason ?? option.description}
+                  </span>
                 </span>
+                <MenuRadioItemIndicator />
               </span>
-              <MenuRadioItemIndicator />
-            </span>
-          </MenuRadioItem>
-        ))}
+            </MenuRadioItem>
+          ))}
+        </div>
       </MenuRadioGroup>
     </div>
   );
