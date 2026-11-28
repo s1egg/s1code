@@ -394,6 +394,8 @@ it("opens Usage from its row, with Model prices a drill-in inside it", async () 
 
 it("takes Usage shortcuts while focus is on Back, docked or in the popover", async () => {
   using fixture = setup({ workspaceRoot: "/work/plain", folder: "/work/plain" });
+  // The shortcuts save the Usage metric, and later browser test files expect the default one.
+  using _storage = { [Symbol.dispose]: () => window.localStorage.clear() };
   await using screen = await render(<Panel fixture={fixture} />);
   const metric = (name: string) => page.getByRole("button", { name, exact: true });
   await page.getByRole("button", { name: "Usage", exact: true }).click();
