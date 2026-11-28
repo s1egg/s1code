@@ -1,3 +1,4 @@
+import type { PreviewMiniPlayerSource } from "../../previewMiniPlayerStore";
 import {
   parseScopedThreadKey,
   scopedThreadKey,
@@ -14,6 +15,7 @@ import { AsyncResult } from "effect/reactivity";
 
 import { getClientSettings } from "../../hooks/useSettings";
 import {
+  previewNavStatus,
   previewStateAtom,
   previewThreadRefsAtom,
   type ThreadPreviewState,
@@ -212,6 +214,35 @@ export function deviceSessionLive(
   state: DeviceServiceState | null,
 ): boolean {
   return state === null || hasLiveSession(state, threadRef.threadId, target);
+}
+
+/** Floats a browser panel tab over chat, unless it never navigated. */
+export function floatBrowserSurface(
+  threadRef: ScopedThreadRef,
+  tabId: string,
+  state: ThreadPreviewState,
+): void {
+  const snapshot = state.sessions[tabId] ?? null;
+  if (previewNavStatus(snapshot, state.desktopByTabId[tabId] ?? null)._tag === "Idle") return;
+  useRightPanelStore.getState().floatSurface(threadRef, browserSurface(tabId), true);
+}
+
+/** Floats a panel's browser or device as the panel closes, when Auto-show floating preview is on. */
+export function floatPanelSurfaceOnClose(
+  threadRef: ScopedThreadRef,
+  source: PreviewMiniPlayerSource,
+  options: {
+    readonly autoShowFloatingPreview: boolean;
+    readonly previewState: ThreadPreviewState;
+    readonly deviceState: DeviceServiceState | null;
+  },
+): void {
+  if (!options.autoShowFloatingPreview) return;
+  if (source.kind === "browser") {
+    floatBrowserSurface(threadRef, source.tabId, options.previewState);
+  } else if (deviceSessionLive(threadRef, source, options.deviceState)) {
+    useRightPanelStore.getState().floatSurface(threadRef, deviceSurface(source), true);
+  }
 }
 
 export function resetDeviceSessionBaselinesForTests(): void {

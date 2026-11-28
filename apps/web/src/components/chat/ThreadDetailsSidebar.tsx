@@ -1,3 +1,6 @@
+import { ThreadDetailsTasks } from "./ThreadDetailsTasks";
+import { ThreadDetailsMachineLoad } from "./ThreadDetailsMachineLoad";
+import type { TaskListPlan } from "../../session-logic";
 import type {
   EditorId,
   EnvironmentId,
@@ -119,6 +122,7 @@ interface ThreadDetailsContentProps {
     input: NewProjectScriptInput,
   ) => Promise<ProjectScriptActionResult>;
   onDeleteProjectScript: (scriptId: string) => Promise<ProjectScriptActionResult>;
+  taskList?: TaskListPlan | null;
   usage: ThreadDetailsUsageInput;
 }
 
@@ -530,8 +534,18 @@ function ThreadDetailsContent(props: ThreadDetailsContentProps) {
               </ThreadDetailsSection>
             ) : null}
 
+            {visible.tasks && props.taskList ? (
+              <ThreadDetailsTasks plan={props.taskList} compact={false} />
+            ) : null}
+            {visible.machineLoad ? (
+              <ThreadDetailsMachineLoad environmentId={props.environmentId} />
+            ) : null}
             {visible.usage ? (
-              <ThreadDetailsUsage {...props.usage} onOpen={() => openDrillIn("usage")} />
+              <ThreadDetailsUsage
+                environmentId={props.environmentId}
+                {...props.usage}
+                onOpen={() => openDrillIn("usage")}
+              />
             ) : null}
 
             {visible.pullRequests || visible.issues ? (

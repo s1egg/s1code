@@ -4,7 +4,8 @@ On web and desktop, Usage opens in thread details, beside the thread you are on.
 there, choose **Open usage** in the command palette, or press `mod+u` when the terminal is not
 focused. Press it again to close Usage. Customize **Usage: Toggle** in **Settings → Keybindings**.
 
-On mobile, choose **Usage** in the workspace navigation.
+- **Open Usage**: Click **Usage** in the sidebar, press `mod+u` (web/desktop outside terminals), or pick **Usage** on mobile.
+- **Quick shortcuts** (web/desktop on Usage): `C` (Cost), `T` (Tokens), `L` (Limits), `mod+Shift+1/2/3/4` (24h / 7d / 30d / 90d), `Esc` (back).
 
 ## Understand your usage
 
@@ -177,29 +178,25 @@ Until then it shows no limits. Readings are not kept across a server restart.
 API-key accounts may not report subscription limits. This also applies to Claude connections
 using a proxy through `ANTHROPIC_AUTH_TOKEN`.
 
+**Usage → Limits** pools subscription quotas per provider across connected environments and hubs (deduplicating the same account signed in on multiple machines).
+
+- **In chat**: Run `/usage-limits` in the composer to view the current model's snapshot without running the agent, or enable **Settings → Appearance → Thread details → Usage limits** (web/desktop).
+- **Reset credits**: Click an account segment/row to inspect plan details and redeem banked Codex/Claude reset credits via **Use reset** (Claude resets unavailable on macOS Keychain logins).
+- **Provider notes**:
+  - **OpenCode**: OpenCode 2 servers with usage reporting show Go allowances and Console budgets for the connected workspace. Local servers can also report Go usage from a Go API key (`OPENCODE_API_KEY`).
+  - **Cursor**: Reports monthly Auto + API quotas via `CURSOR_AUTH_TOKEN` or default-endpoint sign-in/`CURSOR_API_KEY`.
+  - **Grok**: Reports billing-period quotas for `grok login` (not `XAI_API_KEY`).
+  - **Muse Code**: Reports session/weekly limits after running in a thread (not persisted across restarts).
+  - Pure API-key accounts generally do not report subscription limits.
+- **Mobile widget**: Add the **Subscription usage** widget on iOS or Android to monitor Codex and Claude quotas from your home screen.
+
 ## Connect a CLIProxyAPI hub
 
-To see pooled accounts, open **Settings → Providers → Usage providers → Add hub**. Choose the
-environment that will connect to the hub and enter its URL and management key.
-
-The hub's Codex, Claude, xAI (shown as Grok) and Antigravity accounts appear under **Usage → Limits**;
-accounts for other providers are not read. Codex accounts show banked reset credits; select an
-account and choose **Use reset** to redeem one. No hub plugin is required.
-
-This connection supplies usage information; configure
-the provider separately to send agent requests through the hub. A thread uses the hub's limits and
-reset times only when its provider's endpoint has the same address as the hub, for example
-`http://127.0.0.1:8317` for both. Remove the hub from the same settings section when you no longer
-need it.
+Open **Settings → Providers → Usage providers → Add hub**, choose the environment, and enter the hub URL and management key. Pools Codex, Claude, and Grok accounts under **Usage → Limits** (including Codex **Use reset**). Configure the provider's endpoint to the same URL if you want threads to display that hub's limits.
 
 ## Connect an HTTP quota source
 
-In **Settings → Providers → Usage providers → Add HTTP source**, choose the environment that can
-reach your quota server and enter the full endpoint URL. If the endpoint requires authentication,
-supply a bearer token. The selected S1 environment sends a read-only GET with
-`Accept: application/json` and shows the result in **Usage → Limits**.
-
-Return JSON in this format, with stable IDs for accounts and their windows.
+Open **Settings → Providers → Usage providers → Add HTTP source** with a GET endpoint (and optional bearer token) returning:
 
 ```json
 {

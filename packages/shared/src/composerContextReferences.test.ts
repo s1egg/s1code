@@ -88,6 +88,28 @@ describe("labels and reference links", () => {
     });
   });
 
+  it("ignores context links inside fenced code blocks", () => {
+    const example = "[example](s1-context://v1/file/demo)";
+    const live = "[live](s1-context://v1/file/live)";
+    for (const block of [
+      `~~~md\r\n${example}\r\n~~~`,
+      `> \`\`\`md\n> ${example}\n> \`\`\``,
+      `- \`\`\`md\n  ${example}\n  \`\`\``,
+    ]) {
+      const text = `${block}\n${live}`;
+      const occurrences = collectComposerContextReferences(text);
+      expect(
+        occurrences.map((o) => o.contextId),
+        JSON.stringify(block),
+      ).toEqual(["live"]);
+      expect(text.slice(occurrences[0]!.start, occurrences[0]!.end)).toBe(live);
+    }
+    // An unclosed fence runs to the end, where a newly attached chip lands.
+    expect(
+      collectComposerContextReferences(`\`\`\`md\nfoo() ${live}`).map((o) => o.contextId),
+    ).toEqual(["live"]);
+  });
+
   it("recognizes a prompt made only of image references", () => {
     const image = "![a.png](s1-context://v1/image/ctx_1)";
     const file = "[notes.md](s1-context://v1/file/ctx_3)";
@@ -445,6 +467,27 @@ describe("provider projection", () => {
     expect(projected).not.toContain("another payload");
     expect(projected).not.toContain("boom");
   });
+
+  it("sends a BOM-prefixed fenced context link example as written", () => {
+    const text = "\uFEFF```md\n[example](s1-context://v1/file/demo)\n```";
+    expect(projectComposerContextForProvider({ text, records: [] })).toBe(text);
+  });
+
+  it("keeps fenced context link examples literal while projecting prose references", () => {
+    const link = "[example](s1-context://v1/file/demo)";
+    const fenced = `\`\`\`md\n${link}\n\`\`\``;
+    expect(projectComposerContextForProvider({ text: fenced, records: [] })).toBe(fenced);
+    const withControl = `${fenced}\n${link}`;
+    expect(projectComposerContextForProvider({ text: withControl, records: [] })).toBe(
+      `${fenced}\n[File: example; ref=demo]\n\n<s1_context version="1">\n<context kind="file" id="demo" unavailable="true"/>\n</s1_context>`,
+    );
+    // An unclosed fence ends with its list item, and a four-space indent opens no fence.
+    for (const before of ["- ~~~md\n  example", "    ~~~"]) {
+      expect(projectComposerContextForProvider({ text: `${before}\n\n${link}`, records: [] })).toBe(
+        `${before}\n\n[File: example; ref=demo]\n\n<s1_context version="1">\n<context kind="file" id="demo" unavailable="true"/>\n</s1_context>`,
+      );
+    }
+  });
 });
 
 describe("threadContextsOutsideEnvironment", () => {
@@ -610,6 +653,25 @@ describe("threadLinkContextReferences", () => {
       threadLinkContextReferences("https://app.s1.codes/threads/env-9/t9", [], () => undefined)
         .records,
     ).toEqual([threadContextRecord(thread("env-9", "t9"), "Thread")]);
+  });
+
+  it.each(["\r", "\r\n", "\n"])("keeps fenced examples literal with %j line endings", (eol) => {
+    for (const fence of ["~~~", "```"]) {
+      const text = [fence, "<s1-thread://v2/local/t>", fence].join(eol);
+      expect(threadLinkContextReferences(text, [], () => "Task")).toEqual({
+        text,
+        records: [],
+      });
+      const pasted = threadLinkContextReferences(
+        `${text}${eol}<s1-thread://v2/local/after>`,
+        [],
+        () => "Task",
+      );
+      expect(pasted).toEqual({
+        text: `${text}${eol}${reference("local", "after", "Task")}`,
+        records: [threadContextRecord(thread("local", "after"), "Task")],
+      });
+    }
   });
 
   it("keeps links it may not chip, v1 links, and links in code as written", () => {

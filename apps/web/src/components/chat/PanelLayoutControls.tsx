@@ -1,3 +1,4 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { CheckIcon, EllipsisIcon, ListIcon, type LucideIcon } from "lucide-react";
 import { useGT } from "gt-react";
 import { memo, type ComponentType } from "react";
@@ -11,7 +12,6 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuShortcut, MenuTrigger } f
 import { PopoverCreateHandle, PopoverTrigger } from "../ui/popover";
 import { useMobileSidebarSheetMounted } from "../ui/sidebar";
 import { Toggle } from "../ui/toggle";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 /** One title bar icon: a pane it opens and closes. */
 export interface PaneToggleControl {

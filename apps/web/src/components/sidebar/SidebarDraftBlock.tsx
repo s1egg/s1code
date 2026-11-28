@@ -1,10 +1,11 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { discardComposerDraft } from "../../lib/discardComposerDraft";
 import type { ContextMenuSource } from "@s1tools/contracts";
 import { contextMenuSourceOf } from "../../contextMenuSource";
 import { assistantCitationsToPlainText } from "@s1tools/shared/assistantCitations";
 import { replaceComposerContextReferences } from "@s1tools/shared/composerContextReferences";
 import { composerFileLinksToPlainText } from "@s1tools/shared/composerInlineTokens";
-import { T, useGT } from "gt-react";
+import { T, useGT, useMessages } from "gt-react";
 import { SquarePenIcon, XIcon } from "lucide-react";
 import {
   memo,
@@ -15,11 +16,11 @@ import {
 import type { EnvironmentProject } from "@s1tools/client-runtime/state/shell";
 import type { EnvironmentId } from "@s1tools/contracts";
 import { useShallow } from "zustand/react/shallow";
+import { terminalContextDisplayLabels } from "~/lib/terminalContext";
 import { cn } from "~/lib/utils";
 import { useTerminalLabelsByThreadKey } from "~/state/terminalSessions";
 import { resolveSidebarRowAccessibility } from "../Sidebar.logic";
 import { ProjectFavicon, type ProjectFaviconProject } from "../ProjectFavicon";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   composerDraftHasUserContent,
   DraftId,
@@ -85,10 +86,18 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   const { draftId, onContextMenu, onDiscard, onNavigate } = props;
   const composer = props.composer ?? EMPTY_COMPOSER_PARTS;
   const gt = useGT();
+  const resolve = useMessages();
+  const terminalLabels = terminalContextDisplayLabels(composer.terminalContexts, resolve);
   const promptPreview =
     assistantCitationsToPlainText(
       composerFileLinksToPlainText(
-        replaceComposerContextReferences(composer.prompt, (occurrence) => occurrence.label),
+        replaceComposerContextReferences(
+          composer.prompt,
+          (occurrence) =>
+            (occurrence.kind === "terminal"
+              ? terminalLabels.get(occurrence.contextId)
+              : undefined) ?? occurrence.label,
+        ),
       ),
     )
       .trim()

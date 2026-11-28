@@ -1,6 +1,6 @@
 import { heldPullRequestListEntriesAtom } from "@s1tools/client-runtime/state/pull-requests";
 import { AsyncResult, Atom } from "effect/reactivity";
-import { applyPullRequestDraftFilterChange } from "@s1tools/client-runtime/pull-request-query";
+import { applyPullRequestFilterChange } from "@s1tools/client-runtime/pull-request-query";
 import type { EnvironmentProject } from "@s1tools/client-runtime/state/shell";
 import { Spinner } from "~/components/ui/spinner";
 import type { PullRequestSpeedActionResult } from "~/components/pullRequest/PullRequestSpeedActions";
@@ -735,13 +735,16 @@ export function PullRequestsDrillIn({
 
   const visibleStatsKeys = useRef({ key: filterKey, values: new Set<string>() });
   const [statsByRow, setStatsByRow] = useState<PullRequestDiffStats>(() => new Map());
+  // A panel without a host could be showing the same repository on another host.
   if (
     panelEnvironmentId !== null &&
+    panelPullRequest?.host !== undefined &&
     panelSummary?.additions !== undefined &&
     panelSummary.deletions !== undefined
   ) {
     const stat = {
       ...panelSummary,
+      host: panelPullRequest?.host,
       environmentId: panelEnvironmentId,
       additions: panelSummary.additions,
       deletions: panelSummary.deletions,
@@ -1138,7 +1141,7 @@ export function PullRequestsDrillIn({
                 : menuFilters
             }
             onFilters={(value) => {
-              const { query, filters: next } = applyPullRequestDraftFilterChange(
+              const { query, filters: next } = applyPullRequestFilterChange(
                 typedQuery,
                 menuFilters,
                 value,

@@ -1,3 +1,4 @@
+import { browserMiniPlayerSource } from "../../previewMiniPlayerStore";
 import { scopedThreadKey, scopeThreadRef } from "@s1tools/client-runtime/environment";
 import {
   type DeviceServiceState,
@@ -13,8 +14,10 @@ import {
   applyPreviewServerSnapshot,
   beginPreviewSessionClose,
   cancelPreviewSessionClose,
+  type DesktopPreviewOverlay,
   reconcilePreviewServerSessions,
   resetPreviewStateForTests,
+  type ThreadPreviewState,
 } from "../../previewStateStore";
 import {
   browserSurface,
@@ -24,7 +27,9 @@ import {
 } from "../../rightPanelStore";
 import {
   applyDeviceSnapshot,
+  floatBrowserSurface,
   deviceSessionLive,
+  floatPanelSurfaceOnClose,
   followPreviewSessions,
   resetDeviceSessionBaselinesForTests,
   revealServerTabs,
@@ -181,6 +186,88 @@ describe("deviceSessionLive", () => {
 
   it("does not float a device whose session ended", () => {
     expect(deviceSessionLive(ref, pixel, deviceState({ sessions: [] }))).toBe(false);
+  });
+});
+
+describe("floatBrowserSurface", () => {
+  const tab = (navStatus: PreviewSessionSnapshot["navStatus"]): PreviewSessionSnapshot => ({
+    threadId: "thread-1",
+    tabId: "tab_a",
+    navStatus,
+    canGoBack: false,
+    canGoForward: false,
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const state = (
+    snapshot: PreviewSessionSnapshot,
+    desktopNavStatus?: PreviewSessionSnapshot["navStatus"],
+  ) => ({
+    ...previewStateTesting.EMPTY_THREAD_PREVIEW_STATE,
+    sessions: { tab_a: snapshot },
+    desktopByTabId: desktopNavStatus
+      ? { tab_a: { navStatus: desktopNavStatus } as DesktopPreviewOverlay }
+      : {},
+  });
+  const loading = { _tag: "Loading", url: "http://localhost:5173/", title: "" } as const;
+
+  it("floats a navigated tab but not one that never left the empty page", () => {
+    setup();
+    floatBrowserSurface(ref, "tab_a", state(tab({ _tag: "Idle" })));
+    expect(miniPlayerSource()).toBeUndefined();
+
+    floatBrowserSurface(ref, "tab_a", state(tab(loading)));
+    expect(miniPlayerSource()).toEqual(browserMiniPlayerSource("tab_a"));
+  });
+
+  it("follows the desktop page when the server snapshot has not caught up", () => {
+    setup();
+    floatBrowserSurface(ref, "tab_a", state(tab({ _tag: "Idle" }), loading));
+    expect(miniPlayerSource()).toEqual(browserMiniPlayerSource("tab_a"));
+  });
+});
+
+describe("floatPanelSurfaceOnClose", () => {
+  const browser = browserMiniPlayerSource("tab_panel");
+  const previewState = {
+    ...previewStateTesting.EMPTY_THREAD_PREVIEW_STATE,
+    sessions: {
+      tab_panel: {
+        threadId: "thread-1",
+        tabId: "tab_panel",
+        navStatus: { _tag: "Loading", url: "http://localhost:5173/", title: "" },
+        canGoBack: false,
+        canGoForward: false,
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    },
+  } satisfies ThreadPreviewState;
+
+  it.each([
+    { name: "floats a browser", source: browser, autoShow: true, before: null, after: browser },
+    {
+      name: "floats no browser with Auto-show off",
+      source: browser,
+      autoShow: false,
+      before: null,
+      after: undefined,
+    },
+    {
+      name: "keeps a float the user opened with Auto-show off",
+      source: browser,
+      autoShow: false,
+      before: browser,
+      after: browser,
+    },
+  ])("$name", ({ source, autoShow, before, after }) => {
+    setup();
+    if (before?.kind === "browser")
+      useRightPanelStore.getState().floatSurface(ref, browserSurface(before.tabId));
+    floatPanelSurfaceOnClose(ref, source, {
+      autoShowFloatingPreview: autoShow,
+      previewState,
+      deviceState: deviceState({ sessions: [session] }),
+    });
+    expect(miniPlayerSource()).toEqual(after);
   });
 });
 

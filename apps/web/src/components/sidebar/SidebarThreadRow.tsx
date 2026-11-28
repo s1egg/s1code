@@ -1,3 +1,6 @@
+import { LINKED_ITEMS_PREVIEW_LIMIT, LinkedItemsOverflow } from "../ThreadStatusIndicators";
+import { Button } from "../ui/button";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { useAtomMount, useAtomValue } from "@effect/atom-react";
 import { asLaunchingThread } from "@s1tools/client-runtime/state/thread-inbox";
 import { ThreadDetailsIssueRows } from "../chat/ThreadDetailsIssueRows";
@@ -104,7 +107,6 @@ import {
 import { pickSnoozePreset, resolveSnoozePresets, type SnoozePreset } from "../Sidebar.snooze";
 import { useThreadShell } from "../../state/entities";
 import { ProjectFavicon, type ProjectFaviconProject } from "../ProjectFavicon";
-import { ThreadSearchMatchExcerpt } from "../ThreadSearchMatch";
 import { makeWorkspaceFileDropHandlers } from "../chat/workspaceFileDrop";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { getTriggerDisplayModelName } from "../chat/providerIconUtils";
@@ -113,7 +115,11 @@ import { useThreadRunningTerminalIds } from "../../state/terminalSessions";
 import { SidebarRunGlyph } from "./SidebarRunGlyph";
 import { Kbd } from "../ui/kbd";
 import { Menu, MenuItem, MenuItemDetail, MenuPopup, MenuSeparator, MenuTrigger } from "../ui/menu";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { SharedTooltipTrigger } from "../ui/shared-tooltip";
+import {
+  SidebarThreadHostPressureIcon,
+  SidebarThreadHostPressureLine,
+} from "./SidebarThreadHostPressure";
 import { MiddleTruncate } from "../ui/middle-truncate";
 import { ActivityShimmerOverlay } from "../chat/TimelineRowParts";
 import { observeVisibleAnimation } from "~/lib/visibleAnimation";
@@ -142,14 +148,16 @@ function compactSidebarTimeLabel(timestamp: string, nowMs: number, resolve: Mess
 
 function PendingSyncLabel() {
   return (
-    <Tooltip>
-      <TooltipTrigger render={<span />}>
-        <T>Pending</T>
-      </TooltipTrigger>
-      <TooltipPopup side="top">
-        <T>Waiting to sync with its environment</T>
-      </TooltipPopup>
-    </Tooltip>
+    <SharedTooltipTrigger
+      render={<span />}
+      label={
+        <>
+          <T>Waiting to sync with its environment</T>
+        </>
+      }
+    >
+      <T>Pending</T>
+    </SharedTooltipTrigger>
   );
 }
 
@@ -272,13 +280,19 @@ function SidebarThreadTooltip({
                 <ThreadPullRequestsMiniList pullRequests={thread.pullRequests} />
               ) : null}
               {thread.issues?.length ? (
-                <ThreadDetailsIssueRows
-                  links={thread.issues}
-                  threadRef={scopeThreadRef(thread.environmentId, thread.id)}
-                  compact={false}
-                  mountScope="sidebar-tooltip"
-                  onOpen={onOpenIssue}
-                />
+                <>
+                  <ThreadDetailsIssueRows
+                    links={thread.issues.slice(0, LINKED_ITEMS_PREVIEW_LIMIT)}
+                    threadRef={scopeThreadRef(thread.environmentId, thread.id)}
+                    compact={false}
+                    mountScope="sidebar-tooltip"
+                    onOpen={onOpenIssue}
+                  />
+                  <LinkedItemsOverflow
+                    hidden={thread.issues.length - LINKED_ITEMS_PREVIEW_LIMIT}
+                    onShowAll={onOpenIssue}
+                  />
+                </>
               ) : null}
             </div>
           ) : null
@@ -390,6 +404,7 @@ function SidebarThreadTooltip({
             </div>
           </div>
         ) : null}
+        <SidebarThreadHostPressureLine environmentId={thread.environmentId} threadId={thread.id} />
       </ThreadHoverCard>
     </ThreadHoverCardPopup>
   );
@@ -411,28 +426,28 @@ function SnoozeMenuButton(props: {
     : [];
   return (
     <Menu open={open} onOpenChange={onOpenChange}>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <MenuTrigger
-              render={
-                <button
-                  type="button"
-                  aria-label={gt("Snooze thread")}
-                  onClick={(event) => event.stopPropagation()}
-                  onDoubleClick={(event) => event.stopPropagation()}
-                  className="inline-flex h-full cursor-pointer items-center gap-0.5 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
-                />
-              }
-            />
-          }
-        >
-          <ClockIcon className="size-3" />
-        </TooltipTrigger>
-        <TooltipPopup>
-          <T>Snooze thread</T>
-        </TooltipPopup>
-      </Tooltip>
+      <SharedTooltipTrigger
+        render={
+          <MenuTrigger
+            render={
+              <button
+                type="button"
+                aria-label={gt("Snooze thread")}
+                onClick={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
+                className="inline-flex h-full cursor-pointer items-center gap-0.5 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              />
+            }
+          />
+        }
+        label={
+          <>
+            <T>Snooze thread</T>
+          </>
+        }
+      >
+        <ClockIcon className="size-3" />
+      </SharedTooltipTrigger>
       <MenuPopup side="bottom" align="end">
         {presets.map((preset) => (
           <MenuItem
@@ -618,6 +633,7 @@ type SidebarThreadRowProps = {
   onUnsettle: (threadRef: ScopedThreadRef) => void;
   onSnooze: (threadRef: ScopedThreadRef, preset: Pick<SnoozePreset, "snoozedUntil">) => void;
   onUnsnooze: (threadRef: ScopedThreadRef) => void;
+  onPin: (threadRef: ScopedThreadRef) => void;
   onAcknowledgeWoke: (threadRef: ScopedThreadRef, visitedAt: string) => void;
   onFileDropThreads?: ((threadRef: ScopedThreadRef, files: File[]) => void) | undefined;
 };
@@ -683,6 +699,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     onThreadClick,
     onUnsettle,
     onUnsnooze,
+    onPin,
     renamingTitle,
     thread,
     variant,
@@ -917,6 +934,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     event.stopPropagation();
     onUnsnooze(threadRef);
   };
+  const handlePinClick = (event: ReactMouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onPin(threadRef);
+  };
   const handleSnoozePreset = (preset: Pick<SnoozePreset, "snoozedUntil">) => {
     onSnooze(threadRef, preset);
   };
@@ -1047,23 +1069,23 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   );
 
   const draftIndicator = hasUnsentDraft ? (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            role="img"
-            aria-label={gt("Unsent draft")}
-            data-testid={`sidebar-draft-indicator-${thread.id}`}
-            className="inline-flex shrink-0 items-center"
-          />
-        }
-      >
-        <SquarePenIcon aria-hidden className={draftPenClassName} />
-      </TooltipTrigger>
-      <TooltipPopup side="top">
-        <T>Unsent draft</T>
-      </TooltipPopup>
-    </Tooltip>
+    <SharedTooltipTrigger
+      render={
+        <span
+          role="img"
+          aria-label={gt("Unsent draft")}
+          data-testid={`sidebar-draft-indicator-${thread.id}`}
+          className="inline-flex shrink-0 items-center"
+        />
+      }
+      label={
+        <>
+          <T>Unsent draft</T>
+        </>
+      }
+    >
+      <SquarePenIcon aria-hidden className={draftPenClassName} />
+    </SharedTooltipTrigger>
   ) : null;
 
   const wokeButton = (
@@ -1231,6 +1253,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           snoozeMenuOpen && "absolute right-0 opacity-0",
         )}
       >
+        <SidebarThreadHostPressureIcon environmentId={thread.environmentId} threadId={thread.id} />
         {mark}
       </span>
       {hasHoverActions ? (
@@ -1242,6 +1265,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             snoozeMenuOpen && "pointer-events-auto static opacity-100",
           )}
         >
+          {thread.pinOrderKey == null && (
+            <Button
+              variant="ghost-muted"
+              size="icon-xs"
+              onClick={handlePinClick}
+              aria-label={gt("Pin thread")}
+            >
+              <PinIcon />
+            </Button>
+          )}
           {showSnoozeAction ? (
             <SnoozeMenuButton
               open={snoozeMenuOpen}
@@ -1486,11 +1519,13 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
               project={props.project}
               monochromeFallback
               className={cn(
-                "size-4 shrink-0 transition-opacity",
-                props.isSettled &&
-                  !props.isRouteActive &&
-                  !props.isHighlighted &&
-                  "opacity-40 grayscale group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0",
+                "min-w-0 flex-1 truncate",
+                props.isSettled ? "font-normal" : "font-medium",
+                isRegeneratingTitle
+                  ? "relative text-muted-foreground"
+                  : props.isSettled && !props.isHighlighted && !props.isRouteActive
+                    ? "text-secondary-label/70 group-hover/sidebar-row:text-foreground"
+                    : "text-foreground",
               )}
             />
           ) : null}
@@ -1527,15 +1562,17 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
                 <RelativeTimeLabel timestamp={resolveThreadActivityTimestamp(thread)} />
               </span>
             </span>
-            {props.searchMatch ? (
-              <ThreadSearchMatchExcerpt
-                match={{
-                  source: props.searchMatch.source,
-                  snippet: props.searchMatch.snippet,
-                  query: props.searchMatchQuery ?? props.searchQuery,
-                }}
+            <span id={`${props.resultId}-pr`} className="contents">
+              <ThreadSearchPullRequestNumber
+                thread={thread}
+                query={props.searchQuery}
+                enabled={leaseLiveStatus}
+                settled={props.isSettled}
               />
-            ) : null}
+            </span>
+            <span className="min-w-8 shrink-0 text-right text-xs text-muted-foreground/55 tabular-nums">
+              <RelativeTimeLabel timestamp={resolveThreadActivityTimestamp(thread)} />
+            </span>
           </span>
         </TooltipTrigger>
         <SidebarThreadTooltip

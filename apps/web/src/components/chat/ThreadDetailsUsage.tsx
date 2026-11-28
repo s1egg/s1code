@@ -1,9 +1,11 @@
-import type {
-  ProviderInstanceId,
-  ServerProvider,
-  ServerProviderUsageLimits,
-  ServerProviderUsageWindow,
-  UsageLimitSourceSnapshots,
+import {
+  AuthProvidersManageScope,
+  type EnvironmentId,
+  type ProviderInstanceId,
+  type ServerProvider,
+  type ServerProviderUsageLimits,
+  type ServerProviderUsageWindow,
+  type UsageLimitSourceSnapshots,
 } from "@s1tools/contracts";
 import {
   type LimitPace,
@@ -14,14 +16,17 @@ import {
 } from "@s1tools/shared/usageLimits";
 import { formatDuration, limitsNotice } from "@s1tools/shared/usageLimitsCopy";
 import { msg, useGT, useMessages } from "gt-react";
-import { createContext, use, type ReactNode } from "react";
+import { createContext, use, useState, type ReactNode } from "react";
 
 import { usePrimarySettings } from "../../hooks/useSettings";
 import { useNowMinute } from "../../hooks/useNowMinute";
+import { useEnvironmentScope } from "../../state/session";
 import type { ContextWindowSnapshot } from "@s1tools/client-runtime/state/context-window";
 import { cn } from "../../lib/utils";
 import { formatUpcomingTimestamp } from "../../timestampFormat";
+import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { UsageAccessDialog } from "../usage/UsageAccessDialog";
 import { ThreadDetailsNavRow } from "./ThreadDetailsDrillIn";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
 import {
@@ -45,7 +50,7 @@ export interface ThreadDetailsUsageInput {
   readonly contextWindow: ContextWindowSnapshot | null;
 }
 
-type UsageTone = "error" | "warning" | null;
+export type UsageTone = "error" | "warning" | null;
 
 const OpenUsageContext = createContext<() => void>(() => undefined);
 
@@ -60,12 +65,16 @@ function limitTone(left: number): UsageTone {
  * room left and opens the Usage view too.
  */
 export function ThreadDetailsUsage({
+  environmentId,
   providerInstanceId,
   model,
   providers,
   sources,
   onOpen,
-}: Omit<ThreadDetailsUsageInput, "contextWindow"> & { readonly onOpen: () => void }) {
+}: Omit<ThreadDetailsUsageInput, "contextWindow"> & {
+  readonly environmentId: EnvironmentId;
+  readonly onOpen: () => void;
+}) {
   const gt = useGT();
   const nowMinute = useNowMinute();
   const now = Date.parse(`${nowMinute}:00Z`);
@@ -83,14 +92,22 @@ export function ThreadDetailsUsage({
         <ThreadDetailsNavRow label={gt("Usage")} drillIn="usage" onClick={onOpen} />
         <div className="grid grid-cols-[auto_minmax(3rem,1fr)_auto] gap-x-3 text-xs empty:hidden">
           <OpenUsageContext value={onOpen}>
-            {resolved?.kind === "pool"
-              ? resolved.windows.map((window) => (
-                  <PoolRow key={window.id} window={window} now={now} />
-                ))
-              : resolved &&
-                (quotas.length === 0 || limitsNotice(resolved.limits) === null) && (
-                  <InstanceRows limits={resolved.limits} now={now} />
-                )}
+            {resolved?.kind === "pool" ? (
+              resolved.windows.map((window) => (
+                <PoolRow key={window.id} window={window} now={now} />
+              ))
+            ) : resolved?.limits.needsUsageAccess && providerInstanceId !== null ? (
+              <UsageAccessRow
+                environmentId={environmentId}
+                instanceId={providerInstanceId}
+                providers={providers}
+              />
+            ) : (
+              resolved &&
+              (quotas.length === 0 || limitsNotice(resolved.limits) === null) && (
+                <InstanceRows limits={resolved.limits} now={now} />
+              )
+            )}
             {quotas.map(({ key, accountLabel, window }) => (
               <LimitRow key={key} window={window} now={now} accountLabel={accountLabel} />
             ))}
@@ -123,6 +140,54 @@ function InstanceRows({
     );
   }
   return limits.windows.map((window) => <LimitRow key={window.id} window={window} now={now} />);
+}
+
+/** Limits that need S1 to read the agent's sign-in, which the user has not allowed yet. */
+function UsageAccessRow({
+  environmentId,
+  instanceId,
+  providers,
+}: {
+  readonly environmentId: EnvironmentId;
+  readonly instanceId: ProviderInstanceId;
+  readonly providers: readonly ServerProvider[];
+}) {
+  const gt = useGT();
+  const [open, setOpen] = useState(false);
+  const canAnswer = useEnvironmentScope(environmentId, AuthProvidersManageScope);
+  const provider = providers.find((entry) => entry.instanceId === instanceId);
+  if (provider === undefined) return null;
+  return (
+    <>
+      <div className="col-span-3 grid h-6 grid-cols-subgrid items-center px-2.5">
+        <span className="text-muted-foreground">
+          {gt("Limits", { $context: "usage limits row label" })}
+        </span>
+        <span className="col-span-2 text-end">
+          {canAnswer ? (
+            <Button size="micro" variant="outline" onClick={() => setOpen(true)}>
+              {gt("Set up", { $context: "allow reading an agent's usage limits" })}
+            </Button>
+          ) : (
+            <span className="text-muted-foreground">{gt("Unavailable")}</span>
+          )}
+        </span>
+      </div>
+      {open ? (
+        <UsageAccessDialog
+          prompts={[
+            {
+              environmentId,
+              environmentLabel: "",
+              instanceId,
+              driver: provider.driver,
+            },
+          ]}
+          onOpenChange={setOpen}
+        />
+      ) : null}
+    </>
+  );
 }
 
 function LimitRow({
@@ -196,6 +261,7 @@ function PoolRow({ window, now }: { readonly window: LimitPoolWindow; readonly n
       label={window.label}
       fill={left}
       tone={limitTone(left)}
+      tick={window.paceRemainingPercent}
       value={`${left}%`}
       ariaValue={gt("{left}% left", { left })}
       tooltip={
@@ -234,7 +300,8 @@ function PoolRow({ window, now }: { readonly window: LimitPoolWindow; readonly n
 }
 
 /** One label, hairline, and value row that opens the Usage view; hovering it opens the details tooltip. */
-function UsageRow({
+export function UsageRow({
+  muted = false,
   label,
   fill,
   tone,
@@ -251,6 +318,7 @@ function UsageRow({
   readonly tick?: number | null;
   readonly value: string;
   readonly ariaValue?: string;
+  readonly muted?: boolean;
   readonly tooltip: ReactNode;
 }) {
   const gt = useGT();
@@ -262,7 +330,11 @@ function UsageRow({
   };
   return (
     <Tooltip>
-      <TooltipTrigger render={<button type="button" onClick={openUsage} {...rowProps} />}>
+      <TooltipTrigger
+        render={
+          muted ? <div {...rowProps} /> : <button type="button" onClick={openUsage} {...rowProps} />
+        }
+      >
         <span className="max-w-28 truncate text-muted-foreground group-hover:text-foreground">
           {label}
         </span>
@@ -311,7 +383,7 @@ function UsageRow({
       <TooltipPopup side="left" sideOffset={16}>
         <div className="flex flex-col gap-0.5">
           {tooltip}
-          <span className="text-muted-foreground">{gt("Open usage")}</span>
+          {muted ? null : <span className="text-muted-foreground">{gt("Open usage")}</span>}
         </div>
       </TooltipPopup>
     </Tooltip>

@@ -1,3 +1,4 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { ComposerSelectControl } from "./chat/ComposerControl";
 import { ComposerContextLabel } from "./ComposerContextLabel";
 import { FolderGit2Icon, FolderGitIcon, FolderIcon } from "lucide-react";
@@ -20,10 +21,10 @@ import {
   SelectPopup,
   SelectValue,
 } from "./ui/select";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useAtomValue } from "@effect/atom-react";
 import { shortcutLabelForCommand } from "../keybindings";
 import { primaryServerKeybindingsAtom } from "../state/server";
+import { SharedTooltipTrigger } from "./ui/shared-tooltip";
 
 const PREVIOUS_WORKTREE_SELECT_VALUE = "previous-worktree";
 
@@ -100,15 +101,15 @@ export const BranchToolbarEnvModeSelector = memo(function BranchToolbarEnvModeSe
     );
 
     return (
-      <Tooltip>
-        <TooltipTrigger render={lockedRow} />
-        <TooltipPopup>
-          {forceNewWorktree
+      <SharedTooltipTrigger
+        render={lockedRow}
+        label={
+          forceNewWorktree
             ? gt("Each model starts in its own worktree.")
             : (activeWorktreePath ??
-              resolveLockedWorkspaceLabel(activeWorktreePath, effectiveEnvMode, m))}
-        </TooltipPopup>
-      </Tooltip>
+              resolveLockedWorkspaceLabel(activeWorktreePath, effectiveEnvMode, m))
+        }
+      />
     );
   }
 

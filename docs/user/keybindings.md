@@ -93,38 +93,43 @@ Keyboard; `Cmd+Return` then sends.
 With a hardware keyboard, the composer handles Return as on iPad, with `Ctrl` in
 place of `Cmd`. The on-screen keyboard's Return always inserts a new line.
 
-## Edit the configuration file
+To free a default shortcut, choose **Unassign** from its row menu (**Reset to default** restores it).
 
-Keybindings live on the environment's machine, in
-`~/.s1/userdata/keybindings.json` by default. You can edit this file directly.
-It is a JSON array of rules:
+> Note: `mod` means `Cmd` on macOS and `Ctrl` on Windows and Linux.
 
-```json
-[
-  { "key": "mod+g", "command": "terminal.toggle" },
-  { "key": "mod+shift+g", "command": "terminal.new", "when": "terminalFocus" }
-]
-```
+## Common composer shortcuts
 
-S1 Code creates the file with its defaults and adds new defaults on later startups.
-New defaults do not replace commands you customized. If a new default overlaps one
-of your shortcuts, [rule order](#precedence) decides which runs.
-Invalid rules are ignored; if the file cannot be parsed, S1 Code uses defaults.
+| Action                      | Default           | Notes                                                              |
+| --------------------------- | ----------------- | ------------------------------------------------------------------ |
+| Start / finish dictation    | `mod+shift+d`     | `Esc` discards. See [Voice input](./voice-input.md).               |
+| Opposite queue/steer action | `mod+Enter`       | Uses the non-default follow-up behavior while a turn runs.         |
+| Start thread in background  | `mod+Alt+Enter`   | Also `mod+Enter` in a new thread; opens a fresh draft immediately. |
+| Send first queued message   | `mod+Shift+Enter` | Steers if running, or starts a turn if stopped.                    |
+| Pick model                  | `mod+shift+m`     | `mod+shift+up/down` switches providers inside the picker.          |
+| Pick host / environment     | `mod+shift+h`     | Bind **Composer: Cycle Host** to step without a menu.              |
+| Pick effort                 | `mod+shift+e`     | Bind **Increase/Decrease Effort** to step without a menu.          |
+| Pick permissions            | `mod+shift+a`     |                                                                    |
+| Pick workspace mode         | `mod+shift+x`     | `mod+shift+l` reuses the previous worktree directly.               |
+| Pick Git branch             | `mod+shift+g`     |                                                                    |
 
-## Rule shape
+Configure whether `Enter` sends or requires `mod+Enter` in **Settings → Chat → Send shortcut** (`Shift+Enter` always inserts a newline).
 
-Each rule requires a `key` shortcut and a `command` ID. An optional `when`
-expression restricts when it runs.
+In the model picker, use `Left`/`Shift+Tab` to move to the provider list, `Right` to return to search or move into effort levels, and `Up`/`Down`/`Enter` to select.
 
-Project scripts use `script.{id}.run`, such as `script.test.run`.
+## Copy pull request and thread references
 
-## Key syntax
+- `mod+shift+c`: Copies the open PR's URL (or copies a thread chip link when no PR is open).
+- `mod+shift+k`: Copies the open PR's `#number`.
 
-Join modifiers and a key with `+`, such as `mod+shift+d` or `ctrl+l`.
-`mod` means Command on macOS and Control elsewhere. Other modifiers are
-`cmd` / `meta`, `ctrl` / `control`, `alt` / `option`, and `shift`.
+Remap under **Copy Link or Thread** and **Copy Number** in **Settings → Keybindings**.
 
-## When conditions
+## Find
+
+- **Current thread** (`chat.find`, default `mod+f` outside terminals/previews): Searches all messages and plans in the thread (requires an up-to-date server). Use `Enter` / `Shift+Enter` to step through matches and `Esc` to close.
+- **Diffs** (`mod+f` inside a diff or PR Code tab): Searches all loaded files in the diff, unfolding matching files. Not configurable. Very large uncommitted diffs only search files loaded so far.
+- **Browser page** (`preview.find`, default `mod+f` in a desktop browser tab): Searches the open page. If a page handles `mod+f` itself, use the browser's **⋮** menu. Not supported in web clients or streamed browser tabs.
+
+## Hardware keyboards on iPad and Android
 
 Available context keys are `terminalFocus`, `terminalOpen`, `previewFocus`,
 `previewOpen`, `rightPanelOpen`, `modelPickerOpen`, `usagePageOpen`, `composerFocus`,
@@ -140,64 +145,42 @@ editing a queued message or answering a question.
 the keyboard. `isWeb` is true in a browser tab. `isDesktop` is true in the
 desktop app. Unknown keys evaluate to `false`.
 
-`mod+1` through `mod+9` jump to the first nine threads, and to models while the
-model picker is open. The thread jumps do not run while the model picker is open.
-Those defaults use `isDesktop` so they do not steal the
-browser's tab-switch shortcuts. Remove that condition in Settings if you want
-the same jumps in a browser.
+## Edit the configuration file
 
-Combine keys with `!` for not, `&&` for and, `||` for or, and parentheses:
+Keybindings are stored on the environment's machine at `~/.s1/userdata/keybindings.json` as a JSON array:
+
+```json
+[
+  { "key": "mod+g", "command": "terminal.toggle" },
+  { "key": "mod+shift+g", "command": "terminal.new", "when": "terminalFocus" }
+]
+```
+
+New default bindings are added on startup without overwriting customized commands. Invalid rules are ignored; an unparseable file falls back to defaults.
+
+### Rule shape and key syntax
+
+Each rule requires `key` and `command`, plus an optional `when` condition. Project scripts use `script.{id}.run` (e.g. `script.test.run`).
+
+Join modifiers and keys with `+` (`mod`, `cmd`/`meta`, `ctrl`/`control`, `alt`/`option`, `shift`).
+
+### When conditions
+
+Available context keys: `terminalFocus`, `terminalOpen`, `previewFocus`, `previewOpen`, `rightPanelOpen`, `modelPickerOpen`, `usagePageOpen`, `composerFocus`, `draftThreadRoute`, `turnRunning`, `composerEmpty`, `editableFocus`, `isWeb`, `isDesktop`. Unknown keys evaluate to `false`.
+
+Combine with `!`, `&&`, `||`, and parentheses:
 
 ```json
 { "key": "mod+j", "command": "terminal.toggle", "when": "terminalOpen && !terminalFocus" }
 ```
 
-## Find in the current thread
-
-`chat.find` searches conversation messages and proposed plans in the active thread. Entering a
-query searches the entire thread, including older messages. Thread search requires server support;
-update an older server to enable it. Select **Retry** if a search fails. It defaults to
-`mod+f` outside terminals and previews. Press **Enter** or **Shift+Enter** to move between matches,
-and **Escape** to close find.
-
-## Find on a browser page
-
-`preview.find` (`mod+f` while a browser has focus) searches the open page in the desktop app. It
-is also in the browser's **⋮** menu and the command palette. A page that handles `mod+f` itself,
-such as a code editor, keeps its own find. Use the **⋮** menu to reach the browser's find there.
-Streamed browser tabs and S1 Code in a web browser do not support it.
+> Tip: `mod+1`–`mod+9` default to `isDesktop` so they don't hijack browser tabs. Remove that condition in Settings if you want thread jumps on web.
 
 ## Precedence
 
-The last rule whose key and condition both match wins, even if it belongs to a
-different command. Put a more specific rule after a general one when they share
-a shortcut.
+The last matching rule in `keybindings.json` wins, even across different commands. Place more specific rules after general ones.
 
 ## Commands with special behavior
-
-`thread.stop` interrupts the running turn in the focused thread. It has no default
-shortcut; assign one in **Settings → Keybindings**.
-
-`thread.regenerateTitle` generates a new title for the focused thread, like
-**Regenerate title** in the thread menu. It has no default shortcut.
-
-`thread.undo` (`mod+z` by default) reverses the actions shown in the notice at the
-bottom of the sidebar, such as unpin, settle, snooze, archive, or discarding a
-draft. Consecutive
-actions of the same kind undo together. The notice remains available for five
-seconds after the latest action. Right after an action, the shortcut works even
-in a text field such as the composer. Once you type or press another key, the
-field gets its own undo back. Terminals always keep their native shortcut.
-
-`navigation.back` (`mod+[` by default) and `navigation.forward` (`mod+]`) move
-through the pages you have visited, like a browser's back and forward buttons.
-
-`chat.new` may ask you to choose a project when there is more than one.
-`chat.newLocal` skips that chooser. Both use your
-[new-thread defaults](./thread-sidebar.md#start-a-thread). `chat.newWithoutProject`
-(`mod+alt+n`) starts a thread [without a project](./thread-sidebar.md#start-without-a-project).
-
-## Reserved shortcuts
 
 In the desktop app, `mod+w` closes the focused terminal or the pane you last used. When nothing remains to close, it does nothing; it never closes the window. In a browser, `mod+w`
 closes the browser tab; rebind `rightPanel.close` and `terminal.close` to an available
@@ -210,17 +193,10 @@ can reopen until you reload or quit the app. This shortcut does not undo deleted
 Browsers also use it to reopen browser tabs; choose another binding in Settings
 if the browser takes it first.
 
-Many defaults include `!terminalFocus` so they do not intercept terminal input.
-Keep that condition when remapping them if you want the same behavior.
-`sidebar.toggle` never takes a Ctrl chord from a focused terminal, so tmux's `Ctrl+B`
-prefix reaches it. On macOS, `Cmd+B` still toggles the sidebar there.
+- `mod+w` (desktop) closes the focused terminal, the selected range of right-panel tabs, or the active tab if there is no range. On web, browsers intercept `mod+w`. Rebind `rightPanel.close` and `terminal.close` to a shortcut such as `alt+w`.
+- `mod+shift+t`: Reopens the last closed panel tab (files, diffs, PRs, browsers, devices) in order. Browser tabs reopen as fresh sessions. Rebind on web if your browser intercepts it.
+- Keep `!terminalFocus` when remapping shortcuts that shouldn't intercept terminal input. `sidebar.toggle` ignores `Ctrl+B` inside terminals so `tmux` keeps its prefix (`Cmd+B` still works on macOS).
 
 ## Desktop quit shortcut
 
-Use `Cmd+Q` on macOS or `Ctrl+Q` on Windows and Linux. In the default **Hold** mode,
-hold for 1.2 seconds or press twice within 500 milliseconds. Holding requires
-keyboard repeat; if repeat is disabled, use two presses or the application menu.
-
-Change **Settings → General → Confirmations → Quit shortcut** to **Direct** for a
-single press or **Double press** for two presses only. Choosing **Quit** from the
-application menu always quits immediately.
+`Cmd+Q` (macOS) or `Ctrl+Q` (Windows/Linux) defaults to **Hold** mode: hold for 1.2 seconds or press twice within 500 ms. Change this in **Settings → General → Confirmations → Quit shortcut** to **Direct** or **Double press**. Quitting from the application menu always exits immediately.

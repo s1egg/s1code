@@ -1,3 +1,4 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import { m } from "~/i18n/messages";
 import { FILL_PREVIEW_VIEWPORT, type ScopedThreadRef } from "@s1tools/contracts";
@@ -40,7 +41,6 @@ import {
 import { useBrowserLayoutZoomFactor } from "~/browser/useBrowserLayoutZoomFactor";
 import { Button } from "~/components/ui/button";
 import { toastManager } from "~/components/ui/toast";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
 import { useThreadPreviewState } from "~/previewStateStore";
 import {
@@ -74,6 +74,7 @@ import {
   resolveDeviceMiniPlayerSourceSize,
   resolvePreviewMiniPlayerSourceSize,
 } from "./previewMiniPlayerLayout";
+import { SharedTooltipTrigger } from "~/components/ui/shared-tooltip";
 
 interface Props {
   readonly threadRef: ScopedThreadRef;
@@ -287,29 +288,25 @@ function BrowserMiniPlayer({
       onClose={onClose}
       pillActions={
         canPopOut ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant={poppedOut ? "secondary" : "ghost"}
-                  size="icon-xs"
-                  aria-label={
-                    poppedOut
-                      ? gt("Close popped-out preview")
-                      : gt("Pop preview into separate window")
-                  }
-                  disabled={!serverTab && !desktopOverlay?.hasWebContents}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onClick={toggleNativePictureInPicture}
-                />
-              }
-            >
-              <PictureInPicture2 />
-            </TooltipTrigger>
-            <TooltipPopup side="top">
-              {poppedOut ? gt("Close separate window") : gt("Pop into separate window")}
-            </TooltipPopup>
-          </Tooltip>
+          <SharedTooltipTrigger
+            render={
+              <Button
+                variant={poppedOut ? "secondary" : "ghost"}
+                size="icon-xs"
+                aria-label={
+                  poppedOut
+                    ? gt("Close popped-out preview")
+                    : gt("Pop preview into separate window")
+                }
+                disabled={!serverTab && !desktopOverlay?.hasWebContents}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={toggleNativePictureInPicture}
+              />
+            }
+            label={poppedOut ? gt("Close separate window") : gt("Pop into separate window")}
+          >
+            <PictureInPicture2 />
+          </SharedTooltipTrigger>
         ) : null
       }
     >

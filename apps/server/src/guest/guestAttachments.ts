@@ -3,6 +3,7 @@ import {
   GUEST_MESSAGE_MAX_ATTACHMENTS,
   isProviderSendTurnSupportedImageMimeType,
 } from "@s1tools/contracts";
+import { splitsSurrogatePair } from "@s1tools/shared/assistantCitations";
 import { markdownDestinationHostPath } from "@s1tools/shared/markdownLinks";
 import { chatMarkdownImageSources } from "@s1tools/shared/markdownPipeline";
 import { isAbsolutePath, isNetworkPath } from "@s1tools/shared/path";
@@ -91,11 +92,12 @@ export function repliesShowImage<Reply extends { readonly text: string }>(
  * Control characters and separators would break the name in headers and on disk, and direction
  * overrides would let `invoice\u202Efdp.exe` show as a PDF.
  */
-const safeName = (name: string, fallback: string) =>
-  name
+const safeName = (name: string, fallback: string) => {
+  const cleaned = name
     .replace(/[\p{Cc}\\/\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu, "_")
-    .trim()
-    .slice(0, 255) || fallback;
+    .trim();
+  return cleaned.slice(0, splitsSurrogatePair(cleaned, 255) ? 254 : 255) || fallback;
+};
 
 /**
  * The attachments a guest's files become, as the owner's composer takes them: supported images as

@@ -15,6 +15,7 @@ import * as Context from "effect/Context";
 import type * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import type { McpToolExposureMode } from "@s1tools/provider-core/server/mcpSession";
 import { formatThreadLink, hostedThreadLink } from "@s1tools/shared/threadLinks";
 
 const ALL_MCP_CAPABILITIES = [
@@ -168,6 +169,8 @@ export interface McpInvocationScope {
   readonly origin?: string | undefined;
   /** False when the calling thread's project is on no forge S1 reads; `/mcp` reads it per request. */
   readonly forge?: boolean;
+  /** Set from `s1-tool-exposure` when an ACP client defers optional S1 MCP tools. */
+  readonly toolExposure?: McpToolExposureMode | undefined;
 }
 
 /**

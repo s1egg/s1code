@@ -1,3 +1,4 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { useAtomValue } from "@effect/atom-react";
 import { useGT } from "gt-react";
 import * as Schema from "effect/Schema";
@@ -63,7 +64,6 @@ import {
   useMobileSidebarSheetMounted,
   useSidebar,
 } from "./ui/sidebar";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { registerCommands, registerMenuAction } from "../shortcuts/dispatcher";
 import { resolveThreadRouteRef } from "../threadRoutes";

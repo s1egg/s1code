@@ -22,7 +22,8 @@ export interface ChatCanvasMeasurements {
 
 interface ChatCanvasStoreState {
   readonly measurements: ChatCanvasMeasurements;
-  readonly setMeasurements: (next: ChatCanvasMeasurements) => void;
+  readonly measurementsByRightPanel: Partial<Record<"open" | "closed", ChatCanvasMeasurements>>;
+  readonly setMeasurements: (next: ChatCanvasMeasurements, rightPanelOpen: boolean) => void;
 }
 
 const INITIAL_MEASUREMENTS: ChatCanvasMeasurements = {
@@ -56,11 +57,24 @@ const sameMeasurements = (a: ChatCanvasMeasurements, b: ChatCanvasMeasurements) 
 export const createChatCanvasStore = () =>
   createStore<ChatCanvasStoreState>()((set) => ({
     measurements: INITIAL_MEASUREMENTS,
-    setMeasurements: (next) =>
-      set((state) => (sameMeasurements(state.measurements, next) ? state : { measurements: next })),
+    measurementsByRightPanel: {},
+    setMeasurements: (next, rightPanelOpen) =>
+      set((state) => {
+        const key = rightPanelOpen ? "open" : "closed";
+        const known = state.measurementsByRightPanel[key];
+        const measurements = known && sameMeasurements(known, next) ? known : next;
+        if (measurements === known && measurements === state.measurements) return state;
+        return {
+          measurements,
+          measurementsByRightPanel: { ...state.measurementsByRightPanel, [key]: measurements },
+        };
+      }),
   }));
 
 export type ChatCanvasStore = ReturnType<typeof createChatCanvasStore>;
+
+export const selectCanvasMeasurements = (state: ChatCanvasStoreState, rightPanelOpen: boolean) =>
+  state.measurementsByRightPanel[rightPanelOpen ? "open" : "closed"] ?? state.measurements;
 
 export function resolveChatCanvasModel({
   measurements,

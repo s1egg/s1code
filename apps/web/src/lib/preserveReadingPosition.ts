@@ -11,6 +11,7 @@ export function preserveReadingPosition(
   let frame: number | null = null;
 
   const capture = () => {
+    width ??= scroller.clientWidth;
     if (frame !== null) return;
     const currentWidth = scroller.clientWidth;
     width ??= currentWidth;

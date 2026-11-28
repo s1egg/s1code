@@ -475,7 +475,7 @@ it.effect("prefers an explicit repository and uses context when the repository i
         baseUrl: "https://bitbucket.org",
       },
       remoteName: "origin",
-      remoteUrl: "git@bitbucket.org:another/context.git",
+      remoteUrl: "alice+ci@bitbucket.org:another/context.git",
     };
     for (const repository of ["s1egg/s1code", "https://bitbucket.org/s1egg/s1code.git"]) {
       yield* bitbucket.getRepositoryCloneUrls({ cwd: "/repo", context, repository });

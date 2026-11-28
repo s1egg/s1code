@@ -5,13 +5,12 @@ open in S1 Code. When the thread on screen shows its browser pane, the link open
 page. Otherwise it starts a new thread without a project, with the browser pane filling the window
 on the page, so you can ask an agent about it right away.
 
-Choose **S1 Code** under **System Settings → Desktop & Dock → Default web browser**. To go back,
-choose another browser there.
+## Enable
 
-Pull request links for a connected project open in the pull request view when opening pull
-request links in the app is enabled. Other links still open in the browser panel.
+Choose **S1 Code** in **System Settings → Desktop & Dock → Default web browser** (switch back there anytime).
 
-HTML files you open from Finder open the same way. [Prompt links](prompt-links.md) to
-app.s1.codes open in the app as a draft.
+## How links open
 
-A link that launches S1 Code waits until the app has connected to its environment, then opens.
+- If the active thread has its browser panel open, the link opens as a new tab there; otherwise S1 Code opens a new no-project thread with the browser panel maximized so you can ask an agent about the page right away.
+- Pull request links for connected projects open in the PR view (when **Open pull requests in S1 Code** is enabled).
+- [Prompt links](./prompt-links.md) to `app.s1.codes` open as a draft.

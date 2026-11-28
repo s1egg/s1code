@@ -331,6 +331,12 @@ export function whenProjectsLoaded(environmentId: EnvironmentId | null, action: 
   }
 }
 
+export function subscribeProjects(
+  listener: (projects: ReadonlyArray<EnvironmentProject>) => void,
+): () => void {
+  return appAtomRegistry.subscribe(environmentProjects.projectsAtom, listener);
+}
+
 export function waitForProject(
   ref: ScopedProjectRef,
   timeoutMs = 10_000,
@@ -383,6 +389,19 @@ export function waitForThreadShell(ref: ScopedThreadRef, timeoutMs = 5_000): Pro
     registry: appAtomRegistry,
     atom: environmentThreadShells.threadShellAtom(ref),
     predicate: (thread) => thread !== null,
+    timeoutMs,
+  });
+}
+
+/** Waits for removal from the live store; delete replies arrive before the shell stream. */
+export function waitForThreadShellRemoval(
+  ref: ScopedThreadRef,
+  timeoutMs = 5_000,
+): Promise<boolean> {
+  return waitForAtomValue({
+    registry: appAtomRegistry,
+    atom: environmentThreadShells.threadShellAtom(ref),
+    predicate: (thread) => thread === null,
     timeoutMs,
   });
 }

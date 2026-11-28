@@ -1,9 +1,6 @@
 # Devices
 
-The Device panel shows a live iOS Simulator or Android Emulator next to a
-thread, so you can watch an agent verify mobile work and tap the device
-yourself. Agents get the same device through `device_*` tools and the
-`agent-device` command line, which S1 Code sets up for them.
+Stream and interact with live iOS Simulators, Android Emulators, and physical Android devices right beside a thread, and let agents inspect and drive them via `device_*` tools and the `agent-device` CLI.
 
 ## Open a device
 
@@ -91,81 +88,34 @@ started from then on; your own Device panel is unaffected.
 
 ## Remote connections
 
-The device stream goes through the environment server, so it works over the
-local network, Tailscale, and S1 Connect. Live video needs a secure page
-(HTTPS or localhost); on a plain-HTTP remote origin iOS falls back to a slower
-still-image stream and Android cannot show video, except on Expo Simulators.
+Device video streams through the environment server (works over LAN, Tailscale, and S1 Connect). Live video requires HTTPS or `localhost`—plain HTTP remote origins fall back to still images on iOS and disable video on Android (except Expo Simulators).
 
 ## SSH device hosts
 
-In Settings → Devices, choose the environments that should use
-the host and choose **Add source → Machine over SSH**. Enter an SSH alias or `user@host`, with
-an optional identity file and port. These resolve on the environment server,
-so use the SSH configuration and keys available there. Password prompts are
-not supported.
+Use simulators/emulators on another macOS or Linux machine (e.g., a Mac build host from Linux/Windows):
 
-**Test connection**, in the host's menu, checks SSH, Node, npm, and platform tools without installing
-anything, with a result for each selected environment. Targets that resolve to
-the environment’s own machine are skipped, since its devices are already local.
-The first device listing installs pinned device tools on the host.
-SSH device hosts currently need macOS or Linux. To use devices on a Windows
-machine, run S1 Code on that machine and connect to its environment.
-Node 22.12 or newer and npm must be available to non-interactive SSH commands.
-S1 checks common Homebrew and Android SDK locations; custom installations need
-the appropriate PATH and `ANDROID_HOME` or `ANDROID_SDK_ROOT` on the host.
-Android on an SSH host needs the same SDK tools as a local environment; adb on
-the PATH alone does not enable it. Android emulator video needs
-`ffmpeg` with libx264 on that host; physical Android devices use scrcpy and do
-not need ffmpeg.
+1. Open **Settings → Devices → Add source → Machine over SSH** and enter an SSH alias or `user@host` (uses the environment server's SSH config/keys; no password prompts).
+2. Run **Test connection** to verify SSH, Node.js 22.12+, npm, and SDK tools (Android on SSH hosts requires full SDK tools + `ffmpeg` for emulators).
+3. First listing installs pinned device helpers on the SSH host.
 
-The picker identifies devices by host when several hosts are configured.
-Connections recover after interruptions. Removing a host closes its device
-sessions and stops its S1 helpers when reachable; simulators keep running.
-
-S1 provides discovery, streaming, and control. Arrange app builds,
-installation, and connectivity to development servers such as Metro separately.
-A simulator on another machine cannot reach Metro through your environment's
-localhost without forwarding or another reachable address.
+> Note: Remote simulators cannot reach `localhost` dev servers (like Metro) on your main host without port forwarding or a reachable network address.
 
 ## Simlock hosts (alpha)
 
-[Simlock](https://incubator.callstack.com/simlock/) pools iOS simulators and
-Android emulators across machines. If you run a Simlock gateway, S1 can lease
-devices from it. Simlock is new and unreleased, so this integration is an
-alpha: it may change or stop working with a newer Simlock. S1 does not install
-or manage Simlock; set up the gateway and its workers yourself. It needs a
-gateway and workers built from Simlock's `main` at
-[6316e10](https://github.com/callstackincubator/simlock/commit/6316e10) or
-later, the first with a lease holder's screen and input.
+Connect to a [Simlock](https://incubator.callstack.com/simlock/) device pool (requires Simlock 0.9.0 or later with `capabilities.stream.enabled` and `capabilities.input.enabled`):
 
-Turn on **Settings → Labs → Simlock device hosts (alpha)** and **Use devices**
-in Settings → Devices, then choose **Add source → Simlock pool** with an **agent token**
-(`simlock --gateway token create --role agent`). Give each S1 server its own
-token: Simlock counts every lease made with one token against the same
-requester, and allows one at a time unless the gateway's
-`lease.maxPerRequester` is raised to the host's **Devices at once**. The token
-leases devices and reaches only its own leases, but commands on a leased device
-run on its worker, so treat it like shell access to your workers. S1 sends it
-with every request, so use an HTTPS gateway URL, or plain HTTP only over an
-encrypted network such as Tailscale. The gateway
-and workers need `capabilities.stream.enabled` and `capabilities.input.enabled`
-for the live screen and for input.
+1. Enable **Settings → Labs → Simlock device hosts (alpha)** and **Settings → Devices → Use devices**.
+2. Choose **Add source → Simlock pool** with an agent token (`simlock --gateway token create --role agent`) over HTTPS or Tailscale (give each S1 server its own token; treat it like worker shell access).
+3. Closing a device with **Return device to the pool** releases the lease; simulators and emulators are wiped. Toolbar tools/rotation/screenshots are unavailable in the UI (agents can still invoke them via `device_open`).
 
-The picker lists the models your workers can make. Opening one takes a lease;
-closing it with **Return device to the pool**, or removing the host, returns it
-wiped. The panel keeps a watched device leased up to the host's lease limit.
-You can tap, swipe, type, and press Home, and Back and Recents on Android.
-Rotation, appearance, text size, device tools, and screenshots are not offered
-for Simlock devices; agents can still do them through `device_open`. On iOS 27
-simulators, typing on your keyboard does nothing; tap the on-screen keyboard
-instead. Workers must run the same agent-device
-version as S1 (see Device tool updates), and agent-device accepts app installs
-for a lease only from the folder it was opened from, which `device_open`
-names. A device cannot reach development servers on your machine through
-localhost; use an address its worker can reach.
+### Enrolled phones and tablets
+
+The enrolled phones and tablets that are ready on a connected, undrained worker appear in the list next to its simulators and emulators, marked **Physical**, one entry per model and OS version. Worker setup is covered in Simlock's [Use a real phone](https://incubator.callstack.com/simlock/docs/using-devices/agent-device#use-a-real-phone).
+
+- A phone is not wiped when its lease ends. Simlock removes apps that weren't on the phone when it was enrolled, except App Store and TestFlight apps on an iPhone; settings, files, accounts, keychain items, and the data of every other app stay for whoever leases it next.
+- A leased phone has no stop button in the device list. Open it and choose **Return device to the pool**.
+- An iPhone's screen needs iOS 27 or later and a worker on Xcode 27 or later, and it takes no clicks or typing from the panel. Agents can still drive it.
 
 ## Device tool updates
 
-The connected S1 server manages the device hub and agent tools on its own machine and configured SSH hosts. Required versions install automatically the next time those tools are used. In Settings → Devices, select a version and choose **Check versions** to read installed versions without installing tools or starting devices.
-
-To receive newer tool versions on a remote environment, update that environment's S1 server. Updating only the browser or mobile app does not update the remote server. An offline host keeps its installed files, but an update needs network access before device support can start; S1 does not fall back to an older version. Reconnect the host and use Retry if installation fails. Existing device and agent-access settings are preserved.
+The S1 server manages device hub and `agent-device` versions automatically on itself and SSH hosts. Check versions in **Settings → Devices → Check versions**; update the remote S1 server to receive newer device tools.

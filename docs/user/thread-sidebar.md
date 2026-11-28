@@ -1,8 +1,6 @@
 # Working with threads
 
-Use a new thread for a separate task. Choose **New worktree** when its code changes
-need a separate branch and working directory. Threads in the same checkout share its
-branch, so S1 Code refuses a branch switch there while one of them is working.
+Use a separate thread for each task. Choose **New worktree** when a task needs its own Git branch and working directory; threads sharing a checkout share its branch, so S1 Code blocks branch switches while one is running.
 
 ## Find your way around the sidebar
 
@@ -34,17 +32,15 @@ The thread list groups the selected project's threads by what they need from you
 Empty groups are hidden. When a project has threads on more than one machine, each row names its
 machine. The search box searches the selected project, including its messages.
 
-## Resize or hide the sidebar
-
-On web and desktop, drag the sidebar's right edge to resize it. Continue left past its minimum
-width to preview hiding it, then release to keep it hidden. Dragging back right before releasing
-shows it again and continues resizing.
-
-Move the mouse to the middle of the left window edge to find a handle. Drag it right or click
-it to show the sidebar again. Dragging back to the edge before releasing hides the preview
-and leaves it hidden. The sidebar toggle and shortcut still keep it open.
-
 ## Start a thread
+
+- **Web and desktop**: **New thread** opens the project picker when you have multiple open projects (unless the sidebar is filtered to one project). `Shift`-click to start in the current project. To reuse an existing worktree, choose **New thread in this worktree** from the branch toolbar.
+- **Mobile**: **New thread** uses the current, filtered, or last-opened project. Disable **Settings → General → Use last project** to pick every time.
+- **Defaults**: New threads inherit your last model and mode unless the project sets its own model default.
+
+### Start without a project
+
+Threads don't require a project. Pick **No project** (or press `mod+alt+n` on web/desktop) to start a scratch thread in `~/.s1/scratch/<date>-<slug>-<id>`.
 
 On web and desktop, the **+** button beside the project name in the sidebar starts a thread in
 the selected project. With **Threads without a project** selected, it opens the project picker.
@@ -62,7 +58,12 @@ a connected one if any is connected.
 When you change a new thread's project, S1 Code stays in the current environment
 if that project exists there. Otherwise it selects an environment that has it.
 
-### Start without a project
+### Start in the background and multi-model runs
+
+- **Background start** (web/desktop): Press `Cmd+Enter` (macOS) or `Ctrl+Enter` (Windows/Linux) in a new thread to submit it and immediately open another draft with the same workspace mode and base branch.
+- **Same prompt, multiple models** (web/desktop, Git projects): `Shift`-click models in a new thread's model picker to select several. Sending starts a separate thread and worktree for each model.
+
+## Sidebar layout and organization
 
 A thread does not need a project. To start one without a project, pick **No
 project** from the project menu beside a new thread's composer or from **New
@@ -255,18 +256,17 @@ A scheduled task that posts into one thread keeps running after you archive that
 each run fails. Settle the thread instead, or move or pause the task in **Settings → Scheduled
 tasks**.
 
-## Link a pull request
+## Settle, snooze, and archive
 
-The server finds the PR for each unsettled thread's saved branch, even when your
-apps are closed. Settled threads keep their saved links. Update the server if
-automatic branch links do not appear.
+| Action      | When to use          | Effect                                                                                                                                         |
+| ----------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Settle**  | Task is done for now | Moves to **Settled**; stays searchable; any new message reactivates it. Closes idle terminals (and stops actions with `stopOnSettle: true`).   |
+| **Snooze**  | Defer until later    | Hides until wake time (thread keeps working in the background). Wakes early on approvals, questions, errors, or new messages.                  |
+| **Archive** | Out of the way       | Leaves sidebar and search; lives in **Settings → Archive**. Refuses new messages (including from agents and scheduled tasks) until unarchived. |
 
-On web and desktop, right-click a pull request link in a thread and choose
-**Link to thread** to select a different PR. Use **Unlink from thread** on the
-same link to return to the branch PR, if one exists.
-The linked pull request participates in automatic settlement.
+> Tip: If a scheduled task targets a thread, settle it instead of archiving—archiving causes scheduled runs to fail.
 
-## Find and reference work
+### Settlement rules and hooks
 
 On web and desktop, open the command palette with `Cmd/Ctrl+K` to search threads
 across connected environments by title, branch, pull request, or project.
@@ -355,7 +355,13 @@ To choose what thread details show, right-click the sidebar or open
 shortcuts, such as Open in editor and project scripts. **Reset to default** brings
 back the standard rows.
 
-## Open a thread beside the one you are in
+### Snooze options
+
+Customize presets in **Settings → Threads → Snooze options** (durations like `3 hours` or times like `9:00 PM tomorrow`), or pick **Snooze → Custom…** for an exact date/time or duration. **Snooze → Indefinitely** keeps a thread snoozed until you wake it (it still wakes early on approvals, questions, errors, or new messages). Choose **Wake thread** to bring a thread back early.
+
+## Link a pull request
+
+The server automatically links open PRs matching an unsettled thread's branch. On web/desktop, right-click any PR link in a thread and choose **Link to thread** or **Unlink from thread** to override it. Linked PRs participate in auto-settlement.
 
 On web and desktop, a subagent, a side chat, and a
 [thread on a linked machine](remote-access.md#read-a-linked-machines-threads)
@@ -365,19 +371,21 @@ click, or middle-click, to open it in the main view instead. With the keyboard,
 Enter and ⌘/Ctrl + Enter do the same. Right-click for **Open in side panel** and
 **Open in main view**.
 
-To make the main view the place a plain click opens them, set **Settings → Chat →
-Open subagents and side chats in** to **Main view**. The modifier then opens
-the side panel.
+## Usage limits, subagents, and thread details
 
 From the pane, **Open in main view** in its **…** menu moves it to the main view. The bottom of the view depends on
 the thread: a side chat or a subagent you delegated has a composer, a subagent
 the agent started is read-only, and a thread on a linked machine is read-only
 with **Connect to interact**.
 
-Other thread links open in the main view as before.
+## Open a thread beside the one you are in
 
-On mobile these threads open in the inspector on layouts that have one, where
-Maximize fills the screen, and full screen everywhere else.
+On web and desktop, subagents, side chats, and [threads on linked machines](./remote-access.md#read-a-linked-machines-threads) open as a tab in the right panel by default so your main thread stays visible.
+
+- Hold `Cmd`/`Ctrl` while clicking (or middle-click) to open in the main view instead.
+- Change the default in **Settings → Chat → Open subagents and side chats in**.
+- From a right-panel tab, choose **Open in main view** to promote it.
+- On mobile, they open in the inspector where available, or full screen otherwise.
 
 ## Side chats
 

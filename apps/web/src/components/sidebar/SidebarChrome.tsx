@@ -29,6 +29,7 @@ import {
 } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
+import { SidebarHostPressureWarning } from "./SidebarHostPressureWarning";
 import { observeResize } from "~/lib/observeResize";
 
 export const SidebarChromeHeader = memo(function SidebarChromeHeader({
@@ -203,6 +204,7 @@ export const SidebarRailUtilities = memo(function SidebarRailUtilities() {
 export const SidebarNotices = memo(function SidebarNotices() {
   return (
     <div className="flex flex-col gap-2 px-2 pt-1 pb-2 empty:hidden">
+      <SidebarHostPressureWarning />
       <SidebarThreadUndoNotice />
     </div>
   );

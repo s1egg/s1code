@@ -1,4 +1,6 @@
 import { toServerClock } from "@s1tools/client-runtime/clock";
+import { deriveThreadTitleSeed } from "@s1tools/client-runtime/operations";
+import { replaceComposerContextReferences } from "@s1tools/shared/composerContextReferences";
 import { msg } from "gt-react";
 import { m, type MessageResolver } from "../i18n/messages";
 import {
@@ -85,10 +87,11 @@ import { appAtomRegistry } from "../rpc/atomRegistry";
 import { environmentThreadDetails } from "../state/threads";
 import {
   filterTerminalContextsWithText,
-  formatTerminalContextLabel,
+  terminalContextDisplayLabels,
   type TerminalContextDraft,
 } from "../lib/terminalContext";
 import {
+  formatInlineContextReference,
   removeInlineContextReference,
   stripInlineContextReferences,
 } from "~/lib/composerContextReferences";
@@ -951,6 +954,8 @@ export interface LocalDispatchSnapshot {
   startedAt: string;
   preparingWorktree: boolean;
   submissionIntent: ComposerSubmissionIntent;
+  /** The send's provider; the thread still names the previous one until the server switches. */
+  providerInstanceId: ProviderInstanceId | null;
   latestUserMessageId: ChatMessage["id"] | null;
   latestRunId: RunId | null;
   latestRunRequestedAt: string | null;
@@ -967,6 +972,7 @@ export function createLocalDispatchSnapshot(
     preparingWorktree?: boolean;
     latestUserMessageId?: ChatMessage["id"] | null;
     submissionIntent?: ComposerSubmissionIntent;
+    providerInstanceId?: ProviderInstanceId;
   },
 ): LocalDispatchSnapshot {
   const environmentId = options?.environmentId ?? activeThread?.environmentId;
@@ -978,6 +984,7 @@ export function createLocalDispatchSnapshot(
     ).toISOString(),
     preparingWorktree: Boolean(options?.preparingWorktree),
     submissionIntent: options?.submissionIntent ?? "foreground",
+    providerInstanceId: options?.providerInstanceId ?? null,
     latestUserMessageId: options?.latestUserMessageId ?? null,
     latestRunId: latestRun?.runId ?? null,
     latestRunRequestedAt: latestRun?.requestedAt ?? null,
@@ -1484,16 +1491,21 @@ export function optimisticMessageAttachments(
   );
 }
 
-/** Fallback title sources for a message with no text of its own. */
-export function sendTitleFallbackLabels(
+export function deriveComposerSendTitle(
   snapshot: ComposerSendSnapshot,
   resolve: MessageResolver = m,
 ) {
-  const terminalContext = snapshot.terminalContexts[0];
+  const terminalLabels = terminalContextDisplayLabels(snapshot.terminalContexts, resolve);
+  const text = replaceComposerContextReferences(snapshot.messageText, (reference) => {
+    const label = terminalLabels.get(reference.contextId);
+    return reference.kind === "terminal" && label !== undefined
+      ? formatInlineContextReference({ ...reference, label })
+      : reference.source;
+  });
   const reviewComment = snapshot.reviewComments[0];
   const previewAnnotation = snapshot.previewAnnotations[0];
-  return [
-    terminalContext ? formatTerminalContextLabel(terminalContext) : undefined,
+  const fallbackLabels = [
+    terminalLabels.values().next().value,
     reviewComment
       ? resolve(
           msg("Review: {label}", {
@@ -1504,6 +1516,10 @@ export function sendTitleFallbackLabels(
       : undefined,
     previewAnnotation ? previewAnnotationContextLabel(previewAnnotation, resolve) : undefined,
   ];
+  return deriveThreadTitleSeed(
+    { text, attachments: snapshot.attachments, fallbackLabels },
+    resolve,
+  );
 }
 
 /**

@@ -99,6 +99,7 @@ import {
   deriveThreadActivityRun,
   deriveLatestThreadRun,
   presentProviderStarting,
+  pendingProviderStartup,
   deriveThreadStructureRuntime,
   limitRecoveryOwnsSnooze,
 } from "@s1tools/client-runtime/state/thread-execution";
@@ -168,6 +169,7 @@ import {
   derivePhase,
   deriveActiveWorkStartedAt,
   deriveCanInterruptRunningThread,
+  findLatestTaskList,
   findRevertCheckpoint,
   isLatestRunSettled,
 } from "../session-logic";
@@ -219,7 +221,11 @@ import {
   ThreadPreviewMiniPlayer,
   useThreadPreviewCanvasSource,
 } from "./preview/ThreadPreviewMiniPlayer";
-import { createChatCanvasStore, resolveChatCanvasModel } from "./chat/canvasStore";
+import {
+  createChatCanvasStore,
+  resolveChatCanvasModel,
+  selectCanvasMeasurements,
+} from "./chat/canvasStore";
 import { KeptThreadTerminals } from "./PersistentThreadTerminals";
 import { subscribeBrowserGuestFocus } from "../browser/browserGuestFocus";
 import { usePreviewSession } from "./preview/usePreviewSession";
@@ -418,6 +424,7 @@ import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { useAtomQueryRunner } from "../state/use-atom-query-runner";
 import { observeResize } from "~/lib/observeResize";
 import { ThreadVisitWatermark } from "./chat/ThreadVisitWatermark";
+
 import { useDraftEnvironmentRouting } from "./chat/useDraftEnvironmentRouting";
 import { branchMismatchBannerItem, extensionStatusBannerItem } from "./chat/ThreadActivityBanners";
 import { ThreadNow } from "./chat/ThreadNow";
@@ -579,6 +586,7 @@ export default function ChatView(props: ChatViewProps) {
   const queuedRunEdit = useQueuedRunEdit({
     environmentId,
     routeThreadRef,
+    currentRouteThreadKeyRef,
     threadDraftTarget: baseComposerDraftTarget,
     activeThreadId: serverThread !== null || draftThread !== null ? threadId : null,
     serverProjection,
@@ -1514,6 +1522,7 @@ export default function ChatView(props: ChatViewProps) {
     localDispatchStartedAt,
     isPreparingWorktree: isLocallyPreparingWorktree,
     isSendBusy,
+    localDispatchProviderInstanceId,
     backgroundSubmissionPending,
   } = useLocalDispatchState({
     environmentId,
@@ -1580,15 +1589,24 @@ export default function ChatView(props: ChatViewProps) {
     deriveActiveWorkStartedAt(activeActivityRun, activeRuntime, localDispatchStartedAt) ??
     runlessWorkStartedAt;
   // Until the server has the run, a send shows the provider it is starting, not the thinking brain.
+  const dispatchedProviderEntry =
+    providerInstanceEntries.find((entry) => entry.instanceId === localDispatchProviderInstanceId) ??
+    selectedProviderEntry;
+  const dispatchedProviderStartup =
+    dispatchedProviderEntry === undefined
+      ? null
+      : pendingProviderStartup(serverProjection, dispatchedProviderEntry.instanceId);
   const providerStartingRun =
     activeActivityRun?.providerStartingLabelMsg !== undefined
       ? activeActivityRun
       : isSendBusy &&
-          selectedProviderEntry !== undefined &&
+          dispatchedProviderEntry !== undefined &&
+          dispatchedProviderStartup !== null &&
           (activeActivityRun === null || !ACTIVE_RUN_STATUSES.has(activeActivityRun.status))
         ? presentProviderStarting({
-            instanceId: selectedProviderEntry.instanceId,
-            driver: selectedProviderEntry.driverKind,
+            instanceId: dispatchedProviderEntry.instanceId,
+            driver: dispatchedProviderEntry.driverKind,
+            phase: dispatchedProviderStartup.phase,
           })
         : null;
   const activeRunPreparing = activeActivityRun?.status === "preparing";
@@ -2100,7 +2118,7 @@ export default function ChatView(props: ChatViewProps) {
   // in its bottom corner below them.
   const floatingPreviewTop = useStore(chatCanvasStore, (state) => {
     if (!canvasPreview) return 0;
-    const { measurements } = state;
+    const measurements = selectCanvasMeasurements(state, rightPanelOpen);
     const frame = resolveChatCanvasModel({ measurements, preview: canvasPreview }).layout.frame;
     if (
       !frame ||
@@ -2181,6 +2199,7 @@ export default function ChatView(props: ChatViewProps) {
   });
   const {
     closeSurface: closeRightPanelSurface,
+
     closePane: closePaneStable,
     closeAllSurfaces: closeAllRightPanelSurfacesStable,
   } = useRightPanelSurfaceClose({
@@ -2656,7 +2675,6 @@ export default function ChatView(props: ChatViewProps) {
     !activeProject ||
     !isServerThread ||
     !manualCompactionProviderAvailable ||
-    isWorking ||
     isRevertingCheckpoint ||
     threadDetailLoading ||
     isPreparingWorktree ||
@@ -2664,7 +2682,8 @@ export default function ChatView(props: ChatViewProps) {
     feedbackUploading ||
     pendingApprovals.length > 0 ||
     pendingUserInputs.length > 0;
-  const compactDisabled = compactThreadUnavailable;
+  // A typed /compact queues behind a running turn, so only the immediate compaction waits for idle.
+  const compactDisabled = compactThreadUnavailable || isWorking;
   const freshSessionAvailable =
     activeMessageCount > 0 && serverConfig?.environment.capabilities.freshContext === true;
   const freshSessionArmed = useFreshSessionArmed(routeThreadKey);
@@ -3782,6 +3801,8 @@ export default function ChatView(props: ChatViewProps) {
         : {
             trailing: (
               <ComposerContextPermissions
+                instanceId={activeProviderInstanceId ?? undefined}
+                cwd={gitCwd}
                 environmentId={environmentId}
                 runtimeMode={runtimeMode}
                 supportedRuntimeModes={draftSupportedRuntimeModes(
@@ -3853,6 +3874,7 @@ export default function ChatView(props: ChatViewProps) {
 
       <div className="relative flex min-h-0 min-w-0 flex-1">
         <ThreadFindCanvas
+          rightPanelOpen={rightPanelOpen}
           findOptions={{
             skills: timelineSkills,
             progressive: serverConfig?.threadFindProgressive === true,
@@ -4335,6 +4357,7 @@ export default function ChatView(props: ChatViewProps) {
         </ThreadFindCanvas>
         {embedded ? null : (
           <ThreadDetailsSidebar
+            taskList={findLatestTaskList(serverProjection)}
             presentation={threadPanelPresentation}
             anchor={threadPanelPopoverAnchorRef}
             handle={threadPanelPopoverHandle}

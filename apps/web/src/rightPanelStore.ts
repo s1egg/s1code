@@ -245,6 +245,8 @@ interface RightPanelStoreState {
   /** Agent-driven reveal. Not a user action, so it does not move focus. */
   revealSurface: (ref: ScopedThreadRef, surfaceId: string) => void;
   closeSurface: (ref: ScopedThreadRef, surfaceId: string) => void;
+  moveSurfaces: (ref: ScopedThreadRef, surfaceIds: readonly string[], targetId: string) => void;
+  closeSurfaces: (ref: ScopedThreadRef, surfaceIds: readonly string[]) => void;
   closeAllSurfaces: (ref: ScopedThreadRef) => void;
   /** Shows a pane that has items; false when it has none to show. */
   showPane: (ref: ScopedThreadRef, pane: PaneKind) => boolean;
@@ -1004,6 +1006,9 @@ function decodeThreadState(raw: unknown): ThreadRightPanelState | null {
   return settle(state);
 }
 
+// One counter for every file tab, so a reopened tab never reuses a request a viewer already handled.
+let lastFileRevealRequestId = 0;
+
 export const useRightPanelStore = create<RightPanelStoreState>()(
   persist(
     (set, get) => ({
@@ -1249,7 +1254,7 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             const surface = fileSurface(
               relativePath,
               normalizeRevealLine(line),
-              (existing?.revealRequestId ?? 0) + 1,
+              ++lastFileRevealRequestId,
             );
             return upsertSurface(
               {
@@ -1318,6 +1323,14 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             withoutSurfaces(current, (surface) => surface.id !== surfaceId),
           ),
         ),
+      closeSurfaces: (ref, surfaceIds) => {
+        const closing = new Set(surfaceIds);
+        set((state) =>
+          closeAction(state, scopedThreadKey(ref), (current) =>
+            withoutSurfaces(current, (surface) => !closing.has(surface.id)),
+          ),
+        );
+      },
       closeAllSurfaces: (ref) =>
         set((state) =>
           closeAction(state, scopedThreadKey(ref), (current) =>
@@ -1424,6 +1437,23 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
           updateThread(state, scopedThreadKey(ref), (current) => {
             const layout = setSplitSizes(current.layout, path, sizes);
             return layout === current.layout ? current : { ...current, layout };
+          }),
+        ),
+      moveSurfaces: (ref, surfaceIds, targetId) =>
+        set((state) =>
+          updateThread(state, scopedThreadKey(ref), (current) => {
+            const movingIds = new Set(surfaceIds);
+            if (movingIds.has(targetId)) return current;
+            const firstIndex = current.surfaces.findIndex((surface) => movingIds.has(surface.id));
+            const targetIndex = current.surfaces.findIndex((surface) => surface.id === targetId);
+            if (firstIndex < 0 || targetIndex < 0) return current;
+            const moving = current.surfaces.filter((surface) => movingIds.has(surface.id));
+            const surfaces = current.surfaces.filter((surface) => !movingIds.has(surface.id));
+            const insertIndex =
+              surfaces.findIndex((surface) => surface.id === targetId) +
+              Number(firstIndex < targetIndex);
+            surfaces.splice(insertIndex, 0, ...moving);
+            return { ...current, surfaces };
           }),
         ),
       resetDivider: (ref, path, index) =>
@@ -1573,6 +1603,15 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
           if (decoded !== null) byThreadKey[threadKey] = decoded;
         }
         return { ...current, byThreadKey };
+      },
+      onRehydrateStorage: () => (state) => {
+        for (const thread of Object.values(state?.byThreadKey ?? {})) {
+          for (const surface of thread.surfaces) {
+            if (surface.kind === "file") {
+              lastFileRevealRequestId = Math.max(lastFileRevealRequestId, surface.revealRequestId);
+            }
+          }
+        }
       },
     },
   ),

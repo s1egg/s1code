@@ -2,13 +2,11 @@ import type { ComponentProps, ReactNode } from "react";
 import { TooltipPopup } from "./ui/tooltip";
 import { cn } from "~/lib/utils";
 
+const HOVER_CARD_CLASS_NAME = "max-w-80 text-left whitespace-normal";
+
 export function ThreadHoverCardPopup({ className, ...props }: ComponentProps<typeof TooltipPopup>) {
   return (
-    <TooltipPopup
-      {...props}
-      variant="glass"
-      className={cn("max-w-80 text-left whitespace-normal", className)}
-    />
+    <TooltipPopup {...props} variant="glass" className={cn(HOVER_CARD_CLASS_NAME, className)} />
   );
 }
 

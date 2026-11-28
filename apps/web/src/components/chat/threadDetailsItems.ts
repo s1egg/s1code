@@ -33,6 +33,12 @@ export const THREAD_DETAILS_ITEMS = [
     defaultVisible: true,
   },
   { id: "sideChats", label: msg("Side chats"), defaultVisible: true },
+  { id: "tasks", label: msg("Agent tasks"), defaultVisible: false },
+  {
+    id: "machineLoad",
+    label: msg("Machine load", { $context: "thread details item: CPU, memory and disk use" }),
+    defaultVisible: false,
+  },
 ] as const;
 
 export type ThreadDetailsItemId = (typeof THREAD_DETAILS_ITEMS)[number]["id"];
