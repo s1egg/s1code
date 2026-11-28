@@ -850,7 +850,11 @@ describe("sidebar settled pagination", () => {
     expect(screen.container.querySelectorAll("[data-thread-item]")).toHaveLength(loadedRows);
   });
 
-  it("hides the empty Settled shelf and links to Archive once expanded", async () => {
+  it("hides the empty Settled shelf and makes its row actions and Archive reachable when expanded", async () => {
+    const style = document.createElement("style");
+    style.textContent = appCss;
+    document.head.append(style);
+    using _style = { [Symbol.dispose]: () => style.remove() };
     localStorage.removeItem("s1code:sidebar:settled-expanded");
     const activeProject = project("active");
     const activeThread = threadShell(activeProject.id, 0);
@@ -908,6 +912,12 @@ describe("sidebar settled pagination", () => {
     const settledRow = screen.getByRole("button", { name: /Settled unread thread/ });
     await expect.element(settledRow).toBeVisible();
     expect(settledRow.element().querySelector("[data-unread-dot]")).toBeNull();
+    await userEvent.hover(settledRow);
+    const undo = settledRow.getByRole("button", { name: "Un-settle thread" }).element();
+    const box = undo.getBoundingClientRect();
+    expect(
+      undo.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)),
+    ).toBe(true);
     const navigate = vi.spyOn(screen.router!, "navigate").mockResolvedValue(undefined);
     await userEvent.click(screen.getByRole("button", { name: "Archive", exact: true }));
     expect(navigate).toHaveBeenCalledWith({ to: "/settings/archived" });

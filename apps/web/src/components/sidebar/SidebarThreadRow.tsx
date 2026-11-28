@@ -1249,8 +1249,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           "inline-flex items-center justify-end tabular-nums",
           hasHoverActions &&
             !keepsMarkOnHover &&
-            "group-any-hover/sidebar-row:absolute group-any-hover/sidebar-row:right-0 group-any-hover/sidebar-row:opacity-0 group-has-[:focus-visible]/sidebar-row:absolute group-has-[:focus-visible]/sidebar-row:opacity-0",
-          snoozeMenuOpen && "absolute right-0 opacity-0",
+            "group-any-hover/sidebar-row:pointer-events-none group-any-hover/sidebar-row:absolute group-any-hover/sidebar-row:right-0 group-any-hover/sidebar-row:opacity-0 group-has-[:focus-visible]/sidebar-row:pointer-events-none group-has-[:focus-visible]/sidebar-row:absolute group-has-[:focus-visible]/sidebar-row:opacity-0",
+          snoozeMenuOpen && "pointer-events-none absolute right-0 opacity-0",
         )}
       >
         <SidebarThreadHostPressureIcon environmentId={thread.environmentId} threadId={thread.id} />

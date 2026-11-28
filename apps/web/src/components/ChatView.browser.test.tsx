@@ -632,6 +632,23 @@ it.each(["new", "existing"] as const)(
   },
 );
 
+it("Add folder starts a path mention when the browser has no native folder picker", async () => {
+  const thread = threadWithHistory("folder-mention", 1);
+  using _environment = installFakeEnvironment([thread]);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await page.getByRole("button", { name: "Add to message" }).click();
+  await page.getByRole("menuitem", { name: "Add folder" }).click();
+  await expect.element(page.getByTestId("composer-editor")).toHaveTextContent("@");
+});
+
 it("a file picked after the phone composer collapses still attaches", async () => {
   const thread = threadWithHistory("thread-40993", 1);
   using _environment = installFakeEnvironment([thread]);

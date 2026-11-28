@@ -29,9 +29,10 @@ Files upload to the environment's machine as soon as you attach them, and all up
 - **Mobile**: Pick files, share into S1 Code via the system share sheet, or drag images in Android split screen.
 
 In the desktop app, when the thread's environment runs on this computer, drag a
-folder onto the composer or choose **Folder…** from the attach button to add its
+folder onto the composer or choose **Add folder** from the **+** menu to add its
 path. Nothing is uploaded, so there is no size limit; the agent reads the folder
-in place.
+in place. On the web or when connected to a remote environment, **Add folder** inserts
+`@` so you can reference a path on that environment.
 
 See [images and videos](#images-and-videos-in-messages) for previewing and saving media.
 

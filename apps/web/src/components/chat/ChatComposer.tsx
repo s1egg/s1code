@@ -59,7 +59,6 @@ import {
 } from "@s1tools/contracts";
 import type { EnvironmentConnectionPresentation } from "@s1tools/client-runtime/connection";
 import { settlePromise, squashAtomCommandFailure } from "@s1tools/client-runtime/state/runtime";
-import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { formatComposerModelMention } from "@s1tools/client-runtime/composer-model-mentions";
 import { isPasteAsTextShortcut } from "@s1tools/client-runtime/text-paste";
@@ -293,11 +292,7 @@ import { Kbd } from "../ui/kbd";
 import { useSoftwareKeyboardOpen } from "../../hooks/useSoftwareKeyboardOpen";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { usePanelAnimationSettings } from "../../panelAnimations";
-import {
-  readEnvironmentScope,
-  readPreparedConnection,
-  usePreparedConnection,
-} from "../../state/session";
+import { readEnvironmentScope, readPreparedConnection } from "../../state/session";
 import type { ReviewCommentContext } from "../../reviewCommentContext";
 import { useComposerRestingTransition } from "./useComposerRestingTransition";
 import {
@@ -3142,24 +3137,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   });
   const openComposerConnectorsStable = useStableCallback(() => openUseInAnotherApp(environmentId));
 
-  // A synchronous IPC read on desktop; the setting only changes with a restart, so read it once.
-  const [localEnvironmentDisabledAtMount] = useState(isLocalEnvironmentDisabled);
-  const preparedConnection = usePreparedConnection(environmentId);
-  const pickFolder = window.desktopBridge?.pickFolder;
-  // The picker returns a path on this computer, so it is offered under the same rule as dropped
-  // folders. It refuses to open while the local environment is off, even for a loopback server.
-  const canPickLocalFolder =
-    pickFolder !== undefined &&
-    !localEnvironmentDisabledAtMount &&
-    folderDropTarget({
-      localEnvironmentDisabled: localEnvironmentDisabledAtMount,
-      environmentId,
-      primaryEnvironmentId,
-      connection: Option.getOrNull(preparedConnection),
-      isDesktopRenderer: true,
-      // Only "remote" or not matters here; WSL conversion is decided when a folder is picked.
-      primaryRunsInWsl: false,
-    }) !== "remote";
   const onComposerPaste = (
     event: React.ClipboardEvent<HTMLElement>,
     readClipboard: (plainTextOnly: boolean) => PastedComposerClipboard,
@@ -3806,7 +3783,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       <ComposerAddMenu
         hidden={hiddenThread}
         onAttach={showComposerAttachAction ? openAttachmentPicker : null}
-        onFolder={canInsertComposerMenuText && canPickLocalFolder ? pickComposerFolderStable : null}
+        onFolder={canInsertComposerMenuText ? pickComposerFolderStable : null}
         onSlash={canInsertComposerMenuText ? openSlashCommands : null}
         onConnectors={openComposerConnectorsStable}
         onPlugins={canInsertComposerMenuText && pluginCommand ? openPluginCommand : null}
