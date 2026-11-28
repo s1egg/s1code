@@ -245,8 +245,11 @@ describe("an anchored turn", () => {
         ?.getAttribute("data-list-anchor-retired") === "true";
     // The list no longer pins every row from the anchor down (see getAlwaysRenderIndices).
     await vi.waitFor(() => expect(retired()).toBe(true));
+    // With no end space the anchor retires before its positioning scroll is even issued.
+    await screen.positioned();
     const anchorTop = screen.rowTop("anchor");
     expect(anchorTop).not.toBeNull();
+    expect(anchorTop!).toBeGreaterThanOrEqual(0);
     expect(anchorTop!).toBeLessThan(100);
 
     // The turn stays anchored: more reply does not drag the view to the end.
