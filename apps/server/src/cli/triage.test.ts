@@ -27,7 +27,9 @@ import { matchAgentAnswer, pickAgent } from "./triage.ts";
 const cliPath = NodeURL.fileURLToPath(new URL("../bin.ts", import.meta.url));
 
 async function fixture(commands: ReadonlyArray<string>) {
-  const root = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "s1-triage-"));
+  const root = await NodeFSP.mkdtemp(
+    NodePath.join(await NodeFSP.realpath(NodeOS.tmpdir()), "s1-triage-"),
+  );
   const bin = NodePath.join(root, "bin");
   const record = NodePath.join(root, "launch.json");
   await NodeFSP.mkdir(bin);

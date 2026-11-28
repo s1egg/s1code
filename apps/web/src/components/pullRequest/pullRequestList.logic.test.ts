@@ -147,9 +147,7 @@ describe("visible pull request line-count targets", () => {
     expect(
       withDiffStat(
         own,
-        mergePullRequestDiffStats(stats, [
-          { ...stat, repository: "PingDotGG/S1Code", additions: 7 },
-        ]),
+        mergePullRequestDiffStats(stats, [{ ...stat, repository: "S1Egg/S1Code", additions: 7 }]),
       ),
     ).toMatchObject({ additions: 7, deletions: 2 });
   });

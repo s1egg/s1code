@@ -318,7 +318,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           const cause = exit._tag === "Failure" ? Cause.pretty(exit.cause) : "";
           assert.notInclude(cause, "DevRunnerPortExhaustedError");
           assert.include(cause, code);
-          assert.include(cause, "13773");
+          assert.include(cause, "14773");
           assert.isBelow(listenCalls, 10);
         }),
     );

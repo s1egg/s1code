@@ -1763,7 +1763,7 @@ describe("pull request panel context beside a thread", () => {
     };
     const mixedCaseLegacy = {
       ...legacy,
-      repository: "PingDotGG/S1Code",
+      repository: "S1Egg/S1Code",
     };
     expect(
       pullRequestPanelContext({ projectId: "proj-a", linkedPullRequest: legacy }, surface(3)),
@@ -1774,7 +1774,7 @@ describe("pull request panel context beside a thread", () => {
     expect(
       pullRequestPanelContext(
         { projectId: "proj-a", linkedPullRequest: legacy },
-        surface(3, { repository: "PingDotGG/S1Code" }),
+        surface(3, { repository: "S1Egg/S1Code" }),
       ),
     ).toBe("thread");
     expect(

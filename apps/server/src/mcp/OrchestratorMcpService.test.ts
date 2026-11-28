@@ -1,3 +1,4 @@
+import { ACP_SESSION_MODE_OPTION_ID } from "@s1tools/provider-acp/server/sessionConfig";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -5173,7 +5174,7 @@ describe("OrchestratorMcpService provider resolution", () => {
   it.effect("a task may pick the agent's own mode only from a full-access parent", () =>
     Effect.gen(function* () {
       const agentId = ProviderInstanceId.make("acp-agent");
-      const mode = [{ id: "_s1/session-mode", value: "yolo" }] as const;
+      const mode = [{ id: ACP_SESSION_MODE_OPTION_ID, value: "yolo" }] as const;
       const delegateFrom = (
         runtimeMode: "approval-required" | "full-access",
         held: ReadonlyArray<{ readonly id: string; readonly value: unknown }> | undefined,
@@ -5232,7 +5233,7 @@ describe("OrchestratorMcpService provider resolution", () => {
                   capabilities: {
                     optionDescriptors: [
                       {
-                        id: "_s1/session-mode",
+                        id: ACP_SESSION_MODE_OPTION_ID,
                         label: "Mode",
                         type: "select",
                         role: "mode",

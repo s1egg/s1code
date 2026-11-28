@@ -370,7 +370,7 @@ Third}`;
       ),
     );
     if (result.type !== "document") throw new Error("Expected document");
-    expect(result.pages[0]!.html).toBe("<p data-rtf-whitespace>Apples green\s1\t<br>After<br></p>");
+    expect(result.pages[0]!.html).toBe("<p data-rtf-whitespace>Apples green\t3\t<br>After<br></p>");
   });
 
   it("preserves rich text page breaks and formatting without splitting hidden destinations", () => {

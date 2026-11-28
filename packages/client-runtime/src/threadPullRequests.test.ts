@@ -460,7 +460,7 @@ describe("chain selection and badge state", () => {
 describe("threadSearchPullRequests", () => {
   const branchPullRequest = {
     projectId: ProjectId.make("project"),
-    repository: "PingDotGG/S1Code",
+    repository: "S1Egg/S1Code",
     number: 42,
     url: "https://github.com/s1egg/s1code/pull/42",
   };

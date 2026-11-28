@@ -1,3 +1,4 @@
+import { ACP_SESSION_MODE_OPTION_ID } from "@s1tools/provider-acp/server/sessionConfig";
 import * as DocumentText from "../provider/DocumentText.ts";
 import { NodeHttpServer } from "@effect/platform-node";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
@@ -1325,7 +1326,7 @@ it.effect.each([
         const a = yield* makeLaptop(database, offers);
         yield* linkTo(a.links, b, access);
         const effort = { id: "reasoningEffort", value: "high" };
-        const mode = { id: "_s1/session-mode", value: "yolo" };
+        const mode = { id: ACP_SESSION_MODE_OPTION_ID, value: "yolo" };
         yield* seedParent(a, { ...modelSelection, options: [effort, mode] });
 
         const result = yield* a.call("delegate_task", {

@@ -86,7 +86,7 @@ describe("mergeProviderInstanceEnvironment", () => {
     }),
   );
 
-  const appDir = "/tmp/.mount_T3-CodXXXX";
+  const appDir = "/tmp/.mount_S1-CodXXXX";
   const systemLibraryPath = "/home/ada/lib:/home/ada/.local/lib";
   it.effect.each([
     {

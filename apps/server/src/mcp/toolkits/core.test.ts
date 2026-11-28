@@ -1,3 +1,4 @@
+import { ACP_SESSION_MODE_OPTION_ID } from "@s1tools/provider-acp/server/sessionConfig";
 import * as AssetSigner from "../../assets/AssetSigner.ts";
 import * as DocumentText from "../../provider/DocumentText.ts";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
@@ -1050,7 +1051,7 @@ it.effect("only a full-access client may change a thread's own agent mode", () =
             modelSelection: {
               instanceId: "acp-agent",
               model: "default",
-              options: [{ id: "_s1/session-mode", value: mode }],
+              options: [{ id: ACP_SESSION_MODE_OPTION_ID, value: mode }],
             },
           },
         })
@@ -1077,7 +1078,7 @@ it.effect("only a full-access client may change a thread's own agent mode", () =
                     modelSelection: {
                       instanceId: "acp-agent",
                       model: "default",
-                      options: [{ id: "_s1/session-mode", value: "ask" }],
+                      options: [{ id: ACP_SESSION_MODE_OPTION_ID, value: "ask" }],
                     },
                     runtimeMode: "approval-required",
                     interactionMode: "default",

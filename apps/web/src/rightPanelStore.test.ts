@@ -1020,12 +1020,12 @@ describe("rightPanelStore", () => {
         return surface.revealRequestId;
       };
       if (persisted !== "none") {
-        store.openFile(refA, "seed.log", 42);
+        store.openFile(refA, "app.log", 42);
         const persistedId = requestId() + 1;
         useRightPanelStore.setState({
           byThreadKey: {
             [scopedThreadKey(refA)]: {
-              ...selectThreadRightPanelState(store.byThreadKey, refA),
+              ...selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA),
               isOpen: true,
               activeSurfaceId: "file:app.log",
               surfaces: [

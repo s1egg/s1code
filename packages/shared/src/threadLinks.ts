@@ -326,7 +326,15 @@ function parsedSkippedRanges(markdown: string) {
   }
 
   const ranges: Array<{ start: number; end: number }> = [];
-  const pending: Nodes[] = [markdownParser.parse(markdown)];
+  let root: Nodes;
+  try {
+    root = markdownParser.parse(markdown);
+  } catch (error) {
+    // GFM's autolink transform recursively visits nested quotes. CommonMark still identifies code.
+    if (!(error instanceof RangeError)) throw error;
+    root = unified().use(remarkParse).parse(markdown);
+  }
+  const pending: Nodes[] = [root];
   while (pending.length > 0) {
     const node = pending.pop()!;
     if (node.type === "code" || node.type === "inlineCode" || node.type === "definition") {

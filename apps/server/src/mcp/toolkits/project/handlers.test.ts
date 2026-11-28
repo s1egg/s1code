@@ -1,4 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off - a directory junction needs no privilege on Windows.
+import { ACP_SESSION_MODE_OPTION_ID } from "@s1tools/provider-acp/server/sessionConfig";
 import * as NodeFSP from "node:fs/promises";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import { expect, it } from "@effect/vitest";
@@ -600,7 +601,7 @@ it.effect("only a full-access client may pick the agent's own mode at launch", (
                   capabilities: {
                     optionDescriptors: [
                       {
-                        id: "_s1/session-mode",
+                        id: ACP_SESSION_MODE_OPTION_ID,
                         label: "Mode",
                         type: "select",
                         options: [
@@ -633,7 +634,7 @@ it.effect("only a full-access client may pick the agent's own mode at launch", (
             modelSelection: {
               instanceId: agent,
               model: "default",
-              options: [{ id: "_s1/session-mode", value: "yolo" }],
+              options: [{ id: ACP_SESSION_MODE_OPTION_ID, value: "yolo" }],
             },
           })
           .pipe(
@@ -651,7 +652,7 @@ it.effect("only a full-access client may pick the agent's own mode at launch", (
 
     const fullAccess = yield* launchAs("full-access");
     expect(fullAccess.launched.map((launch) => launch.modelSelection.options)).toEqual([
-      [{ id: "_s1/session-mode", value: "yolo" }],
+      [{ id: ACP_SESSION_MODE_OPTION_ID, value: "yolo" }],
     ]);
   }),
 );
