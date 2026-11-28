@@ -1,4 +1,3 @@
-import type { AnyRouter } from "@tanstack/react-router";
 import { dismissContextMenu } from "../contextMenuFallback";
 import { useRightPanelStore } from "../rightPanelStore";
 
@@ -70,16 +69,6 @@ function isInScrollView(target: HTMLElement) {
     const box = scroller.getBoundingClientRect();
     return rect.bottom > box.top && rect.top < box.bottom;
   });
-}
-
-/**
- * Whether focus can go back to an element without surprising the user: it is still in a
- * visible workspace area (a closing drawer drops its area) and in view, so no list scrolls.
- */
-export function canReturnFocusTo(element: HTMLElement) {
-  return (
-    workspaceArea(element) !== null && isWorkspaceElementVisible(element) && isInScrollView(element)
-  );
 }
 
 /**
@@ -215,13 +204,14 @@ export function createWorkspaceFocusController(doc: Document) {
     const area =
       name === "content"
         ? (areas.find((element) => element.dataset.workspaceArea === "composer") ??
-          areas.find(
-            (element) =>
-              element.dataset.workspaceArea === "pull-requests" || element.matches("main"),
-          ) ??
+          areas.find((element) => element.matches("main")) ??
           areas.find((element) => element.dataset.workspaceArea === "conversation") ??
           areas.find((element) => element.dataset.workspaceArea === "panel"))
-        : areas.find((element) => element.dataset.workspaceArea === name);
+        : // Of several panes, the one the user last worked in takes a panel focus request.
+          (areas.find(
+            (element) =>
+              element.dataset.workspaceArea === name && element.dataset.paneFocused === "true",
+          ) ?? areas.find((element) => element.dataset.workspaceArea === name));
     if (!area) return false;
     const surface = area.querySelector("[data-right-panel-surface-content]");
     // A lazy surface's Suspense fallback is empty. Wait for its content instead
@@ -386,10 +376,10 @@ let focusRequestVersion = 0;
 export const getWorkspaceFocusRequestVersion = () => focusRequestVersion;
 
 /**
- * Starts workspace focus for the app: F6 area moves, focus requests, focus-loss recovery,
- * focus into a panel the user opens, and focus into the Pull Requests page on entry.
+ * Starts workspace focus for the app: F6 area moves, focus requests, focus-loss recovery, and
+ * focus into a panel the user opens.
  */
-export function startWorkspaceFocus(router: AnyRouter): () => void {
+export function startWorkspaceFocus(): () => void {
   const active = createWorkspaceFocusController(document);
   controller = active;
   const stopPanels = useRightPanelStore.subscribe((state, previous) => {
@@ -402,13 +392,8 @@ export function startWorkspaceFocus(router: AnyRouter): () => void {
         requestWorkspaceFocus({ area: "panel" });
     }
   });
-  const stopRoute = router.subscribe("onResolved", ({ fromLocation, toLocation }) => {
-    if (toLocation.pathname === "/pull-requests" && fromLocation?.pathname !== "/pull-requests")
-      requestWorkspaceFocus({ area: "pull-requests" });
-  });
   return () => {
     stopPanels();
-    stopRoute();
     active.dispose();
     if (controller === active) controller = undefined;
   };

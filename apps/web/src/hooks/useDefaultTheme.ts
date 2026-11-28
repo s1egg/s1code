@@ -1,3 +1,5 @@
+import { RETIRED_THEME_IDS } from "@s1tools/contracts";
+
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { localEnvironmentIdAtom } from "../state/primaryEnvironment";
 import { themeServerSettingsAtom } from "../state/server";
@@ -24,11 +26,22 @@ export function defaultThemeToApply(input: {
   if (input.defaultTheme.length === 0 && input.defaultThemeSetAt.length === 0) return null;
   const generation = defaultThemeGeneration(input.defaultTheme, input.defaultThemeSetAt);
   if (input.appliedGeneration === generation) return null;
+  if (adoptedRetiredThemeAt(input.appliedGeneration, input.defaultTheme, input.defaultThemeSetAt)) {
+    return null;
+  }
   // The setting and the palette it names arrive independently, so an id that
   // does not resolve yet is not a failure -- adoption re-checks when the
   // published set changes.
   if (!input.resolves) return null;
   return generation;
+}
+
+// A retired default now decodes as stock with the same set time; adopting it again would
+// discard local choices made after the original adoption.
+function adoptedRetiredThemeAt(applied: string | null, theme: string, setAt: string): boolean {
+  if (applied === null || theme !== "" || setAt.length === 0) return false;
+  const suffix = `@${setAt}`;
+  return applied.endsWith(suffix) && RETIRED_THEME_IDS.has(applied.slice(0, -suffix.length));
 }
 
 /** A single-appearance theme sets its own mode unless a mode was set with it or after it. */

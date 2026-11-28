@@ -15,7 +15,7 @@ import { expect, it, vi } from "vite-plus/test";
 import { act, render } from "../../../test/render";
 import {
   type PreviewMiniPlayerSource,
-  selectThreadPreviewMiniPlayer,
+  selectThreadPreviewMiniPlayerGeometry,
   usePreviewMiniPlayerStore,
 } from "../../previewMiniPlayerStore";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
@@ -43,15 +43,19 @@ const phone: PreviewMiniPlayerSource = {
 
 function Harness({ threadRef = defaultThreadRef }: { readonly threadRef?: ScopedThreadRef }) {
   const [store] = useState(createChatCanvasStore);
-  const miniPlayer = usePreviewMiniPlayerStore((state) =>
-    selectThreadPreviewMiniPlayer(state.byThreadKey, threadRef),
+  const geometry = usePreviewMiniPlayerStore((state) =>
+    selectThreadPreviewMiniPlayerGeometry(state.byThreadKey, threadRef),
   );
+  const miniPlayer = { ...geometry, source: phone };
   const preview = useThreadPreviewCanvasSource(threadRef, miniPlayer);
   return (
-    <ChatCanvas store={store} threadRef={threadRef} preview={preview} composerOverlayElement={null}>
-      {miniPlayer ? (
-        <ThreadPreviewMiniPlayer threadRef={threadRef} miniPlayer={miniPlayer} />
-      ) : null}
+    <ChatCanvas store={store} preview={preview} composerOverlayElement={null}>
+      <ThreadPreviewMiniPlayer
+        threadRef={threadRef}
+        miniPlayer={miniPlayer}
+        onRestore={() => undefined}
+        onClose={() => undefined}
+      />
     </ChatCanvas>
   );
 }
@@ -63,7 +67,6 @@ it("holds its frame through a source change and stops when the gesture is interr
   using _store = {
     [Symbol.dispose]: () => usePreviewMiniPlayerStore.getState().removeThread(threadRef),
   };
-  usePreviewMiniPlayerStore.getState().open(threadRef, phone);
   const container = document.createElement("div");
   container.style.cssText = "display:flex;position:fixed;inset:0;width:1200px;height:800px";
   await using screen = await render(
@@ -137,8 +140,6 @@ it("keeps one stream when switching between threads floating the same device", a
       usePreviewMiniPlayerStore.getState().removeThread(otherThreadRef);
     },
   };
-  usePreviewMiniPlayerStore.getState().open(threadRef, phone);
-  usePreviewMiniPlayerStore.getState().open(otherThreadRef, phone);
   const harness = (ref: ScopedThreadRef) => (
     <RegistryContext.Provider value={appAtomRegistry}>
       <Harness threadRef={ref} />

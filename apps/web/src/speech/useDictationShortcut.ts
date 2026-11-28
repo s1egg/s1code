@@ -5,7 +5,7 @@ import { useEffect, useRef, type RefObject } from "react";
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { useClientSettings } from "../hooks/useSettings";
 import { resolveShortcutCommand, shortcutLabelForCommand } from "../keybindings";
-import { getTerminalFocusOwner } from "../lib/terminalFocus";
+import { isTerminalFocused } from "../lib/terminalFocus";
 
 const HOLD_THRESHOLD_MS = 300;
 
@@ -150,7 +150,7 @@ export function useDictationShortcut(input: ShortcutInput) {
       const previewFocus = current.current.previewFocus ?? false;
       const command = resolveShortcutCommand(event, keybindings, {
         context: {
-          terminalFocus: getTerminalFocusOwner() !== null,
+          terminalFocus: isTerminalFocused(),
           terminalOpen,
           modelPickerOpen,
           previewFocus,

@@ -7,10 +7,12 @@ const monogramSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme
 export function ProjectMonogram({
   text,
   color,
+  monochrome = false,
   className,
 }: {
   readonly text: string;
   readonly color: ProjectIconColor;
+  readonly monochrome?: boolean | undefined;
   readonly className?: string | undefined;
 }) {
   // Wrap the tile to avoid menu/button SVG margin trimming.
@@ -24,11 +26,15 @@ export function ProjectMonogram({
         viewBox="0 0 16 16"
         className={cn(
           "size-full overflow-hidden rounded-[25%] font-mono select-none",
-          projectIconColorClassName(color),
+          monochrome ? "text-current" : projectIconColorClassName(color),
         )}
-        style={{
-          backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)",
-        }}
+        style={
+          monochrome
+            ? undefined
+            : {
+                backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)",
+              }
+        }
       >
         <text
           x="8"

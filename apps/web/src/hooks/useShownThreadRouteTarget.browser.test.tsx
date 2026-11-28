@@ -39,13 +39,11 @@ function createAppRouter(initialPath: string) {
     getParentRoute: () => settingsRoute,
     path: "general",
   });
-  const usageRoute = createRoute({ getParentRoute: () => rootRoute, path: "usage" });
   const newRoute = createRoute({ getParentRoute: () => rootRoute, path: "new" });
   return createRouter({
     routeTree: rootRoute.addChildren([
       threadRoute,
       settingsRoute.addChildren([settingsGeneralRoute]),
-      usageRoute,
       newRoute,
     ]),
     history: createMemoryHistory({ initialEntries: [initialPath] }),
@@ -53,7 +51,7 @@ function createAppRouter(initialPath: string) {
 }
 
 describe("useShownThreadRouteTarget", () => {
-  it("keeps the thread that opened Settings or Usage shown until the user leaves for another page", async () => {
+  it("keeps the thread that opened Settings shown until the user leaves for another page", async () => {
     const router = createAppRouter("/env-1/thread-a");
     await router.load();
     // The hook reads thread params and modal paths from real routes, which the default router lacks.
@@ -62,9 +60,6 @@ describe("useShownThreadRouteTarget", () => {
     await expect.element(shown).toHaveTextContent("thread-a");
 
     await act(() => router.navigate({ to: "/settings/general" }));
-    await expect.element(shown).toHaveTextContent("thread-a");
-
-    await act(() => router.navigate({ to: "/usage" }));
     await expect.element(shown).toHaveTextContent("thread-a");
 
     await act(() => router.navigate({ href: "/env-1/thread-b" }));

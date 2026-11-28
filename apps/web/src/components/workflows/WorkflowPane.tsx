@@ -16,7 +16,7 @@ import {
   type WorkflowPaneTab,
 } from "./workflowPane.logic";
 import {
-  useOpenReferencePage,
+  useOpenReferenceFullSize,
   WorkflowReferenceMark,
   WorkflowReferencePanel,
 } from "./WorkflowReferences";
@@ -46,7 +46,7 @@ export default function WorkflowPane({
     runId === null ? null : serverEnvironment.workflowRun({ environmentId, input: { runId } }),
   );
   const openThreadPage = useOpenThreadPage();
-  const openReferencePage = useOpenReferencePage(environmentId);
+  const openReferenceFullSize = useOpenReferenceFullSize(environmentId);
   const tabs = state.pane ?? [];
   const activeIndex = activeWorkflowPaneIndex(state);
   const active = tabs[activeIndex];
@@ -79,7 +79,7 @@ export default function WorkflowPane({
               )
         : activeReference === null
           ? null
-          : openReferencePage(activeReference);
+          : openReferenceFullSize(activeReference);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -137,7 +137,7 @@ export default function WorkflowPane({
             aria-label={
               active !== undefined && "thread" in active
                 ? gt("Open as a full thread")
-                : gt("Open on its own page")
+                : gt("Open full size")
             }
             onClick={openFull}
           >

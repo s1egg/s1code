@@ -50,7 +50,7 @@ const snapshot: PreviewSessionSnapshot = {
 
 beforeEach(() => {
   resetPreviewStateForTests();
-  useRightPanelStore.setState({ byThreadKey: {}, threadPanelVisibilityByThreadKey: {} });
+  useRightPanelStore.setState({ byThreadKey: {} });
   __setClientSettingsForTests(DEFAULT_CLIENT_SETTINGS);
 });
 
@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe("openPreviewSession", () => {
-  it("duplicates a browser beside its source using its URL, profile, viewport and runtime", async () => {
+  it("duplicates a browser into the browser pane using its URL, profile, viewport and runtime", async () => {
     const source: PreviewSessionSnapshot = {
       ...snapshot,
       profileId: "work",
@@ -90,8 +90,8 @@ describe("openPreviewSession", () => {
     const state = useRightPanelStore.getState();
     expect(Object.values(state.byThreadKey)[0]?.surfaces.map((surface) => surface.id)).toEqual([
       `browser:${source.tabId}`,
-      "browser:duplicate-tab",
       "browser:other-tab",
+      "browser:duplicate-tab",
     ]);
     expect(selectActiveRightPanelSurface(state.byThreadKey, threadRef)?.id).toBe(
       "browser:duplicate-tab",

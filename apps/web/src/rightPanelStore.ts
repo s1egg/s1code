@@ -1,14 +1,11 @@
-import {
-  parseScopedThreadKey,
-  scopedThreadKey,
-  scopeThreadRef,
-} from "@s1tools/client-runtime/environment";
-import { EnvironmentId, RunId, ThreadId, type ScopedThreadRef } from "@s1tools/contracts";
+import { parseScopedThreadKey, scopedThreadKey } from "@s1tools/client-runtime/environment";
+import { RunId, ThreadId, type ScopedThreadRef } from "@s1tools/contracts";
 import { msg } from "gt-react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { useClosedViewStore } from "./closedViewStore";
+import { useTerminalUiStateStore } from "./terminalUiStateStore";
 import { m } from "./i18n/messages";
 import { resolveStorage } from "./lib/storage";
 import type { LinkedThreadTarget } from "@s1tools/client-runtime/linked-thread";
@@ -17,7 +14,23 @@ import {
   linkedThreadSurface,
   type LinkedThreadSurface,
 } from "./linkedThreadSurface";
-import type { ThreadPanelPresentation } from "./rightPanelLayout";
+import {
+  decodeLayout,
+  isPaneKind,
+  layoutHasTile,
+  layoutPanes,
+  movePane as moveLayoutPane,
+  placePane,
+  removeTile,
+  resetDividerSizes,
+  setSplitSizes,
+  type LayoutNode,
+  type PaneKind,
+  type PanePlacement,
+  type PaneSide,
+  type TileId,
+} from "./paneLayout";
+import type { PreviewMiniPlayerSource } from "./previewMiniPlayerStore";
 import type { ChatFileAttachment } from "./types";
 
 const RIGHT_PANEL_KINDS = [
@@ -48,14 +61,8 @@ export type RightPanelSurface =
   | { id: `browser:${string}`; kind: "preview"; resourceId: string }
   | { id: "browser:new"; kind: "preview"; resourceId: null }
   | { id: "device" | `device:${string}`; kind: "device"; target?: DeviceTabTarget; title?: string }
-  | {
-      id: `terminal:${string}`;
-      kind: "terminal";
-      resourceId: string;
-      terminalIds: string[];
-      activeTerminalId: string;
-      splitDirection?: "horizontal" | "vertical";
-    }
+  /** The thread's terminals; which ones and how they split lives in the terminal UI store. */
+  | { id: "terminal"; kind: "terminal" }
   | { id: "diff"; kind: "diff" }
   | {
       id: "files";
@@ -89,8 +96,8 @@ export type RightPanelSurface =
     }
   | { id: "pull-requests"; kind: "pull-requests" }
   /**
-   * An issue opened in the issues list's shared panel, or beside a thread. Like `pull-request`,
-   * the reference lives in the id so several issues can stay open as peer tabs.
+   * An issue opened beside a thread. Like `pull-request`, the reference lives in the id so the
+   * issue pane can switch between several.
    */
   | {
       id: `issue:${string}`;
@@ -129,47 +136,57 @@ export function decodeThreadSurface(surface: object): ThreadSurface | null {
   return threadId === "" ? null : threadSurface(ThreadId.make(threadId));
 }
 
+/** One pane per tool: every item of a kind shows in the same pane, one at a time. */
+export function paneKindOf(kind: RightPanelKind): PaneKind {
+  switch (kind) {
+    case "preview":
+      return "browser";
+    case "file":
+    case "files":
+      return "files";
+    case "pull-requests":
+      return "linked";
+    case "linked-thread":
+    case "thread":
+      return "thread";
+    default:
+      return kind;
+  }
+}
+
 const RIGHT_PANEL_STORAGE_KEY = "s1code:right-panel-state:v2";
-const RIGHT_PANEL_STORAGE_VERSION = 16;
-
-export const PULL_REQUESTS_PANEL_REF = scopeThreadRef(
-  EnvironmentId.make("pull-requests-panel"),
-  ThreadId.make("pull-requests-panel"),
-);
-
-/** The issues page's shared panel, with the same fixed sentinel ref as the pull-request list. */
-export const ISSUES_PANEL_REF = scopeThreadRef(
-  EnvironmentId.make("issues-panel"),
-  ThreadId.make("issues-panel"),
-);
-
-/**
- * The pull-request and issues lists' shared panels are session
- * state: reopening the app should show the list, not last session's tabs and detail fetches.
- */
-const isPullRequestsPanelKey = (threadKey: string) =>
-  threadKey.endsWith(":pull-requests-panel") || threadKey.endsWith(":issues-panel");
+const RIGHT_PANEL_STORAGE_VERSION = 18;
 
 export interface ThreadRightPanelState {
+  /** False while every pane is hidden at once; the layout stays as it was. */
   isOpen: boolean;
-  activeSurfaceId: string | null;
+  /** Null while the chat is alone. */
+  layout: LayoutNode | null;
+  /** Every pane's items. A pane with items but no leaf is hidden, ready to come back. */
   surfaces: RightPanelSurface[];
+  /** The item the user last worked with; its pane is the focused pane. */
+  activeSurfaceId: string | null;
+  /** The item each pane shows. */
+  paneSurfaceIds: Partial<Record<PaneKind, string>>;
+  /** A pane filling the whole content area, chat included. */
+  fill?: PaneKind;
+  /** Where each pane last sat, so showing or reopening it puts it back. */
+  placements?: Partial<Record<PaneKind, PanePlacement>>;
+  /** Panes floating as small windows over the chat, bottom one first; `placements` keeps their spot. */
+  minimized?: PaneKind[];
+  /** Panes that hiding every pane floated, so showing the layout again puts them back. */
+  floatedOnHide?: PaneKind[];
+  /** Browser pages an agent or another client opened that the user has not looked at yet. */
+  waitingSurfaceIds?: string[];
   dismissedDeviceSurfaceIds?: string[];
-  maximized?: true;
   proactiveDiffTurnId?: RunId;
 }
 
-export interface ThreadPanelVisibility {
-  inlineOpen: boolean;
-  popoverOpen: boolean;
-}
+type SingletonKind = "diff" | "files" | "pull-requests" | "device" | "terminal";
+type OpenableKind = SingletonKind | "preview";
 
 interface RightPanelStoreState {
   byThreadKey: Record<string, ThreadRightPanelState>;
-  pendingMaximizeThreadKey: string | null;
-  requestMaximize: (ref: ScopedThreadRef) => void;
-  consumeMaximizeRequest: (ref: ScopedThreadRef) => boolean;
-  threadPanelVisibilityByThreadKey: Record<string, ThreadPanelVisibility>;
   userActionRevisionByThreadKey: Record<string, number>;
   closeRevisionByThreadKey: Record<string, number>;
   getUserActionRevision: (ref: ScopedThreadRef) => number;
@@ -183,23 +200,17 @@ interface RightPanelStoreState {
     expectedUserActionRevision: number,
     activateExisting?: boolean,
   ) => boolean;
-  open: (
-    ref: ScopedThreadRef,
-    kind: Exclude<
-      RightPanelKind,
-      "file" | "terminal" | "pull-request" | "issue" | "thread" | "linked-thread"
-    >,
-  ) => void;
-  /** Opens a side chat or subagent of `ref`'s environment as a tab; `ref` itself has no tab. */
+  open: (ref: ScopedThreadRef, kind: OpenableKind) => void;
+  /** Opens a side chat or subagent of `ref`'s environment; `ref` itself has no pane. */
   openThread: (ref: ScopedThreadRef, threadId: ThreadId) => void;
   openLinkedThread: (ref: ScopedThreadRef, target: LinkedThreadTarget) => void;
-  /** Records the title the linked environment gave, so the tab and a reopened one show it. */
+  /** Records the title the linked environment gave, so the pane and a reopened one show it. */
   setLinkedThreadTitle: (ref: ScopedThreadRef, surfaceId: string, title: string) => void;
   openDevice: (ref: ScopedThreadRef, target: DeviceTabTarget, automatic?: boolean) => void;
   renameDevice: (ref: ScopedThreadRef, surfaceId: string, title: string) => void;
   openBrowser: (ref: ScopedThreadRef, tabId: string | null) => void;
   openFile: (ref: ScopedThreadRef, relativePath: string, line?: number) => void;
-  /** Moves in place; "" opens the root explorer. folderTrail keeps the return path; keepSource opens beside the source. */
+  /** Moves in place; "" opens the root explorer. folderTrail keeps the return path; keepSource keeps the source item. */
   navigateFolder: (
     ref: ScopedThreadRef,
     surfaceId: string,
@@ -230,66 +241,63 @@ interface RightPanelStoreState {
   ) => void;
   /** Clears the surface's pending link only while it is still `revealUrl`. */
   settlePullRequestReveal: (ref: ScopedThreadRef, surfaceId: string, revealUrl: string) => void;
-  openTerminal: (ref: ScopedThreadRef, terminalId: string) => void;
-  splitTerminal: (
-    ref: ScopedThreadRef,
-    surfaceId: string,
-    terminalId: string,
-    direction?: "horizontal" | "vertical",
-  ) => void;
-  activateTerminal: (ref: ScopedThreadRef, surfaceId: string, terminalId: string) => void;
-  closeTerminal: (ref: ScopedThreadRef, surfaceId: string, terminalId: string) => void;
   activateSurface: (ref: ScopedThreadRef, surfaceId: string) => void;
-  /** Agent-driven activation. Not a user action, so it does not move keyboard focus. */
+  /** Agent-driven reveal. Not a user action, so it does not move focus. */
   revealSurface: (ref: ScopedThreadRef, surfaceId: string) => void;
   closeSurface: (ref: ScopedThreadRef, surfaceId: string) => void;
-  closeOtherSurfaces: (ref: ScopedThreadRef, surfaceId: string) => void;
-  closeSurfacesToRight: (ref: ScopedThreadRef, surfaceId: string) => void;
   closeAllSurfaces: (ref: ScopedThreadRef) => void;
-  moveSurface: (ref: ScopedThreadRef, surfaceId: string, toIndex: number) => void;
-  reconcileBrowserSurfaces: (
+  /** Shows a pane that has items; false when it has none to show. */
+  showPane: (ref: ScopedThreadRef, pane: PaneKind) => boolean;
+  /** Takes a pane out of the layout, keeping its items and where it sat. */
+  hidePane: (ref: ScopedThreadRef, pane: PaneKind) => void;
+  /** Floats a pane as a small window over the chat; showing it puts it back where it sat. */
+  minimizePane: (ref: ScopedThreadRef, pane: PaneKind) => void;
+  /**
+   * Floats `surface` in its pane's small window, adding it when new. An automatic one leaves a
+   * pane that is on screen alone and only adds the item, which then waits to be looked at.
+   */
+  floatSurface: (
     ref: ScopedThreadRef,
-    tabIds: readonly string[],
-    hiddenTabIds?: ReadonlySet<string>,
+    surface: RightPanelSurface,
+    automatic?: boolean,
+    /** Shows a new item in its pane even when that pane is on screen with another. */
+    force?: boolean,
   ) => void;
+  /** Stops floating a pane without showing it, as when the device it streams went away. */
+  dismissFloatingPane: (ref: ScopedThreadRef, pane: PaneKind) => void;
+  /** Hides every pane, floating `float` meanwhile; showing the layout puts those back. */
+  hideAll: (ref: ScopedThreadRef, float: readonly PaneKind[]) => void;
+  /** Hides a visible pane, or shows it, opening `create` when the pane has nothing yet. */
+  togglePane: (ref: ScopedThreadRef, pane: PaneKind, create?: RightPanelSurface) => void;
+  movePane: (ref: ScopedThreadRef, pane: PaneKind, target: TileId, side: PaneSide) => void;
+  focusPane: (ref: ScopedThreadRef, pane: PaneKind) => void;
+  resizeSplit: (ref: ScopedThreadRef, path: readonly number[], sizes: readonly number[]) => void;
+  resetDivider: (ref: ScopedThreadRef, path: readonly number[], index: number) => void;
+  /** Null restores the layout. A pane not shown yet fills once it opens. */
+  setFill: (ref: ScopedThreadRef, pane: PaneKind | null) => void;
+  /**
+   * Keeps the Browser pane's items in step with the thread's pages. Pages opened elsewhere,
+   * revealed or not, wait as items that never take over the pane; the pane leaves the layout
+   * when only waiting ones remain.
+   */
+  reconcileBrowserSurfaces: (ref: ScopedThreadRef, tabIds: readonly string[]) => void;
   reconcileFileSurfaces: (ref: ScopedThreadRef, workspaceAvailable: boolean) => void;
   show: (ref: ScopedThreadRef) => void;
   close: (ref: ScopedThreadRef) => void;
-  setMaximized: (ref: ScopedThreadRef, maximized: boolean) => void;
   toggleVisibility: (ref: ScopedThreadRef) => void;
-  toggle: (
-    ref: ScopedThreadRef,
-    kind: Exclude<
-      RightPanelKind,
-      "file" | "terminal" | "pull-request" | "issue" | "thread" | "linked-thread"
-    >,
-  ) => void;
-  setThreadPanelOpen: (
-    ref: ScopedThreadRef,
-    presentation: ThreadPanelPresentation,
-    open: boolean,
-  ) => void;
-  toggleThreadPanel: (ref: ScopedThreadRef, presentation: ThreadPanelPresentation) => void;
+  toggle: (ref: ScopedThreadRef, kind: OpenableKind) => void;
   removeThread: (ref: ScopedThreadRef) => void;
 }
 
 const EMPTY_THREAD_STATE: ThreadRightPanelState = {
   isOpen: false,
+  layout: null,
   activeSurfaceId: null,
   surfaces: [],
+  paneSurfaceIds: {},
 };
 
-const DEFAULT_THREAD_PANEL_VISIBILITY: ThreadPanelVisibility = {
-  inlineOpen: true,
-  popoverOpen: false,
-};
-
-const singletonSurface = (
-  kind: Exclude<
-    RightPanelKind,
-    "file" | "preview" | "terminal" | "pull-request" | "issue" | "thread" | "linked-thread"
-  >,
-): RightPanelSurface => {
+const singletonSurface = (kind: SingletonKind): RightPanelSurface => {
   switch (kind) {
     case "diff":
       return { id: "diff", kind };
@@ -299,13 +307,21 @@ const singletonSurface = (
       return { id: "pull-requests", kind };
     case "device":
       return { id: "device", kind };
+    case "terminal":
+      return { id: "terminal", kind };
   }
 };
 
-const browserSurface = (tabId: string | null): RightPanelSurface =>
+export const browserSurface = (tabId: string | null): RightPanelSurface =>
   tabId
     ? { id: `browser:${tabId}`, kind: "preview", resourceId: tabId }
     : { id: "browser:new", kind: "preview", resourceId: null };
+
+export const deviceSurface = (target: DeviceTabTarget): RightPanelSurface => ({
+  id: `device:${encodeURIComponent(target.hostId)}:${encodeURIComponent(target.deviceId)}`,
+  kind: "device",
+  target,
+});
 
 const fileSurface = (
   relativePath: string,
@@ -326,14 +342,6 @@ const attachmentSurface = (attachment: ChatFileAttachment): RightPanelSurface =>
   revealLine: null,
   revealRequestId: 0,
   attachment,
-});
-
-const terminalSurface = (terminalId: string): RightPanelSurface => ({
-  id: `terminal:${terminalId}`,
-  kind: "terminal",
-  resourceId: terminalId,
-  terminalIds: [terminalId],
-  activeTerminalId: terminalId,
 });
 
 export type PullRequestSurface = Extract<RightPanelSurface, { kind: "pull-request" }>;
@@ -413,18 +421,176 @@ const withoutReveal = (surface: RightPanelSurface): RightPanelSurface => {
   return rest;
 };
 
+const paneOf = (surface: RightPanelSurface) => paneKindOf(surface.kind);
+
+const focusedPaneOf = (state: ThreadRightPanelState): PaneKind | null => {
+  const active = state.surfaces.find((surface) => surface.id === state.activeSurfaceId);
+  return active ? paneOf(active) : null;
+};
+
+type PaneListKey = "minimized" | "floatedOnHide";
+
+/** Sets one of the thread's pane lists, leaving the key out while it is empty. */
+function withPaneList(
+  state: ThreadRightPanelState,
+  key: PaneListKey,
+  panes: readonly PaneKind[],
+): ThreadRightPanelState {
+  const current = state[key] ?? [];
+  if (current.length === panes.length && current.every((pane, index) => panes[index] === pane)) {
+    return state;
+  }
+  const { [key]: _previous, ...rest } = state;
+  return panes.length === 0 ? rest : { ...rest, [key]: [...panes] };
+}
+
+const withoutPaneIn = (state: ThreadRightPanelState, key: PaneListKey, pane: PaneKind) =>
+  withPaneList(
+    state,
+    key,
+    (state[key] ?? []).filter((entry) => entry !== pane),
+  );
+
+/**
+ * Puts a pane in the layout, where it last sat or by the default placement, below the pane
+ * that was focused before. A user's open leaves another pane's fill so the pane can be seen;
+ * an automatic one does not disturb it. A floating pane stops floating.
+ */
+function placed(
+  state: ThreadRightPanelState,
+  pane: PaneKind,
+  leaveFill: boolean,
+  focused: PaneKind | null = focusedPaneOf(state),
+): ThreadRightPanelState {
+  const layout = placePane(state.layout, pane, {
+    focused,
+    placement: state.placements?.[pane],
+  });
+  const fill = !leaveFill || state.fill === pane ? state.fill : undefined;
+  const { fill: _fill, ...rest } = state;
+  const shown = { ...rest, layout, isOpen: true, ...(fill === undefined ? {} : { fill }) };
+  return withoutPaneIn(withoutPaneIn(shown, "minimized", pane), "floatedOnHide", pane);
+}
+
+/** Takes a pane out of the layout, remembering where it was. */
+function unplaced(state: ThreadRightPanelState, pane: PaneKind): ThreadRightPanelState {
+  if (!layoutHasTile(state.layout, pane)) return state;
+  const { layout, placement } = removeTile(state.layout, pane);
+  const { fill, ...rest } = state;
+  return {
+    ...rest,
+    layout,
+    ...(fill === undefined || fill === pane ? {} : { fill }),
+    ...(placement ? { placements: { ...state.placements, [pane]: placement } } : {}),
+  };
+}
+
+/**
+ * Shows `surface` in its pane, adding it when new, and makes its pane the focused one. An
+ * automatic open (an agent, a finished turn) leaves another pane's fill alone; the DOM focus
+ * request that follows a user's open is not made for it either.
+ */
 const upsertSurface = (
   current: ThreadRightPanelState,
   surface: RightPanelSurface,
-  activate = true,
-): ThreadRightPanelState => ({
-  ...current,
-  isOpen: true,
-  surfaces: current.surfaces.some((entry) => entry.id === surface.id)
-    ? current.surfaces
-    : [...current.surfaces, surface],
-  activeSurfaceId: activate ? surface.id : current.activeSurfaceId,
-});
+  automatic = false,
+): ThreadRightPanelState => {
+  const pane = paneOf(surface);
+  const withItem: ThreadRightPanelState = {
+    ...current,
+    surfaces: current.surfaces.some((entry) => entry.id === surface.id)
+      ? current.surfaces
+      : [...current.surfaces, surface],
+    paneSurfaceIds: { ...current.paneSurfaceIds, [pane]: surface.id },
+    activeSurfaceId: surface.id,
+  };
+  return placed(withItem, pane, !automatic, focusedPaneOf(current));
+};
+
+/** Floats a pane that has something to show, moving focus to a pane still in the layout. */
+function minimized(state: ThreadRightPanelState, pane: PaneKind): ThreadRightPanelState {
+  if (state.paneSurfaceIds[pane] === undefined || state.minimized?.includes(pane)) return state;
+  const removed = withPaneList(unplaced(state, pane), "minimized", [
+    ...(state.minimized ?? []),
+    pane,
+  ]);
+  if (focusedPaneOf(state) !== pane) return removed;
+  const remaining = visiblePanes(removed).at(-1);
+  const next = remaining === undefined ? undefined : removed.paneSurfaceIds[remaining];
+  return next === undefined ? removed : { ...removed, activeSurfaceId: next };
+}
+
+const sameRecord = (
+  left: Partial<Record<string, string>>,
+  right: Partial<Record<string, string>>,
+) => {
+  const leftKeys = Object.keys(left);
+  return (
+    leftKeys.length === Object.keys(right).length &&
+    leftKeys.every((key) => left[key] === right[key])
+  );
+};
+
+/**
+ * Keeps a thread's panes consistent with its items: a pane whose last item closed leaves the
+ * layout, every pane shows one of its own items, and nothing is open with no pane to show.
+ * A pane that lost its item never falls back to a waiting one: with only those left, it hides.
+ */
+function settle(state: ThreadRightPanelState): ThreadRightPanelState {
+  let next = state;
+  const paneKinds = new Set(state.surfaces.map(paneOf));
+  for (const pane of layoutPanes(state.layout)) {
+    if (!paneKinds.has(pane)) next = unplaced(next, pane);
+  }
+  const paneSurfaceIds: Partial<Record<PaneKind, string>> = {};
+  for (const pane of paneKinds) {
+    const shown = state.paneSurfaceIds[pane];
+    if (shown !== undefined && state.surfaces.some((surface) => surface.id === shown)) {
+      paneSurfaceIds[pane] = shown;
+      continue;
+    }
+    const items = state.surfaces.filter((surface) => paneOf(surface) === pane);
+    const seen = items.findLast((surface) => !state.waitingSurfaceIds?.includes(surface.id));
+    paneSurfaceIds[pane] = (seen ?? items.at(-1)!).id;
+    if (seen === undefined) {
+      next = withoutPaneIn(
+        withoutPaneIn(unplaced(next, pane), "minimized", pane),
+        "floatedOnHide",
+        pane,
+      );
+    }
+  }
+  if (!sameRecord(paneSurfaceIds, state.paneSurfaceIds)) next = { ...next, paneSurfaceIds };
+  const inLayout = new Set(layoutPanes(next.layout));
+  for (const key of ["minimized", "floatedOnHide"] as const) {
+    const panes = [...new Set(next[key] ?? [])].filter(
+      (pane) => paneKinds.has(pane) && !inLayout.has(pane),
+    );
+    next = withPaneList(next, key, panes);
+  }
+  if (next.isOpen && inLayout.size === 0) next = { ...next, isOpen: false };
+  // The focused pane is one on screen whenever any is, so pane commands never reach past it.
+  const onScreen = panesOnScreen(next);
+  const focused = focusedPaneOf(next);
+  const lostItem = next.activeSurfaceId !== null && focused === null;
+  if (lostItem || (onScreen.length > 0 && (focused === null || !onScreen.includes(focused)))) {
+    const target = onScreen.at(-1) ?? layoutPanes(next.layout).at(-1);
+    next = {
+      ...next,
+      activeSurfaceId: target === undefined ? null : (paneSurfaceIds[target] ?? null),
+    };
+  }
+  const waiting = next.waitingSurfaceIds?.filter(
+    (id) =>
+      next.surfaces.some((surface) => surface.id === id) &&
+      !onScreen.some((pane) => paneSurfaceIds[pane] === id),
+  );
+  if (waiting !== undefined && waiting.length !== next.waitingSurfaceIds!.length) {
+    const { waitingSurfaceIds: _waiting, ...rest } = next;
+    next = waiting.length === 0 ? rest : { ...rest, waitingSurfaceIds: waiting };
+  }
+  return next;
+}
 
 const updateThreadStateMap = (
   byThreadKey: Record<string, ThreadRightPanelState>,
@@ -432,11 +598,15 @@ const updateThreadStateMap = (
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
 ): Record<string, ThreadRightPanelState> => {
   const current = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  const next = updater(current);
+  const updated = updater(current);
+  if (updated === current) return byThreadKey;
+  const next = settle(updated);
   if (
-    !next.isOpen &&
-    next.activeSurfaceId === null &&
     next.surfaces.length === 0 &&
+    next.layout === null &&
+    next.placements === undefined &&
+    next.minimized === undefined &&
+    next.fill === undefined &&
     !next.dismissedDeviceSurfaceIds?.length &&
     next.proactiveDiffTurnId === undefined
   ) {
@@ -444,59 +614,17 @@ const updateThreadStateMap = (
     const { [threadKey]: _removed, ...rest } = byThreadKey;
     return rest;
   }
-  if (next === current) return byThreadKey;
   return { ...byThreadKey, [threadKey]: next };
 };
 
-const updateThreadPanelVisibilityMap = (
-  byThreadKey: Record<string, ThreadPanelVisibility>,
-  threadKey: string,
-  updater: (current: ThreadPanelVisibility) => ThreadPanelVisibility,
-): Record<string, ThreadPanelVisibility> => {
-  const current = byThreadKey[threadKey] ?? DEFAULT_THREAD_PANEL_VISIBILITY;
-  const next = updater(current);
-  if (next.inlineOpen && !next.popoverOpen) {
-    if (!(threadKey in byThreadKey)) return byThreadKey;
-    const { [threadKey]: _removed, ...rest } = byThreadKey;
-    return rest;
-  }
-  if (next === current) return byThreadKey;
-  return { ...byThreadKey, [threadKey]: next };
-};
-
-type RightPanelStoreData = Pick<
-  RightPanelStoreState,
-  "byThreadKey" | "threadPanelVisibilityByThreadKey"
->;
+type RightPanelStoreData = Pick<RightPanelStoreState, "byThreadKey">;
 
 const updateThread = (
   state: RightPanelStoreData,
   threadKey: string,
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
 ): RightPanelStoreData => {
-  const current = state.byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  const byThreadKey = updateThreadStateMap(state.byThreadKey, threadKey, updater);
-  const next = byThreadKey[threadKey] ?? EMPTY_THREAD_STATE;
-  let threadPanelVisibilityByThreadKey = state.threadPanelVisibilityByThreadKey;
-
-  if (!current.isOpen && next.isOpen) {
-    threadPanelVisibilityByThreadKey = updateThreadPanelVisibilityMap(
-      threadPanelVisibilityByThreadKey,
-      threadKey,
-      (visibility) => (visibility.popoverOpen ? { ...visibility, popoverOpen: false } : visibility),
-    );
-  } else if (current.isOpen && !next.isOpen) {
-    threadPanelVisibilityByThreadKey = updateThreadPanelVisibilityMap(
-      threadPanelVisibilityByThreadKey,
-      threadKey,
-      (visibility) =>
-        visibility.popoverOpen && !visibility.inlineOpen
-          ? { ...visibility, inlineOpen: true }
-          : visibility,
-    );
-  }
-
-  return { byThreadKey, threadPanelVisibilityByThreadKey };
+  return { byThreadKey: updateThreadStateMap(state.byThreadKey, threadKey, updater) };
 };
 
 const automaticUpdate = (
@@ -573,10 +701,22 @@ const userActionOnThread = (
     : {}),
 });
 
-const activated = (current: ThreadRightPanelState, surfaceId: string): ThreadRightPanelState =>
-  current.surfaces.some((surface) => surface.id === surfaceId)
-    ? { ...current, isOpen: true, activeSurfaceId: surfaceId }
-    : current;
+const shownIn = (current: ThreadRightPanelState, surfaceId: string, automatic = false) => {
+  const surface = current.surfaces.find((entry) => entry.id === surfaceId);
+  return surface ? upsertSurface(current, surface, automatic) : current;
+};
+
+/** Hides a visible pane, else shows what it has, else opens `create` in it. */
+const toggled = (
+  current: ThreadRightPanelState,
+  pane: PaneKind,
+  create: RightPanelSurface | undefined,
+): ThreadRightPanelState => {
+  if (isPaneVisible(current, pane)) return unplaced(current, pane);
+  const shown = current.paneSurfaceIds[pane];
+  if (shown !== undefined) return shownIn(current, shown);
+  return create ? upsertSurface(current, create) : current;
+};
 
 const closeAction = (
   state: RightPanelStoreState,
@@ -584,207 +724,290 @@ const closeAction = (
   updater: (current: ThreadRightPanelState) => ThreadRightPanelState,
 ): Partial<RightPanelStoreState> => userAction(state, threadKey, updater, true);
 
+/** Removes items; a pane left without any leaves the layout when the state settles. */
+const withoutSurfaces = (
+  current: ThreadRightPanelState,
+  keep: (surface: RightPanelSurface) => boolean,
+): ThreadRightPanelState => {
+  const surfaces = current.surfaces.filter(keep);
+  return surfaces.length === current.surfaces.length ? current : { ...current, surfaces };
+};
+
 function normalizeRevealLine(line: number | undefined): number | null {
   if (line === undefined || !Number.isFinite(line)) return null;
   return Math.max(1, Math.trunc(line));
 }
 
+/** A surface saved by any earlier build, rebuilt, or null when this build cannot use it. */
+function decodeSurface(raw: unknown): RightPanelSurface | null {
+  if (!raw || typeof raw !== "object") return null;
+  let surface = raw as RightPanelSurface;
+  const kind = (raw as { kind?: string }).kind;
+  if (kind === "thread" || kind === "side-chat") return decodeThreadSurface(raw);
+  // Also drops kinds this build does not know, such as one a newer build saved.
+  if (!(RIGHT_PANEL_KINDS as ReadonlyArray<unknown>).includes(kind)) return null;
+  if (surface.kind === "linked-thread") return decodeLinkedThreadSurface(surface);
+  if (surface.kind === "terminal") return singletonSurface("terminal");
+  if (
+    (surface.kind === "file" || surface.kind === "files") &&
+    "folderTrail" in surface &&
+    typeof surface.folderTrail !== "string"
+  ) {
+    const { folderTrail: _invalid, ...rest } = surface;
+    surface = rest;
+  }
+  if (surface.kind === "file") {
+    const revealLine =
+      typeof surface.revealLine === "number" && Number.isFinite(surface.revealLine)
+        ? Math.max(1, Math.trunc(surface.revealLine))
+        : null;
+    const revealRequestId =
+      typeof surface.revealRequestId === "number" &&
+      Number.isSafeInteger(surface.revealRequestId) &&
+      surface.revealRequestId >= 0
+        ? surface.revealRequestId
+        : 0;
+    return { ...surface, revealLine, revealRequestId };
+  }
+  if (surface.kind === "pull-request") {
+    if (
+      typeof surface.projectId !== "string" ||
+      typeof surface.repository !== "string" ||
+      typeof surface.number !== "number" ||
+      !Number.isSafeInteger(surface.number) ||
+      surface.number < 1
+    ) {
+      return null;
+    }
+    const { environmentId, ...rest } = surface;
+    return pullRequestSurface({
+      ...rest,
+      ...(typeof environmentId === "string" ? { environmentId } : {}),
+    });
+  }
+  if (surface.kind === "issue") {
+    if (
+      typeof surface.projectId !== "string" ||
+      typeof surface.tracker !== "string" ||
+      typeof surface.scope !== "string" ||
+      typeof surface.key !== "string"
+    ) {
+      return null;
+    }
+    const { environmentId, ...rest } = surface;
+    return issueSurface({
+      ...rest,
+      ...(typeof environmentId === "string" ? { environmentId } : {}),
+    });
+  }
+  return surface;
+}
+
+/** A terminal tab's own shells, which builds before version 18 kept apart from the drawer's. */
+export interface MigratedTerminalGroup {
+  readonly terminalIds: string[];
+  readonly activeTerminalId: string;
+  readonly splitDirection?: "horizontal" | "vertical";
+}
+
+function migratedTerminalGroup(raw: unknown): MigratedTerminalGroup | null {
+  const saved = raw as Record<string, unknown>;
+  const ids = Array.isArray(saved.terminalIds)
+    ? saved.terminalIds.filter((id): id is string => typeof id === "string" && id.trim() !== "")
+    : [];
+  const terminalIds =
+    ids.length > 0 ? ids : typeof saved.resourceId === "string" ? [saved.resourceId] : [];
+  if (terminalIds.length === 0) return null;
+  const activeTerminalId =
+    typeof saved.activeTerminalId === "string" && terminalIds.includes(saved.activeTerminalId)
+      ? saved.activeTerminalId
+      : terminalIds[0]!;
+  return {
+    terminalIds,
+    activeTerminalId,
+    ...(saved.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : {}),
+  };
+}
+
+/**
+ * Builds before version 18 kept a row of tabs. The tab that was showing becomes the one pane,
+ * beside the chat; the rest are dropped, since a row of tabs has no layout to restore them to.
+ * Every terminal tab's shells move to the terminal store, which the drawer state never listed;
+ * the one that was showing goes last, so its active shell stays active.
+ */
+function migrateTabbedThread(saved: Record<string, unknown>): {
+  state: ThreadRightPanelState | null;
+  terminals: MigratedTerminalGroup[];
+} {
+  const savedActiveId =
+    typeof saved.activeSurfaceId === "string" && saved.activeSurfaceId.startsWith("side-chat:")
+      ? `thread:${saved.activeSurfaceId.slice("side-chat:".length)}`
+      : saved.activeSurfaceId;
+  const decoded = (Array.isArray(saved.surfaces) ? saved.surfaces : []).flatMap((raw) => {
+    const surface = decodeSurface(raw);
+    return surface === null ? [] : [{ raw, rawId: (raw as { id?: unknown }).id, surface }];
+  });
+  const savedActiveEntry = decoded.find(
+    ({ rawId, surface }) => surface.id === savedActiveId || rawId === savedActiveId,
+  );
+  const savedActive =
+    savedActiveEntry?.surface ??
+    (savedActiveId === "pull-request"
+      ? decoded.find(({ surface }) => surface.kind === "pull-request")?.surface
+      : undefined) ??
+    null;
+  const isOpen =
+    decoded.length > 0 && (typeof saved.isOpen === "boolean" ? saved.isOpen : savedActive !== null);
+  const activeEntry =
+    savedActive !== null
+      ? (decoded.find((entry) => entry.surface === savedActive) ?? savedActiveEntry)
+      : isOpen || savedActiveId === "agents"
+        ? decoded[0]
+        : undefined;
+  const active = savedActive ?? activeEntry?.surface ?? null;
+  const terminals = decoded
+    .filter((entry) => entry.surface.kind === "terminal")
+    .toSorted((left, right) => Number(left === activeEntry) - Number(right === activeEntry))
+    .flatMap((entry) => migratedTerminalGroup(entry.raw) ?? []);
+  const extras = {
+    ...(typeof saved.proactiveDiffTurnId === "string"
+      ? { proactiveDiffTurnId: RunId.make(saved.proactiveDiffTurnId) }
+      : {}),
+    ...(Array.isArray(saved.dismissedDeviceSurfaceIds)
+      ? {
+          dismissedDeviceSurfaceIds: saved.dismissedDeviceSurfaceIds.filter(
+            (id): id is string => typeof id === "string",
+          ),
+        }
+      : {}),
+  };
+  if (active === null) {
+    return {
+      state: Object.keys(extras).length === 0 ? null : { ...EMPTY_THREAD_STATE, ...extras },
+      terminals,
+    };
+  }
+  const pane = paneOf(active);
+  return {
+    state: {
+      isOpen,
+      layout: placePane(null, pane, { focused: null, placement: undefined }),
+      surfaces: [active],
+      activeSurfaceId: active.id,
+      paneSurfaceIds: { [pane]: active.id },
+      ...(saved.maximized === true ? { fill: pane } : {}),
+      ...extras,
+    },
+    terminals,
+  };
+}
+
 export function migratePersistedRightPanelState(persistedState: unknown): {
   byThreadKey: Record<string, ThreadRightPanelState>;
-  threadPanelVisibilityByThreadKey: Record<string, ThreadPanelVisibility>;
+  terminalGroups: Record<string, MigratedTerminalGroup[]>;
 } {
+  const terminalGroups: Record<string, MigratedTerminalGroup[]> = {};
   if (!persistedState || typeof persistedState !== "object") {
-    return { byThreadKey: {}, threadPanelVisibilityByThreadKey: {} };
+    return { byThreadKey: {}, terminalGroups };
   }
-  const byThreadKey =
+  const saved =
     "byThreadKey" in persistedState &&
     persistedState.byThreadKey &&
     typeof persistedState.byThreadKey === "object"
-      ? Object.fromEntries(
-          Object.entries(persistedState.byThreadKey as Record<string, ThreadRightPanelState>)
-            .filter(([threadKey]) => !isPullRequestsPanelKey(threadKey))
-            .map(([threadKey, threadState]) => {
-              const validThreadState =
-                threadState && typeof threadState === "object" ? threadState : null;
-              const surfaces = Array.isArray(validThreadState?.surfaces)
-                ? validThreadState.surfaces.flatMap<RightPanelSurface>((surface) => {
-                    if (!surface || typeof surface !== "object") return [];
-                    const kind = (surface as { kind?: string }).kind;
-                    if (kind === "thread" || kind === "side-chat") {
-                      const decoded = decodeThreadSurface(surface);
-                      return decoded === null ? [] : [decoded];
-                    }
-                    // Also drops kinds this build does not know, such as one a newer build saved.
-                    if (!(RIGHT_PANEL_KINDS as ReadonlyArray<unknown>).includes(kind)) return [];
-                    if (surface.kind === "linked-thread") {
-                      const decoded = decodeLinkedThreadSurface(surface);
-                      return decoded === null ? [] : [decoded];
-                    }
-                    if (
-                      (surface.kind === "file" || surface.kind === "files") &&
-                      "folderTrail" in surface &&
-                      typeof surface.folderTrail !== "string"
-                    ) {
-                      const { folderTrail: _invalid, ...rest } = surface;
-                      surface = rest;
-                    }
-                    if (surface.kind === "file") {
-                      const revealLine =
-                        typeof surface.revealLine === "number" &&
-                        Number.isFinite(surface.revealLine)
-                          ? Math.max(1, Math.trunc(surface.revealLine))
-                          : null;
-                      const revealRequestId =
-                        typeof surface.revealRequestId === "number" &&
-                        Number.isSafeInteger(surface.revealRequestId) &&
-                        surface.revealRequestId >= 0
-                          ? surface.revealRequestId
-                          : 0;
-                      return [{ ...surface, revealLine, revealRequestId }];
-                    }
-                    if (surface.kind === "pull-request") {
-                      if (
-                        typeof surface.projectId !== "string" ||
-                        typeof surface.repository !== "string" ||
-                        typeof surface.number !== "number" ||
-                        !Number.isSafeInteger(surface.number) ||
-                        surface.number < 1
-                      ) {
-                        return [];
-                      }
-                      const { environmentId, ...rest } = surface;
-                      return [
-                        pullRequestSurface({
-                          ...rest,
-                          ...(typeof environmentId === "string" ? { environmentId } : {}),
-                        }),
-                      ];
-                    }
-                    if (surface.kind === "issue") {
-                      if (
-                        typeof surface.projectId !== "string" ||
-                        typeof surface.tracker !== "string" ||
-                        typeof surface.scope !== "string" ||
-                        typeof surface.key !== "string"
-                      ) {
-                        return [];
-                      }
-                      const { environmentId, ...rest } = surface;
-                      return [
-                        issueSurface({
-                          ...rest,
-                          ...(typeof environmentId === "string" ? { environmentId } : {}),
-                        }),
-                      ];
-                    }
-                    if (surface.kind !== "terminal") return [surface];
-                    if (
-                      !("resourceId" in surface) ||
-                      typeof surface.resourceId !== "string" ||
-                      surface.id !== `terminal:${surface.resourceId}`
-                    ) {
-                      return [];
-                    }
-                    const terminalIds =
-                      "terminalIds" in surface && Array.isArray(surface.terminalIds)
-                        ? [
-                            ...new Set(
-                              surface.terminalIds.filter(
-                                (terminalId): terminalId is string =>
-                                  typeof terminalId === "string",
-                              ),
-                            ),
-                          ]
-                        : [surface.resourceId];
-                    const activeTerminalId =
-                      "activeTerminalId" in surface &&
-                      typeof surface.activeTerminalId === "string" &&
-                      terminalIds.includes(surface.activeTerminalId)
-                        ? surface.activeTerminalId
-                        : (terminalIds[0] ?? surface.resourceId);
-                    return [
-                      {
-                        ...surface,
-                        terminalIds: terminalIds.length > 0 ? terminalIds : [surface.resourceId],
-                        activeTerminalId,
-                      },
-                    ];
-                  })
-                : [];
-              const savedActiveSurfaceId = validThreadState?.activeSurfaceId;
-              const rawActiveSurfaceId =
-                typeof savedActiveSurfaceId === "string" &&
-                savedActiveSurfaceId.startsWith("side-chat:")
-                  ? `thread:${savedActiveSurfaceId.slice("side-chat:".length)}`
-                  : savedActiveSurfaceId;
-              const persistedActiveSurfaceId = surfaces.some(
-                (surface) => surface.id === rawActiveSurfaceId,
-              )
-                ? (rawActiveSurfaceId ?? null)
-                : rawActiveSurfaceId === "pull-request"
-                  ? (surfaces.find((surface) => surface.kind === "pull-request")?.id ?? null)
-                  : null;
-              const isOpen =
-                surfaces.length > 0 &&
-                (typeof validThreadState?.isOpen === "boolean"
-                  ? validThreadState.isOpen
-                  : persistedActiveSurfaceId !== null);
-              const activeSurfaceId =
-                persistedActiveSurfaceId ??
-                (isOpen || rawActiveSurfaceId === "agents" ? (surfaces[0]?.id ?? null) : null);
-              return [
-                threadKey,
-                {
-                  isOpen,
-                  surfaces,
-                  activeSurfaceId,
-                  ...(typeof validThreadState?.proactiveDiffTurnId === "string"
-                    ? { proactiveDiffTurnId: RunId.make(validThreadState.proactiveDiffTurnId) }
-                    : {}),
-                  ...(Array.isArray(validThreadState?.dismissedDeviceSurfaceIds)
-                    ? {
-                        dismissedDeviceSurfaceIds:
-                          validThreadState.dismissedDeviceSurfaceIds.filter(
-                            (id): id is string => typeof id === "string",
-                          ),
-                      }
-                    : {}),
-                  ...(validThreadState?.maximized === true ? { maximized: true as const } : {}),
-                },
-              ];
-            }),
-        )
+      ? (persistedState.byThreadKey as Record<string, unknown>)
       : {};
-  const threadPanelVisibilityByThreadKey =
-    "threadPanelVisibilityByThreadKey" in persistedState &&
-    persistedState.threadPanelVisibilityByThreadKey &&
-    typeof persistedState.threadPanelVisibilityByThreadKey === "object"
-      ? Object.fromEntries(
-          Object.entries(
-            persistedState.threadPanelVisibilityByThreadKey as Record<string, unknown>,
-          ).flatMap(([threadKey, value]) => {
-            if (!value || typeof value !== "object" || !("inlineOpen" in value)) return [];
-            return value.inlineOpen === false
-              ? [[threadKey, { inlineOpen: false, popoverOpen: false }]]
-              : [];
-          }),
-        )
-      : {};
-  return { byThreadKey, threadPanelVisibilityByThreadKey };
+  const byThreadKey: Record<string, ThreadRightPanelState> = {};
+  for (const [threadKey, threadState] of Object.entries(saved)) {
+    // The old Pull requests and Issues pages kept their own panels under fixed keys.
+    if (threadKey.endsWith(":pull-requests-panel") || threadKey.endsWith(":issues-panel")) continue;
+    if (!threadState || typeof threadState !== "object") continue;
+    const migrated = migrateTabbedThread(threadState as Record<string, unknown>);
+    if (migrated.state !== null) byThreadKey[threadKey] = migrated.state;
+    if (migrated.terminals.length > 0) terminalGroups[threadKey] = migrated.terminals;
+  }
+  return { byThreadKey, terminalGroups };
+}
+
+/** Rebuilds a version 18 thread, dropping what does not fit together any more. */
+function decodeThreadState(raw: unknown): ThreadRightPanelState | null {
+  if (!raw || typeof raw !== "object") return null;
+  const saved = raw as Record<string, unknown>;
+  const surfaces = Array.isArray(saved.surfaces)
+    ? saved.surfaces.flatMap((surface) => {
+        const decoded = decodeSurface(surface);
+        return decoded === null ? [] : [decoded];
+      })
+    : [];
+  const paneSurfaceIds: Partial<Record<PaneKind, string>> = {};
+  if (saved.paneSurfaceIds && typeof saved.paneSurfaceIds === "object") {
+    for (const [pane, id] of Object.entries(saved.paneSurfaceIds)) {
+      if (isPaneKind(pane) && typeof id === "string") paneSurfaceIds[pane] = id;
+    }
+  }
+  const placements: Partial<Record<PaneKind, PanePlacement>> = {};
+  if (saved.placements && typeof saved.placements === "object") {
+    for (const [pane, value] of Object.entries(saved.placements)) {
+      const placement = value as Partial<PanePlacement> | null;
+      if (
+        isPaneKind(pane) &&
+        placement &&
+        (placement.neighbor === "chat" || isPaneKind(placement.neighbor)) &&
+        (placement.side === "left" ||
+          placement.side === "right" ||
+          placement.side === "top" ||
+          placement.side === "bottom") &&
+        typeof placement.ratio === "number" &&
+        placement.ratio > 0 &&
+        placement.ratio < 1
+      ) {
+        const group = Array.isArray(placement.group)
+          ? placement.group.filter((tile): tile is TileId => tile === "chat" || isPaneKind(tile))
+          : [];
+        placements[pane] = {
+          neighbor: placement.neighbor,
+          side: placement.side,
+          ratio: placement.ratio,
+          ...(group.length > 1 ? { group } : {}),
+        };
+      }
+    }
+  }
+  const paneList = (value: unknown): PaneKind[] =>
+    Array.isArray(value) ? value.filter((pane): pane is PaneKind => isPaneKind(pane)) : [];
+  const minimizedPanes = paneList(saved.minimized);
+  const floatedOnHide = paneList(saved.floatedOnHide);
+  const waitingSurfaceIds = Array.isArray(saved.waitingSurfaceIds)
+    ? saved.waitingSurfaceIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const state: ThreadRightPanelState = {
+    isOpen: saved.isOpen === true,
+    layout: decodeLayout(saved.layout),
+    surfaces,
+    activeSurfaceId: typeof saved.activeSurfaceId === "string" ? saved.activeSurfaceId : null,
+    paneSurfaceIds,
+    ...(isPaneKind(saved.fill) ? { fill: saved.fill } : {}),
+    ...(Object.keys(placements).length > 0 ? { placements } : {}),
+    ...(minimizedPanes.length > 0 ? { minimized: minimizedPanes } : {}),
+    ...(floatedOnHide.length > 0 ? { floatedOnHide } : {}),
+    ...(waitingSurfaceIds.length > 0 ? { waitingSurfaceIds } : {}),
+    ...(typeof saved.proactiveDiffTurnId === "string"
+      ? { proactiveDiffTurnId: RunId.make(saved.proactiveDiffTurnId) }
+      : {}),
+    ...(Array.isArray(saved.dismissedDeviceSurfaceIds)
+      ? {
+          dismissedDeviceSurfaceIds: saved.dismissedDeviceSurfaceIds.filter(
+            (id): id is string => typeof id === "string",
+          ),
+        }
+      : {}),
+  };
+  return settle(state);
 }
 
 export const useRightPanelStore = create<RightPanelStoreState>()(
   persist(
     (set, get) => ({
       byThreadKey: {},
-      pendingMaximizeThreadKey: null,
-      requestMaximize: (ref) => set({ pendingMaximizeThreadKey: scopedThreadKey(ref) }),
-      consumeMaximizeRequest: (ref) => {
-        if (get().pendingMaximizeThreadKey !== scopedThreadKey(ref)) return false;
-        set({ pendingMaximizeThreadKey: null });
-        return true;
-      },
-      threadPanelVisibilityByThreadKey: {},
       userActionRevisionByThreadKey: {},
       closeRevisionByThreadKey: {},
       getUserActionRevision: (ref) =>
@@ -806,17 +1029,16 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
           if (request.kind === "diff") {
             const current = selectThreadRightPanelState(state.byThreadKey, ref);
             if (current.proactiveDiffTurnId === request.turnId) return state;
-            const activePanel = selectActiveRightPanel(state.byThreadKey, ref);
-            const pullRequestActive =
-              activePanel === "pull-request" || activePanel === "pull-requests";
+            const focusedKind = selectActiveRightPanelSurface(state.byThreadKey, ref)?.kind;
             opened =
               (state.userActionRevisionByThreadKey[threadKey] ?? 0) ===
                 expectedUserActionRevision &&
-              activePanel !== "diff" &&
-              !pullRequestActive;
+              focusedKind !== "diff" &&
+              focusedKind !== "pull-request" &&
+              focusedKind !== "pull-requests";
             // Record the offer even when refused, so a revisit does not retry this turn.
             return automaticUpdate(state, threadKey, (thread) => ({
-              ...(opened ? upsertSurface(thread, singletonSurface("diff")) : thread),
+              ...(opened ? upsertSurface(thread, singletonSurface("diff"), true) : thread),
               proactiveDiffTurnId: request.turnId,
             }));
           }
@@ -825,7 +1047,7 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
           ) {
             return state;
           }
-          // Keep an existing PR tab where the user left it when revisiting a thread.
+          // Keep an existing PR item where the user left it when revisiting a thread.
           if (
             !activateExisting &&
             selectThreadRightPanelState(state.byThreadKey, ref).surfaces.some(
@@ -835,7 +1057,9 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             return state;
           }
           opened = true;
-          return automaticUpdate(state, threadKey, (current) => upsertSurface(current, request));
+          return automaticUpdate(state, threadKey, (current) =>
+            upsertSurface(current, request, true),
+          );
         });
         return opened;
       },
@@ -843,7 +1067,8 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         set((state) =>
           userAction(state, scopedThreadKey(ref), (current) => {
             if (kind === "preview") {
-              const existing = current.surfaces.find((surface) => surface.kind === "preview");
+              const pane = current.paneSurfaceIds.browser;
+              const existing = current.surfaces.find((surface) => surface.id === pane);
               return upsertSurface(current, existing ?? browserSurface(null));
             }
             return upsertSurface(current, singletonSurface(kind));
@@ -852,10 +1077,9 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
       openDevice: (ref, target, automatic = false) =>
         set((state) =>
           (automatic ? automaticUpdate : userAction)(state, scopedThreadKey(ref), (current) => {
-            const id =
-              `device:${encodeURIComponent(target.hostId)}:${encodeURIComponent(target.deviceId)}` as const;
+            const surface = deviceSurface(target);
+            const id = surface.id;
             if (automatic && current.dismissedDeviceSurfaceIds?.includes(id)) return current;
-            const surface: RightPanelSurface = { id, kind: "device", target };
             const existing = current.surfaces.find((entry) => entry.id === id);
             const surfaces = existing
               ? current.surfaces.filter((entry) => entry.id !== "device")
@@ -869,6 +1093,7 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
                 ),
               },
               existing ?? surface,
+              automatic,
             );
           }),
         ),
@@ -1026,16 +1251,17 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
               normalizeRevealLine(line),
               (existing?.revealRequestId ?? 0) + 1,
             );
-            return {
-              ...current,
-              isOpen: true,
-              activeSurfaceId: surface.id,
-              surfaces: existing
-                ? withoutStandaloneExplorer.map((entry) =>
-                    entry.id === surface.id ? surface : entry,
-                  )
-                : [...withoutStandaloneExplorer, surface],
-            };
+            return upsertSurface(
+              {
+                ...current,
+                surfaces: existing
+                  ? withoutStandaloneExplorer.map((entry) =>
+                      entry.id === surface.id ? surface : entry,
+                    )
+                  : withoutStandaloneExplorer,
+              },
+              surface,
+            );
           }),
         ),
       navigateFolder: (ref, surfaceId, relativePath, folderTrail, keepSource = false) =>
@@ -1061,7 +1287,7 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
                 ? []
                 : [surface];
             });
-            return { ...current, isOpen: true, activeSurfaceId: target.id, surfaces };
+            return upsertSurface({ ...current, surfaces }, target);
           }),
         ),
       openAttachment: (ref, attachment) =>
@@ -1076,162 +1302,146 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             );
           }),
         ),
-      openTerminal: (ref, terminalId) =>
-        set((state) =>
-          userAction(state, scopedThreadKey(ref), (current) =>
-            upsertSurface(current, terminalSurface(terminalId)),
-          ),
-        ),
-      splitTerminal: (ref, surfaceId, terminalId, direction = "horizontal") =>
-        set((state) =>
-          userAction(state, scopedThreadKey(ref), (current) => ({
-            ...current,
-            isOpen: true,
-            activeSurfaceId: surfaceId,
-            surfaces: current.surfaces.map((surface) => {
-              if (surface.id !== surfaceId || surface.kind !== "terminal") return surface;
-              const { splitDirection: _splitDirection, ...baseSurface } = surface;
-              return {
-                ...baseSurface,
-                terminalIds: surface.terminalIds.includes(terminalId)
-                  ? surface.terminalIds
-                  : [...surface.terminalIds, terminalId],
-                activeTerminalId: terminalId,
-                ...(direction === "vertical" ? { splitDirection: "vertical" as const } : {}),
-              };
-            }),
-          })),
-        ),
-      activateTerminal: (ref, surfaceId, terminalId) =>
-        set((state) =>
-          userAction(state, scopedThreadKey(ref), (current) => ({
-            ...current,
-            activeSurfaceId: surfaceId,
-            surfaces: current.surfaces.map((surface) =>
-              surface.id === surfaceId &&
-              surface.kind === "terminal" &&
-              surface.terminalIds.includes(terminalId)
-                ? { ...surface, activeTerminalId: terminalId }
-                : surface,
-            ),
-          })),
-        ),
-      closeTerminal: (ref, surfaceId, terminalId) =>
-        set((state) =>
-          closeAction(state, scopedThreadKey(ref), (current) => {
-            const surface = current.surfaces.find(
-              (entry) => entry.id === surfaceId && entry.kind === "terminal",
-            );
-            if (!surface || surface.kind !== "terminal") return current;
-            const terminalIds = surface.terminalIds.filter((id) => id !== terminalId);
-            if (terminalIds.length === 0) {
-              const index = current.surfaces.findIndex((entry) => entry.id === surfaceId);
-              const surfaces = current.surfaces.filter((entry) => entry.id !== surfaceId);
-              const fallback = surfaces[Math.min(index, surfaces.length - 1)] ?? null;
-              return {
-                ...current,
-                isOpen: surfaces.length > 0 && current.isOpen,
-                surfaces,
-                activeSurfaceId:
-                  current.activeSurfaceId === surfaceId
-                    ? (fallback?.id ?? null)
-                    : current.activeSurfaceId,
-              };
-            }
-            return {
-              ...current,
-              surfaces: current.surfaces.map((entry) =>
-                entry.id === surfaceId && entry.kind === "terminal"
-                  ? {
-                      ...entry,
-                      terminalIds,
-                      activeTerminalId:
-                        entry.activeTerminalId === terminalId
-                          ? (terminalIds.at(-1) ?? terminalIds[0]!)
-                          : entry.activeTerminalId,
-                    }
-                  : entry,
-              ),
-            };
-          }),
-        ),
       activateSurface: (ref, surfaceId) =>
         set((state) =>
-          userAction(state, scopedThreadKey(ref), (current) => activated(current, surfaceId)),
+          userAction(state, scopedThreadKey(ref), (current) => shownIn(current, surfaceId)),
         ),
       revealSurface: (ref, surfaceId) =>
         set((state) =>
-          automaticUpdate(state, scopedThreadKey(ref), (current) => activated(current, surfaceId)),
+          automaticUpdate(state, scopedThreadKey(ref), (current) =>
+            shownIn(current, surfaceId, true),
+          ),
         ),
       closeSurface: (ref, surfaceId) =>
         set((state) =>
-          closeAction(state, scopedThreadKey(ref), (current) => {
-            const index = current.surfaces.findIndex((surface) => surface.id === surfaceId);
-            if (index < 0) return current;
-            const surfaces = current.surfaces.filter((surface) => surface.id !== surfaceId);
-            const next = {
-              ...current,
-              isOpen: surfaces.length > 0 && current.isOpen,
-              surfaces,
-            };
-            if (current.activeSurfaceId !== surfaceId) {
-              return next;
-            }
-            const fallback = surfaces[Math.min(index, surfaces.length - 1)] ?? null;
-            return {
-              ...next,
-              activeSurfaceId: fallback?.id ?? null,
-            };
-          }),
-        ),
-      closeOtherSurfaces: (ref, surfaceId) =>
-        set((state) =>
-          closeAction(state, scopedThreadKey(ref), (current) => {
-            const surface = current.surfaces.find((entry) => entry.id === surfaceId);
-            if (!surface || current.surfaces.length === 1) return current;
-            return {
-              ...current,
-              isOpen: true,
-              surfaces: [surface],
-              activeSurfaceId: surface.id,
-            };
-          }),
-        ),
-      closeSurfacesToRight: (ref, surfaceId) =>
-        set((state) =>
-          closeAction(state, scopedThreadKey(ref), (current) => {
-            const index = current.surfaces.findIndex((surface) => surface.id === surfaceId);
-            if (index < 0 || index === current.surfaces.length - 1) return current;
-            const surfaces = current.surfaces.slice(0, index + 1);
-            const activeStillExists = surfaces.some(
-              (surface) => surface.id === current.activeSurfaceId,
-            );
-            return {
-              ...current,
-              surfaces,
-              activeSurfaceId: activeStillExists ? current.activeSurfaceId : surfaceId,
-            };
-          }),
+          closeAction(state, scopedThreadKey(ref), (current) =>
+            withoutSurfaces(current, (surface) => surface.id !== surfaceId),
+          ),
         ),
       closeAllSurfaces: (ref) =>
         set((state) =>
           closeAction(state, scopedThreadKey(ref), (current) =>
-            current.surfaces.length === 0
-              ? current
-              : { ...current, isOpen: false, surfaces: [], activeSurfaceId: null },
+            current.surfaces.length === 0 ? current : withoutSurfaces(current, () => false),
           ),
         ),
-      moveSurface: (ref, surfaceId, toIndex) =>
+      showPane: (ref, pane) => {
+        const shown = selectThreadRightPanelState(get().byThreadKey, rightPanelHostRef(ref))
+          .paneSurfaceIds[pane];
+        if (shown === undefined) return false;
         set((state) =>
-          updateThread(state, scopedThreadKey(ref), (current) => {
-            const fromIndex = current.surfaces.findIndex((surface) => surface.id === surfaceId);
-            if (fromIndex < 0 || fromIndex === toIndex) return current;
-            const surfaces = [...current.surfaces];
-            surfaces.splice(toIndex, 0, ...surfaces.splice(fromIndex, 1));
-            return { ...current, surfaces };
+          userAction(state, scopedThreadKey(ref), (current) => shownIn(current, shown)),
+        );
+        return true;
+      },
+      hidePane: (ref, pane) =>
+        set((state) =>
+          userAction(state, scopedThreadKey(ref), (current) => unplaced(current, pane)),
+        ),
+      minimizePane: (ref, pane) =>
+        set((state) =>
+          userAction(state, scopedThreadKey(ref), (current) => minimized(current, pane)),
+        ),
+      floatSurface: (ref, surface, automatic = false, force = false) =>
+        set((state) =>
+          (automatic ? automaticUpdate : userAction)(state, scopedThreadKey(ref), (current) => {
+            const pane = paneOf(surface);
+            const known = current.surfaces.some((entry) => entry.id === surface.id);
+            const withItem: ThreadRightPanelState = known
+              ? current
+              : { ...current, surfaces: [...current.surfaces, surface] };
+            if (force && isPaneVisible(current, pane))
+              return upsertSurface(withItem, surface, true);
+            if (automatic && !force && panesOnScreen(current).includes(pane)) {
+              if (known || current.paneSurfaceIds[pane] === surface.id) return withItem;
+              return {
+                ...withItem,
+                waitingSurfaceIds: [...(current.waitingSurfaceIds ?? []), surface.id],
+              };
+            }
+            const shown = {
+              ...withItem,
+              paneSurfaceIds: { ...withItem.paneSurfaceIds, [pane]: surface.id },
+            };
+            return current.minimized?.includes(pane)
+              ? shown
+              : minimized(
+                  { ...shown, ...(automatic ? {} : { activeSurfaceId: surface.id }) },
+                  pane,
+                );
           }),
         ),
-      reconcileBrowserSurfaces: (ref, tabIds, hiddenTabIds) =>
+      dismissFloatingPane: (ref, pane) =>
+        set((state) =>
+          automaticUpdate(state, scopedThreadKey(ref), (current) =>
+            withoutPaneIn(current, "minimized", pane),
+          ),
+        ),
+      hideAll: (ref, float) =>
+        set((state) =>
+          userAction(state, scopedThreadKey(ref), (current) => {
+            let next: ThreadRightPanelState = current;
+            for (const pane of float) {
+              if (isPaneVisible(next, pane)) next = minimized(next, pane);
+            }
+            const floated = float.filter((pane) => next.minimized?.includes(pane));
+            // Floating the filled pane drops its fill; showing the layout again brings it back.
+            const { fill: _fill, ...rest } = withPaneList(next, "floatedOnHide", floated);
+            return {
+              ...rest,
+              isOpen: false,
+              ...(current.fill === undefined ? {} : { fill: current.fill }),
+            };
+          }),
+        ),
+      togglePane: (ref, pane, create) =>
+        set((state) =>
+          userAction(state, scopedThreadKey(ref), (current) => toggled(current, pane, create)),
+        ),
+      movePane: (ref, pane, target, side) =>
+        set((state) =>
+          userAction(state, scopedThreadKey(ref), (current) => {
+            const layout = moveLayoutPane(current.layout, pane, target, side);
+            if (layout === current.layout) return current;
+            const shown = current.paneSurfaceIds[pane];
+            return {
+              ...current,
+              layout,
+              ...(shown === undefined ? {} : { activeSurfaceId: shown }),
+            };
+          }),
+        ),
+      focusPane: (ref, pane) =>
+        set((state) =>
+          updateThread(state, scopedThreadKey(rightPanelHostRef(ref)), (current) => {
+            const shown = current.paneSurfaceIds[pane];
+            return shown === undefined || shown === current.activeSurfaceId
+              ? current
+              : { ...current, activeSurfaceId: shown };
+          }),
+        ),
+      resizeSplit: (ref, path, sizes) =>
+        set((state) =>
+          updateThread(state, scopedThreadKey(ref), (current) => {
+            const layout = setSplitSizes(current.layout, path, sizes);
+            return layout === current.layout ? current : { ...current, layout };
+          }),
+        ),
+      resetDivider: (ref, path, index) =>
+        set((state) =>
+          updateThread(state, scopedThreadKey(ref), (current) => {
+            const layout = resetDividerSizes(current.layout, path, index);
+            return layout === current.layout ? current : { ...current, layout };
+          }),
+        ),
+      setFill: (ref, pane) =>
+        set((state) =>
+          automaticUpdate(state, scopedThreadKey(rightPanelHostRef(ref)), (current) => {
+            if ((current.fill ?? null) === pane) return current;
+            const { fill: _fill, ...rest } = current;
+            return pane === null ? rest : { ...rest, fill: pane, isOpen: true };
+          }),
+        ),
+      reconcileBrowserSurfaces: (ref, tabIds) =>
         set((state) =>
           automaticUpdate(state, scopedThreadKey(ref), (current) => {
             const validIds = new Set(tabIds.map((tabId) => `browser:${tabId}`));
@@ -1242,70 +1452,51 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             );
             const knownIds = new Set(kept.map((surface) => surface.id));
             const added = tabIds
-              .filter((tabId) => !knownIds.has(`browser:${tabId}`) && !hiddenTabIds?.has(tabId))
+              .filter((tabId) => !knownIds.has(`browser:${tabId}`))
               .map((tabId) => browserSurface(tabId));
-            const surfaces = [...kept, ...added];
-            const activeStillExists = surfaces.some(
-              (surface) => surface.id === current.activeSurfaceId,
-            );
-            const fallbackBrowser = surfaces.find((surface) => surface.kind === "preview");
-            // A closed session tab was the last surface: hide the panel rather than leave it on
-            // the empty picker, as a user close would. A dropped `browser:new` placeholder does not count.
-            const closedLastSessionTab =
-              surfaces.length === 0 &&
-              current.surfaces.some((surface) => surface.kind === "preview" && surface.resourceId);
+            if (added.length === 0 && kept.length === current.surfaces.length) return current;
+            const waiting = [
+              ...(current.waitingSurfaceIds ?? []),
+              ...added.map((surface) => surface.id),
+            ];
             return {
               ...current,
-              isOpen: closedLastSessionTab ? false : current.isOpen,
-              surfaces,
-              activeSurfaceId: activeStillExists
-                ? current.activeSurfaceId
-                : (fallbackBrowser?.id ?? surfaces[0]?.id ?? null),
+              surfaces: [...kept, ...added],
+              ...(waiting.length === 0 ? {} : { waitingSurfaceIds: waiting }),
             };
           }),
         ),
       reconcileFileSurfaces: (ref, workspaceAvailable) =>
         set((state) =>
-          automaticUpdate(state, scopedThreadKey(ref), (current) => {
-            if (workspaceAvailable) return current;
-            const surfaces = current.surfaces.filter(
-              (surface) =>
-                surface.kind !== "files" &&
-                (surface.kind !== "file" || surface.attachment !== undefined),
-            );
-            if (surfaces.length === current.surfaces.length) return current;
-            const activeStillExists = surfaces.some(
-              (surface) => surface.id === current.activeSurfaceId,
-            );
-            return {
-              ...current,
-              isOpen: surfaces.length > 0 ? current.isOpen : false,
-              surfaces,
-              activeSurfaceId: activeStillExists
-                ? current.activeSurfaceId
-                : (surfaces.at(-1)?.id ?? null),
-            };
-          }),
+          automaticUpdate(state, scopedThreadKey(ref), (current) =>
+            workspaceAvailable
+              ? current
+              : withoutSurfaces(
+                  current,
+                  (surface) =>
+                    surface.kind !== "files" &&
+                    (surface.kind !== "file" || surface.attachment !== undefined),
+                ),
+          ),
         ),
       show: (ref) =>
         set((state) =>
-          userAction(state, scopedThreadKey(ref), (current) =>
-            current.isOpen ? current : { ...current, isOpen: true },
-          ),
+          userAction(state, scopedThreadKey(ref), (current) => {
+            let next: ThreadRightPanelState = current.isOpen
+              ? current
+              : { ...current, isOpen: true };
+            // Each placement was recorded against the layout left by the ones before it.
+            for (const pane of (current.floatedOnHide ?? []).toReversed()) {
+              next = placed(next, pane, false);
+            }
+            return next;
+          }),
         ),
       close: (ref) =>
         set((state) =>
           userAction(state, scopedThreadKey(ref), (current) =>
             current.isOpen ? { ...current, isOpen: false } : current,
           ),
-        ),
-      setMaximized: (ref, maximized) =>
-        set((state) =>
-          automaticUpdate(state, scopedThreadKey(ref), (current) => {
-            if ((current.maximized ?? false) === maximized) return current;
-            const { maximized: _maximized, ...rest } = current;
-            return maximized ? { ...rest, maximized: true } : rest;
-          }),
         ),
       toggleVisibility: (ref) =>
         set((state) =>
@@ -1316,63 +1507,31 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
         ),
       toggle: (ref, kind) =>
         set((state) =>
-          userAction(state, scopedThreadKey(ref), (current) => {
-            const active = current.surfaces.find(
-              (surface) => surface.id === current.activeSurfaceId,
-            );
-            if (current.isOpen && active?.kind === kind) {
-              return { ...current, isOpen: false };
-            }
-            if (kind === "preview") {
-              const existing = current.surfaces.find((surface) => surface.kind === "preview");
-              return upsertSurface(current, existing ?? browserSurface(null));
-            }
-            return upsertSurface(current, singletonSurface(kind));
-          }),
+          userAction(state, scopedThreadKey(ref), (current) =>
+            toggled(
+              current,
+              paneKindOf(kind),
+              kind === "preview" ? browserSurface(null) : singletonSurface(kind),
+            ),
+          ),
         ),
-      setThreadPanelOpen: (ref, presentation, open) =>
-        set((state) => ({
-          threadPanelVisibilityByThreadKey: updateThreadPanelVisibilityMap(
-            state.threadPanelVisibilityByThreadKey,
-            scopedThreadKey(ref),
-            (visibility) => {
-              const key = presentation === "inline" ? "inlineOpen" : "popoverOpen";
-              return visibility[key] === open ? visibility : { ...visibility, [key]: open };
-            },
-          ),
-        })),
-      toggleThreadPanel: (ref, presentation) =>
-        set((state) => ({
-          threadPanelVisibilityByThreadKey: updateThreadPanelVisibilityMap(
-            state.threadPanelVisibilityByThreadKey,
-            scopedThreadKey(ref),
-            (visibility) =>
-              presentation === "inline"
-                ? { ...visibility, inlineOpen: !visibility.inlineOpen }
-                : { ...visibility, popoverOpen: !visibility.popoverOpen },
-          ),
-        })),
       removeThread: (ref) =>
         set((state) => {
           const threadKey = scopedThreadKey(ref);
           if (
             !(threadKey in state.byThreadKey) &&
-            !(threadKey in state.threadPanelVisibilityByThreadKey) &&
             !(threadKey in state.userActionRevisionByThreadKey) &&
             !(threadKey in state.closeRevisionByThreadKey)
           ) {
             return state;
           }
           const { [threadKey]: _removed, ...byThreadKey } = state.byThreadKey;
-          const { [threadKey]: _visibility, ...threadPanelVisibilityByThreadKey } =
-            state.threadPanelVisibilityByThreadKey;
           const { [threadKey]: _revision, ...userActionRevisionByThreadKey } =
             state.userActionRevisionByThreadKey;
           const { [threadKey]: _closeRevision, ...closeRevisionByThreadKey } =
             state.closeRevisionByThreadKey;
           return {
             byThreadKey,
-            threadPanelVisibilityByThreadKey,
             userActionRevisionByThreadKey,
             closeRevisionByThreadKey,
           };
@@ -1386,25 +1545,35 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
       ),
       partialize: (state) => ({
         byThreadKey: Object.fromEntries(
-          Object.entries(state.byThreadKey).flatMap(([threadKey, threadState]) =>
-            isPullRequestsPanelKey(threadKey)
-              ? []
-              : [
-                  [
-                    threadKey,
-                    { ...threadState, surfaces: threadState.surfaces.map(withoutReveal) },
-                  ],
-                ],
-          ),
-        ),
-        threadPanelVisibilityByThreadKey: Object.fromEntries(
-          Object.entries(state.threadPanelVisibilityByThreadKey).flatMap(
-            ([threadKey, visibility]) =>
-              visibility.inlineOpen ? [] : [[threadKey, { inlineOpen: false, popoverOpen: false }]],
-          ),
+          Object.entries(state.byThreadKey).map(([threadKey, threadState]) => [
+            threadKey,
+            { ...threadState, surfaces: threadState.surfaces.map(withoutReveal) },
+          ]),
         ),
       }),
-      migrate: migratePersistedRightPanelState,
+      migrate: (persistedState) => {
+        const { byThreadKey, terminalGroups } = migratePersistedRightPanelState(persistedState);
+        for (const [threadKey, groups] of Object.entries(terminalGroups)) {
+          const threadRef = parseScopedThreadKey(threadKey);
+          if (!threadRef) continue;
+          for (const group of groups) {
+            useTerminalUiStateStore.getState().importTerminalGroup(threadRef, group);
+          }
+        }
+        return { byThreadKey };
+      },
+      merge: (persisted, current) => {
+        const saved =
+          persisted && typeof persisted === "object" && "byThreadKey" in persisted
+            ? (persisted.byThreadKey as Record<string, unknown>)
+            : {};
+        const byThreadKey: Record<string, ThreadRightPanelState> = {};
+        for (const [threadKey, threadState] of Object.entries(saved ?? {})) {
+          const decoded = decodeThreadState(threadState);
+          if (decoded !== null) byThreadKey[threadKey] = decoded;
+        }
+        return { ...current, byThreadKey };
+      },
     },
   ),
 );
@@ -1443,39 +1612,93 @@ export function selectThreadRightPanelState(
   return byThreadKey[scopedThreadKey(ref)] ?? EMPTY_THREAD_STATE;
 }
 
-export function selectThreadPanelVisibility(
-  byThreadKey: Record<string, ThreadPanelVisibility>,
-  ref: ScopedThreadRef | null | undefined,
-): ThreadPanelVisibility {
-  if (!ref) return DEFAULT_THREAD_PANEL_VISIBILITY;
-  return byThreadKey[scopedThreadKey(ref)] ?? DEFAULT_THREAD_PANEL_VISIBILITY;
+/**
+ * The floating pane the preview player draws: the newest of `panes` showing a live page or
+ * device. Others float as plain windows.
+ */
+export function floatingPreviewSource(
+  state: ThreadRightPanelState,
+  panes: readonly PaneKind[],
+): { pane: PaneKind; source: PreviewMiniPlayerSource } | null {
+  for (const pane of panes.toReversed()) {
+    const surface = paneSurface(state, pane);
+    if (surface?.kind === "preview" && surface.resourceId !== null) {
+      return { pane, source: { kind: "browser", tabId: surface.resourceId } };
+    }
+    if (surface?.kind === "device" && surface.target) {
+      return { pane, source: { kind: "device", ...surface.target } };
+    }
+  }
+  return null;
 }
 
-export function selectThreadPanelOpen(
-  byThreadKey: Record<string, ThreadPanelVisibility>,
-  ref: ScopedThreadRef | null | undefined,
-  presentation: ThreadPanelPresentation,
-): boolean {
-  const visibility = selectThreadPanelVisibility(byThreadKey, ref);
-  return presentation === "inline" ? visibility.inlineOpen : visibility.popoverOpen;
+/** The panes on screen: none while hidden, only the filled one while one fills. */
+export function visiblePanes(state: ThreadRightPanelState): PaneKind[] {
+  if (!state.isOpen) return [];
+  const panes = layoutPanes(state.layout);
+  return state.fill !== undefined && panes.includes(state.fill) ? [state.fill] : panes;
 }
 
-export function selectActiveRightPanel(
+export function isPaneVisible(state: ThreadRightPanelState, pane: PaneKind): boolean {
+  return visiblePanes(state).includes(pane);
+}
+
+/** The pane a narrow window's sheet shows: the focused one, else the first in the layout. */
+export function sheetPane(state: ThreadRightPanelState): PaneKind | null {
+  const panes = visiblePanes(state);
+  const focused = focusedPaneOf(state);
+  return focused !== null && panes.includes(focused) ? focused : (panes[0] ?? null);
+}
+
+/** The floating panes on screen: none while a pane fills the window. */
+export function floatingPanes(state: ThreadRightPanelState): PaneKind[] {
+  const minimizedPanes = state.minimized ?? [];
+  if (minimizedPanes.length === 0) return minimizedPanes;
+  const fill = state.fill;
+  return state.isOpen && fill !== undefined && layoutHasTile(state.layout, fill)
+    ? []
+    : minimizedPanes;
+}
+
+/** Every pane the user can see, floating ones first. */
+function panesOnScreen(state: ThreadRightPanelState): PaneKind[] {
+  return [...floatingPanes(state), ...visiblePanes(state)];
+}
+
+/** The item a pane shows, whether or not the pane is on screen. */
+export function paneSurface(
+  state: ThreadRightPanelState,
+  pane: PaneKind,
+): RightPanelSurface | null {
+  const id = state.paneSurfaceIds[pane];
+  return id === undefined ? null : (state.surfaces.find((surface) => surface.id === id) ?? null);
+}
+
+export function selectPaneVisible(
   byThreadKey: Record<string, ThreadRightPanelState>,
   ref: ScopedThreadRef | null | undefined,
-): RightPanelKind | null {
-  const state = selectThreadRightPanelState(byThreadKey, ref);
-  if (!state.isOpen) return null;
-  return state.surfaces.find((surface) => surface.id === state.activeSurfaceId)?.kind ?? null;
+  pane: PaneKind,
+): boolean {
+  return isPaneVisible(selectThreadRightPanelState(byThreadKey, ref), pane);
 }
 
+/** Whether a pane is on screen, tiled or floating. */
+export function selectPaneOnScreen(
+  byThreadKey: Record<string, ThreadRightPanelState>,
+  ref: ScopedThreadRef | null | undefined,
+  pane: PaneKind,
+): boolean {
+  return panesOnScreen(selectThreadRightPanelState(byThreadKey, ref)).includes(pane);
+}
+
+/** What the focused pane shows, while it is on screen. */
 export function selectActiveRightPanelSurface(
   byThreadKey: Record<string, ThreadRightPanelState>,
   ref: ScopedThreadRef | null | undefined,
 ): RightPanelSurface | null {
   const state = selectThreadRightPanelState(byThreadKey, ref);
-  if (!state.isOpen) return null;
-  return selectSelectedRightPanelSurface(byThreadKey, ref);
+  const pane = focusedPaneOf(state);
+  return pane !== null && panesOnScreen(state).includes(pane) ? paneSurface(state, pane) : null;
 }
 
 export function selectSelectedRightPanelSurface(
@@ -1483,5 +1706,6 @@ export function selectSelectedRightPanelSurface(
   ref: ScopedThreadRef | null | undefined,
 ): RightPanelSurface | null {
   const state = selectThreadRightPanelState(byThreadKey, ref);
-  return state.surfaces.find((surface) => surface.id === state.activeSurfaceId) ?? null;
+  const pane = focusedPaneOf(state);
+  return pane === null ? null : paneSurface(state, pane);
 }

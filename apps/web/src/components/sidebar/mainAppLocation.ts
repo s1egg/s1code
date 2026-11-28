@@ -4,37 +4,41 @@ import { GUEST_PAGE_PATH } from "../../guestPage";
 import { withoutAssistantCitationHash } from "../../lib/assistantCitationNavigation";
 import { resolveThreadRouteTarget, type ThreadRouteTarget } from "../../threadRoutes";
 
-/** Settings and Usage open as modals over the last main-app view. */
+/** Settings opens as a modal over the last main-app view. */
 export function isAppModalPage(pathname: string) {
-  return pathname === "/settings" || pathname.startsWith("/settings/") || pathname === "/usage";
+  return pathname === "/settings" || pathname.startsWith("/settings/");
 }
 
-export function isSidebarUtilityPage(pathname: string) {
-  return (
-    pathname.startsWith("/projects/") ||
-    pathname === "/pull-requests" ||
-    pathname === "/issues" ||
-    pathname === "/workflows"
-  );
+/** Full pages such as Workflows; their Back leads to the last main-app view. */
+function isUtilityPage(pathname: string) {
+  return pathname.startsWith("/projects/") || pathname === "/workflows";
 }
 
 // Pages the root route always renders without the app shell, so they are never
 // a page to return to. Other paths seen before auth or on a prompt-link landing
 // are still recorded; they are real app URLs, so returning to one is harmless.
 const SHELL_LESS_PATHS = new Set(["/pair", "/connect", "/connect-agent", GUEST_PAGE_PATH]);
+// Old pages that redirect into the thread sidebar, and so redirect to the page recorded here.
+const REDIRECTED_PATHS = new Set(["/usage", "/pull-requests", "/issues"]);
 
 let mainAppHref: string | null = null;
+let threadHref: string | null = null;
 let appModalReturnHref: string | null = null;
 let appModalReturnHistoryIndex: number | null = null;
 let appModalReturnThreadTarget: ThreadRouteTarget | null = null;
 let initialHistoryIndex = 0;
 
-/** Remembers where Settings, Usage, and the utility pages lead back to. */
+/** Remembers where Settings and the utility pages lead back to. */
 export function startMainAppLocationTracking(router: AnyRouter): () => void {
   initialHistoryIndex = router.state.location.state.__TSR_index;
   const record = () => {
     const { pathname } = router.state.location;
-    if (isAppModalPage(pathname) || SHELL_LESS_PATHS.has(pathname)) return;
+    if (
+      isAppModalPage(pathname) ||
+      SHELL_LESS_PATHS.has(pathname) ||
+      REDIRECTED_PATHS.has(pathname)
+    )
+      return;
     const href = withoutAssistantCitationHash(router.state.location.href);
     appModalReturnHref = href;
     // Only an entry that is exactly the return location can be stepped back to.
@@ -43,23 +47,37 @@ export function startMainAppLocationTracking(router: AnyRouter): () => void {
     appModalReturnThreadTarget = resolveThreadRouteTarget(
       router.state.matches.at(-1)?.params ?? {},
     );
-    if (!isSidebarUtilityPage(pathname)) mainAppHref = href;
+    if (!isUtilityPage(pathname)) mainAppHref = href;
+    if (appModalReturnThreadTarget !== null) threadHref = href;
   };
   record();
   return router.subscribe("onResolved", record);
 }
 
-/** The thread Settings or Usage opened over, for views mounted while the modal is open. */
+/** The thread Settings opened over, for views mounted while the modal is open. */
 export function getAppModalReturnThreadTarget() {
   return appModalReturnThreadTarget;
 }
 
-export function useNavigateToMainApp() {
-  const navigate = useNavigate();
-  return () => navigate({ href: mainAppHref ?? "/" });
+/** The last main-app view, such as a thread, outside Settings and the utility pages. */
+function getMainAppHref() {
+  return mainAppHref ?? "/";
 }
 
-/** Leaves Settings or Usage for the page that opened it. */
+/**
+ * The last server or draft thread, where the thread sidebar lives. Unlike the main-app view, it
+ * is never a page without a thread, such as the new-thread prompt.
+ */
+export function getThreadViewHref() {
+  return threadHref ?? "/";
+}
+
+export function useNavigateToMainApp() {
+  const navigate = useNavigate();
+  return () => navigate({ href: getMainAppHref() });
+}
+
+/** Leaves Settings for the page that opened it. */
 export function useCloseAppModal() {
   const navigate = useNavigate();
   const router = useRouter();

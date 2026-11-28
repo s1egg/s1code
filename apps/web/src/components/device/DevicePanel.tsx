@@ -10,7 +10,6 @@ import { useAtomMount } from "@effect/atom-react";
 import { T, useGT, Var } from "gt-react";
 import { type ReactNode, useState } from "react";
 
-import { usePreviewMiniPlayerStore } from "~/previewMiniPlayerStore";
 import {
   selectThreadRightPanelState,
   useRightPanelStore,
@@ -23,7 +22,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "~/components/ui/popover";
 import { WizardPopup } from "~/components/ui/wizard";
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
-import { focusPanelTerminalAfterClose } from "~/lib/terminalFocus";
+import { focusTerminalAfterClose } from "~/lib/terminalFocus";
 import {
   deviceEnvironment,
   deviceHostProbeAtom,
@@ -40,13 +39,12 @@ import {
   isAndroidDiscoveryUncertain,
 } from "./DeviceSetup";
 import { DeviceWorkspace } from "./DeviceWorkspace";
-import { PreviewPanelShell, type PreviewPanelMode } from "../preview/PreviewPanelShell";
+import { PreviewPanelShell } from "../preview/PreviewPanelShell";
 
 const deviceKey = (device: Pick<DeviceSummary, "hostId" | "id">) =>
   `${device.hostId}\u0000${device.id}`;
 
 export function DevicePanel(props: {
-  readonly mode: PreviewPanelMode;
   readonly threadRef: ScopedThreadRef;
   readonly surface: Extract<RightPanelSurface, { kind: "device" }>;
   readonly visible: boolean;
@@ -135,21 +133,14 @@ export function DevicePanel(props: {
 
   const floatActive = () => {
     if (!activeDevice) return;
-    usePreviewMiniPlayerStore.getState().open(props.threadRef, {
-      kind: "device",
-      hostId: activeDevice.hostId,
-      deviceId: activeDevice.id,
-      platform: activeDevice.platform,
-      name: activeDevice.name,
-    });
-    useRightPanelStore.getState().close(props.threadRef);
+    useRightPanelStore.getState().minimizePane(props.threadRef, "device");
   };
 
   const closeSurface = () => {
     const store = useRightPanelStore.getState();
     const { activeSurfaceId } = selectThreadRightPanelState(store.byThreadKey, props.threadRef);
     store.closeSurface(props.threadRef, props.surface.id);
-    focusPanelTerminalAfterClose(props.threadRef, activeSurfaceId);
+    focusTerminalAfterClose(props.threadRef, activeSurfaceId);
   };
 
   const closeActive = (powerOff: boolean) => {
@@ -215,7 +206,7 @@ export function DevicePanel(props: {
   }
 
   return (
-    <PreviewPanelShell mode={props.mode}>
+    <PreviewPanelShell>
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div
           className={cn(

@@ -50,19 +50,21 @@ export function SidebarThreadHeader({
           <TooltipTrigger
             render={
               <Button
-                size="icon-sm-pill"
+                size="icon-sm"
+                variant="ghost-muted"
                 aria-label={newThreadLabel}
                 disabled={newThreadDisabled}
                 onClick={onNewThread}
               />
             }
           >
-            <PlusIcon />
+            {/* Hover and keyboard focus turn the plus and tint it with the accent; a press stays neutral. */}
+            <PlusIcon className="transition-[rotate,color] duration-200 ease-out motion-reduce:transition-none [button:focus-visible>&]:rotate-90 [button:focus-visible:not(:active)>&]:text-theme-accent [@media(hover:hover)]:[button:hover>&]:rotate-90 [@media(hover:hover)]:[button:hover:not(:active)>&]:text-theme-accent" />
           </TooltipTrigger>
           <TooltipPopup side="top">{newThreadLabel}</TooltipPopup>
         </Tooltip>
       </div>
-      <div className="flex h-8 min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-within:bg-sidebar-row-hover focus-within:text-sidebar-foreground focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring/70">
+      <div className="flex h-8 min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-within:bg-sidebar-row-hover focus-within:text-sidebar-foreground focus-within:ring-1 focus-within:ring-inset focus-within:ring-sidebar-foreground/20">
         <SearchIcon className="size-4 shrink-0 text-(--sidebar-icon-color)" />
         <SidebarInput
           ref={searchInputRef}

@@ -107,6 +107,9 @@ function startClientAppearance(): void {
     }
     if (previous?.backgroundGlow !== settings.backgroundGlow) {
       root.style.setProperty("--background-glow", `${settings.backgroundGlow}%`);
+      // Off skips the fixed gradients entirely instead of painting them transparent.
+      if (settings.backgroundGlow === 0) root.dataset.backgroundGlow = "off";
+      else delete root.dataset.backgroundGlow;
     }
     if (
       previous?.fontFamilySans !== settings.fontFamilySans ||
@@ -311,7 +314,7 @@ export function startAppServices(): AppRouter {
     pendingThreadIdsAtom: threadEnvironment.pendingThreadIdsAtom,
   });
   startMainAppLocationTracking(router);
-  startWorkspaceFocus(router);
+  startWorkspaceFocus();
   startBackgroundThreadAnnouncements(appAtomRegistry, router);
   startThreadVisitedMigration(appAtomRegistry);
   startSshPasswordPromptQueue();

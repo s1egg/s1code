@@ -7,14 +7,15 @@ import {
   useCommandPaletteStore,
 } from "../commandPaletteStore";
 import { overlayModeForCommand } from "../components/CommandPalette.logic";
+import { toggleThreadDetailsDrillInFromAnywhere } from "../components/chat/openThreadDetails";
+import { isThreadDetailsDrillInShown } from "../components/chat/threadDetailsStore";
 import { APPEARANCE_OPTIONS, notifyThemeSaveFailure } from "../components/CommandPaletteThemeItems";
 import { toggleThemeEditorForTheme } from "../components/settings/themeEditorStore";
 import { toastManager } from "../components/ui/toast";
 import { getThemeSnapshot, setAppearanceMode } from "../hooks/useTheme";
 import { m } from "../i18n/messages";
-import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
+import { selectPaneVisible, useRightPanelStore } from "../rightPanelStore";
 import { type CommandHandler, type CommandScopeOptions, registerCommands } from "./dispatcher";
-import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 
 function consume(event: KeyboardEvent): void {
@@ -101,7 +102,7 @@ export function installCommandPaletteCommands(
         consume(event);
         if (event.repeat) return;
         dispatchCommandPalette({ _tag: "SetOpen", open: false });
-        void router.navigate({ to: "/usage" });
+        void toggleThreadDetailsDrillInFromAnywhere(router, "usage");
       },
       "commandPalette.toggle": toggleOverlay("commandPalette.toggle"),
       "filePicker.toggle": toggleOverlay("filePicker.toggle"),
@@ -114,16 +115,12 @@ export function installCommandPaletteCommands(
         const threadRef = readRouteThreadRef();
         return {
           terminalOpen: threadRef
-            ? selectThreadTerminalUiState(
-                useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
-                threadRef,
-              ).terminalOpen
+            ? selectPaneVisible(useRightPanelStore.getState().byThreadKey, threadRef, "terminal")
             : false,
           previewOpen: threadRef
-            ? selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, threadRef) ===
-              "preview"
+            ? selectPaneVisible(useRightPanelStore.getState().byThreadKey, threadRef, "browser")
             : false,
-          usagePageOpen: router.state.location.pathname === "/usage",
+          usagePageOpen: isThreadDetailsDrillInShown("usage"),
         };
       },
     },

@@ -3,17 +3,18 @@ import {
   workflowReferenceLabel,
   workflowReferencePullRequest,
 } from "@s1tools/client-runtime/workflows";
-import type { EnvironmentId, WorkflowRunReference } from "@s1tools/contracts";
-import { useNavigate } from "@tanstack/react-router";
+import type { EnvironmentId, ScopedThreadRef, WorkflowRunReference } from "@s1tools/contracts";
+import { useRouter } from "@tanstack/react-router";
 import { T } from "gt-react";
 import { CircleCheckIcon, CircleDotIcon, ExternalLinkIcon, LinkIcon } from "lucide-react";
 
 import { isElectron } from "~/env";
 import { isTerminalFocused } from "../../lib/terminalFocus";
 import { cn } from "../../lib/utils";
-import { ISSUES_PANEL_REF, useRightPanelStore } from "../../rightPanelStore";
+import type { PaneKind } from "../../paneLayout";
+import { useRightPanelStore } from "../../rightPanelStore";
+import { openInShownThread } from "../chat/openThreadDetails";
 import { IssueDetailPanel } from "../issue/IssueDetailPanel";
-import { readIssueListPreferences } from "../issue/issueListPreferences";
 import { PullRequestDetailPanel } from "../pullRequest/PullRequestDetailPanel";
 import { PULL_REQUEST_STATE_PRESENTATION } from "../pullRequest/pullRequestIcons";
 import { Button } from "../ui/button";
@@ -86,60 +87,56 @@ const shortcutContext = () => ({
   isDesktop: isElectron,
 });
 
-/** Opens the reference on its own page, where it has the whole window. Null for a kind with none. */
-export function useOpenReferencePage(
+/**
+ * Opens the reference in the last thread's pane, filling the window.
+ * Null for a kind with none.
+ */
+export function useOpenReferenceFullSize(
   environmentId: EnvironmentId,
 ): (reference: WorkflowRunReference) => (() => void) | null {
-  const navigate = useNavigate();
+  const router = useRouter();
+  const openFilled = (pane: PaneKind, open: (threadRef: ScopedThreadRef) => void) =>
+    void openInShownThread(router, (threadRef) => {
+      open(threadRef);
+      useRightPanelStore.getState().setFill(threadRef, pane);
+    });
+  // Thread tabs name another environment only; the thread's own is implied.
+  const scope = (threadRef: ScopedThreadRef) =>
+    threadRef.environmentId === environmentId ? {} : { environmentId };
   return (reference) => {
     const issue = workflowReferenceIssue(reference);
     if (issue !== null) {
-      return () => {
-        // The Issues page shows the issue its panel has open; the address keeps the list's place.
-        useRightPanelStore.getState().openIssue(ISSUES_PANEL_REF, {
-          environmentId,
-          projectId: issue.projectId,
-          tracker: issue.tracker,
-          ...(issue.host === undefined ? {} : { host: issue.host }),
-          scope: issue.scope,
-          key: issue.key,
-          ...(reference.url === null ? {} : { url: reference.url }),
-        });
-        void navigate({
-          to: "/issues",
-          search: {
-            ...readIssueListPreferences(),
-            selectedEnvironmentId: environmentId,
-            selectedProjectId: issue.projectId,
-            ...(issue.host === undefined ? {} : { selectedHost: issue.host }),
+      return () =>
+        openFilled("issue", (threadRef) =>
+          useRightPanelStore.getState().openIssue(threadRef, {
+            ...scope(threadRef),
+            projectId: issue.projectId,
             tracker: issue.tracker,
+            ...(issue.host === undefined ? {} : { host: issue.host }),
             scope: issue.scope,
             key: issue.key,
-          },
-        });
-      };
+            ...(reference.url === null ? {} : { url: reference.url }),
+          }),
+        );
     }
     const pullRequest = workflowReferencePullRequest(reference);
     if (pullRequest !== null) {
       return () =>
-        void navigate({
-          to: "/pull-requests",
-          search: {
-            involvement: "all",
-            state: "all",
+        openFilled("pull-request", (threadRef) =>
+          useRightPanelStore.getState().openPullRequest(threadRef, {
+            ...scope(threadRef),
+            projectId: pullRequest.projectId,
+            ...(pullRequest.host === undefined ? {} : { host: pullRequest.host }),
             repository: pullRequest.repository,
             number: pullRequest.number,
-            ...(pullRequest.host === undefined ? {} : { selectedHost: pullRequest.host }),
-            selectedProjectId: pullRequest.projectId,
-            selectedEnvironmentId: environmentId,
-          },
-        });
+          }),
+        );
     }
     return null;
   };
 }
 
-/** A reference opened beside its run: the Issues or Pull requests page's own view of it. */
+/** A reference opened beside its run: the same view a thread's right panel shows of it. */
 export function WorkflowReferencePanel({
   environmentId,
   reference,

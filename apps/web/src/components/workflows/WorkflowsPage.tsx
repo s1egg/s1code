@@ -26,6 +26,7 @@ import {
   WorkspaceBreadcrumbText,
 } from "../WorkspaceBreadcrumb";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
+import { MainAppBackButton } from "../sidebar/MainAppBackButton";
 import { WorkflowRunsView, WorkflowsEmpty } from "./WorkflowRunsView";
 import WorkflowPane from "./WorkflowPane";
 import {
@@ -147,6 +148,7 @@ export function WorkflowsPage() {
             reserveNativeControls={!paneOpen}
             className="border-b"
           >
+            <MainAppBackButton />
             <WorkspaceBreadcrumb ariaLabel={gt("Workflows breadcrumb")} className="flex-1">
               <WorkspaceBreadcrumbItem current={!editing}>
                 {editing ? (

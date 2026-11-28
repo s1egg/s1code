@@ -7,7 +7,7 @@ import {
   type ResolvedKeybindingsConfig,
 } from "@s1tools/contracts";
 import { T, useGT, useMessages, Var } from "gt-react";
-import { memo, use, useRef } from "react";
+import { memo, use, useRef, type ReactNode } from "react";
 import { BackgroundThreadContext } from "./backgroundThread";
 import { shortcutLabelForCommand } from "../../keybindings";
 import type { FileManagerAction } from "./OpenInPicker.logic";
@@ -22,7 +22,7 @@ import {
   useRemoteOpenState,
 } from "../../remoteOpen";
 import { useEnvironment } from "../../state/environments";
-import { ChevronDownIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import { ChevronDownIcon, FolderIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 
 import { Group, GroupSeparator } from "../ui/group";
 import {
@@ -82,6 +82,7 @@ export const OpenInPicker = memo(function OpenInPicker({
   compact = false,
   enableShortcut = true,
   displayMode = "toolbar",
+  panelLabel,
   fileManagerAction = "open",
 }: {
   environmentId: EnvironmentId;
@@ -93,6 +94,8 @@ export const OpenInPicker = memo(function OpenInPicker({
   compact?: boolean;
   enableShortcut?: boolean;
   displayMode?: "toolbar" | "panel";
+  /** In the panel, names the folder the button opens in place of the editor. */
+  panelLabel?: ReactNode;
   fileManagerAction?: FileManagerAction;
 }) {
   const gt = useGT();
@@ -279,7 +282,9 @@ export const OpenInPicker = memo(function OpenInPicker({
         });
       }}
     >
-      {primaryOption?.Icon ? (
+      {isPanel && panelLabel !== undefined ? (
+        <FolderIcon aria-hidden="true" className={THREAD_DETAILS_PANEL_ICON_CLASS} />
+      ) : primaryOption?.Icon ? (
         <primaryOption.Icon
           aria-hidden="true"
           className={cn(
@@ -298,7 +303,7 @@ export const OpenInPicker = memo(function OpenInPicker({
           isPanel && cn("not-sr-only ml-0 min-w-0 truncate", THREAD_DETAILS_PANEL_LABEL_CLASS),
         )}
       >
-        {primaryLabel}
+        {isPanel && panelLabel !== undefined ? panelLabel : primaryLabel}
       </span>
     </ThreadDetailsControl>
   );

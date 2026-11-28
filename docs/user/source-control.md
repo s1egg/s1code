@@ -16,7 +16,7 @@ them. Paths in the diff start at the thread's folder, so the same file name in t
 stays apart. This works when the project folder itself is not a Git repository; the branch
 comparison and uncommitted changes read one repository at a time, chosen from the same picker.
 
-The thread details panel lists each repository the thread has changed, most recent first, with its
+Thread details list each repository the thread has changed, most recent first, with its
 branch and uncommitted changes. Expand one to commit, push, or open a pull request in that
 repository; a pull request opened there, or already open for its branch when a turn ends, is linked
 to the thread. **Other repositories...** adds any other repository of the project to the list until you
@@ -228,8 +228,10 @@ instructions to commits and pull requests.
 
 ## Review and merge
 
-Open **Pull requests** to review changes and comments, request reviewers, check out a branch,
-or merge. You can edit review titles and descriptions and your own comments where the host allows it.
+On web and desktop, **Pull requests** in thread details lists the pull requests of the thread's
+project; change **Project** under **Filters** to see others. Open it there or with **Open pull
+requests** in the command palette. Select a pull request to open it in the thread's pull request [pane](panes.md),
+where you can review changes and comments, request reviewers, check out a branch, or merge. You can edit review titles and descriptions and your own comments where the host allows it.
 Where you can edit a description, you can also tick its checkboxes from the Summary tab
 (the Overview tab on mobile).
 GitLab calls these merge requests.
@@ -239,7 +241,7 @@ meanwhile, the web and desktop apps offer **Load new commits**; until you do, a 
 review draft is kept. Merging from a thread's pull request row, or from the list, lands the head that
 row had when you confirmed.
 
-Save a filter setup with **Views → Save current view** on the Pull Requests page. For example, choose
+Save a filter setup with **Views → Save current view** in the **Pull requests** list. For example, choose
 **Reviewing** (**Your review** on mobile) and save it as "PRs Requesting My Review". Choose a saved view to restore its search,
 filters, sort order, and server/project scope. After changing filters, use **Update saved view** to
 keep the changes, or save another view. You can also rename or delete views from the same menu.
@@ -361,12 +363,12 @@ and so does an agent creating one with `gh pr create` or `glab mr create`. Agent
 pull requests with the `link_pull_request` tool.
 
 Agents can also read, open, update, reply on, and merge pull requests in the thread's repository
-through S1 Code's own tools, which use the same sign-in as the Pull requests page. An agent merges
+through S1 Code's own tools, which use the same sign-in as the **Pull requests** list. An agent merges
 only the commit it last read: if someone pushed since, the merge is refused. On github.com an
 agent can also land a GitHub stack in one merge, like **Merge stack** below.
 
-Use **Link pull request to thread** in the command palette to keep a pull request with the thread. From a review
-on the Pull requests page, **Link to thread** lets you search for an active thread. The review header
+Use **Link pull request to thread** in the command palette to keep a pull request with the thread. From a
+review, **Link to thread** lets you search for an active thread. The review header
 also lists the threads that link to it, including archived threads, so you can return to their context.
 
 Thread badges show a stack's layer count or the current review number with a count of additional
@@ -392,7 +394,7 @@ failed reads in a row, or when you press Stop on the thread. A rate limit only p
 Settling or archiving a thread also ends all its watches. Unsettle the thread before starting a new
 watch. Watching a pull request again does not repeat check or conflict news its last
 watch already reported; unlinking the pull request clears that. Subagents cannot watch pull requests; the thread that delegated to them does. To start or stop
-it yourself, use the row menu in the **Linked items** panel. In the thread details card, a
+it yourself, use the row menu in the **Linked items** panel. In thread details, a
 watched pull request shows an eye; click it to stop watching.
 
 A watched thread counts as working while the pull request still has checks running, so it stays in
@@ -409,11 +411,12 @@ out from the matching organization and repository.
 
 ## Issues
 
-The Issues page lists the issues of every project whose remote is on GitHub, GitLab, Azure
-DevOps or Forgejo, grouped per tracker account. Open it from the sidebar's utility row or with
-**Open issues** in the command palette. Filter by open or closed, by your involvement
-(assigned, opened by you, mentioning you), and by tracker. Under **Projects**, uncheck the
-projects you do not want to see; the list remembers them, and a project you add later shows.
+On web and desktop, **Issues** in thread details lists the issues of projects whose remote is on
+GitHub, GitLab, Azure DevOps or Forgejo, grouped per tracker account. Open it there or with
+**Open issues** in the command palette. It starts with the thread's project. Filter by open or
+closed, by your involvement (assigned, opened by you, mentioning you), and by tracker. Under
+**Projects**, check the projects you want to see; the list remembers them, and a project you add
+later shows.
 The search box asks the tracker itself where it can search. Press **Load more** at the end of a group to read further back.
 The **Views** menu saves and restores a search, filter, and sort setup, as it does for pull
 requests.
@@ -426,8 +429,8 @@ each can be loaded further on its own. Agents file new issues in the first team 
 connect another Linear workspace or user, add another account in the same place; each project
 reads its teams through the account you picked them under.
 
-Select an issue to open it beside the list: description, comments, state changes, linked pull
-requests, labels, assignees, and reactions. Linked pull requests open in the same panel. You can
+Select an issue to open it in the thread's issue pane: description, comments, state changes,
+linked pull requests, labels, assignees, and reactions. Linked pull requests open in the same panel. You can
 comment, edit the title and description, change labels and assignees, react, and move it to
 another state when the tracker and your account allow it. Where a GitHub repository has issue
 statuses (Backlog, Todo, In progress, and so on), those are the states you move between, as a
@@ -444,7 +447,7 @@ Writing to a tracker over a remote connection requires the `source-control:write
 
 ## GitHub stacks
 
-The Pull requests page shows each PR's position in its GitHub stack. Open the stack badge in a
+The **Pull requests** list shows each PR's position in its GitHub stack. Open the stack badge in a
 review to navigate its layers. **Merge stack** submits the selected pull request and every unmerged
 layer below it to GitHub together, respecting branch rules and merge queues. The confirmation shows
 the scope and merge strategy. GitHub rebases the remaining stack after merging.

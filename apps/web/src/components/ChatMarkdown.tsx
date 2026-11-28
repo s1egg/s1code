@@ -721,8 +721,13 @@ function useChatMarkdownState(
       },
     );
   };
-  const { pullRequestsEnabled, issuesEnabled, availableEditors, revealInFileManager, isMacOS } =
-    useAtomValue(markdownServerConfigFieldsAtom(environmentId));
+  const { pullRequestsEnabled, availableEditors, revealInFileManager, isMacOS } = useAtomValue(
+    markdownServerConfigFieldsAtom(environmentId),
+  );
+  // Content names its own environment when it differs from the thread's, such as a remote issue's
+  // body beside a local thread; its issue links belong to that environment.
+  const issueEnvironmentId = explicitEnvironmentId ?? threadRef?.environmentId ?? null;
+  const { issuesEnabled } = useAtomValue(markdownServerConfigFieldsAtom(issueEnvironmentId));
   const revealInFileManagerLabel =
     revealInFileManager === undefined
       ? undefined
@@ -732,12 +737,12 @@ function useChatMarkdownState(
         ? revealInFileExplorerLabelForKind(revealInFileManager, messages)
         : revealInFileExplorerLabelForOs(revealInFileManager, messages);
   const projects = useProjects();
-  const issueProjects = projects.filter((project) => project.environmentId === environmentId);
+  const issueProjects = projects.filter((project) => project.environmentId === issueEnvironmentId);
   // Only text naming a standalone tracker asks for its bindings, whose read probes the tracker.
   const issueTrackers =
     useEnvironmentQuery(
-      issuesEnabled && environmentId !== null && mayContainStandaloneIssueLink(text)
-        ? issueTrackerEnvironment.connections({ environmentId, input: {} })
+      issuesEnabled && issueEnvironmentId !== null && mayContainStandaloneIssueLink(text)
+        ? issueTrackerEnvironment.connections({ environmentId: issueEnvironmentId, input: {} })
         : null,
     ).data ?? undefined;
   const [preferredEditor] = usePreferredEditor(availableEditors);
@@ -1109,6 +1114,7 @@ function useChatMarkdownState(
     openExternalLinkInPreview,
     openMarkdownMedia,
     projects,
+    issueEnvironmentId,
     issueProjects,
     issueTrackers,
     linkedThreadPullRequestFor,
@@ -1281,6 +1287,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
       linkTargetPreference,
       openExternalLinkInPreview,
       projects,
+      issueEnvironmentId,
       issueProjects,
       issueTrackers,
       linkedThreadPullRequestFor,
@@ -1357,7 +1364,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
           })
         : null;
       const issueTarget =
-        issuesEnabled && environmentId !== null && href
+        issuesEnabled && issueEnvironmentId !== null && href
           ? resolveIssueLinkTarget({
               url: href,
               projects: issueProjects,
@@ -1365,9 +1372,9 @@ const CHAT_MARKDOWN_COMPONENTS = {
             })
           : null;
       const issuePreviewTarget =
-        issueTarget === null || environmentId === null
+        issueTarget === null || issueEnvironmentId === null
           ? null
-          : { environmentId, input: issueTarget.ref };
+          : { environmentId: issueEnvironmentId, input: issueTarget.ref };
       const isSameDocumentLink = href?.startsWith("#") ?? false;
       const onClick = props.onClick;
       const canOpenInPreview =
@@ -1413,7 +1420,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
             if (
               !href ||
               openChangeRequestLink(event, href, undefined, environmentId ?? undefined) ||
-              openIssueLink(event, href, environmentId ?? undefined, issueTrackers)
+              openIssueLink(event, href, issueEnvironmentId ?? undefined, issueTrackers)
             ) {
               return;
             }
@@ -1570,7 +1577,7 @@ const CHAT_MARKDOWN_COMPONENTS = {
                   stopPropagation: () => undefined,
                 },
                 url,
-                environmentId ?? undefined,
+                issueEnvironmentId ?? undefined,
                 issueTrackers,
               );
               if (!opened) await openDeferredMarkdownLink(url);

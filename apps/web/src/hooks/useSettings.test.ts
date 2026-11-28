@@ -98,6 +98,68 @@ describe("client settings hydration", () => {
     expect(persistenceMocks.getClientSettings).toHaveBeenCalledTimes(2);
   });
 
+  it("resets the retired default glow once and saves the migration", async () => {
+    const persisted = new Promise<ClientSettings>((resolve) => {
+      persistenceMocks.setClientSettings.mockImplementationOnce(async (settings) => {
+        resolve(settings);
+      });
+    });
+    persistenceMocks.getClientSettings.mockResolvedValueOnce({
+      ...savedSettings,
+      backgroundGlow: 30,
+      clientSettingsVersion: 0,
+    });
+
+    await ensureClientSettingsHydrated();
+    expect(getClientSettings().backgroundGlow).toBe(0);
+    await expect(persisted).resolves.toEqual(savedSettings);
+  });
+
+  it("keeps a glow chosen after the migration", async () => {
+    persistenceMocks.getClientSettings.mockResolvedValueOnce({
+      ...savedSettings,
+      backgroundGlow: 30,
+    });
+
+    await ensureClientSettingsHydrated();
+    expect(getClientSettings().backgroundGlow).toBe(30);
+    expect(persistenceMocks.setClientSettings).not.toHaveBeenCalled();
+  });
+
+  it("keeps a glow chosen after the migration when an older tab drops the version", async () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+      },
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    });
+    try {
+      persistenceMocks.getClientSettings.mockResolvedValueOnce({
+        ...savedSettings,
+        backgroundGlow: 30,
+        clientSettingsVersion: 0,
+      });
+      await ensureClientSettingsHydrated();
+      expect(getClientSettings().backgroundGlow).toBe(0);
+      await persistClientSettingsPatch({ backgroundGlow: 30 });
+
+      // An older tab rewrote the document without the field it does not know.
+      __resetClientSettingsPersistenceForTests();
+      persistenceMocks.getClientSettings.mockResolvedValueOnce({
+        ...savedSettings,
+        backgroundGlow: 30,
+        clientSettingsVersion: 0,
+      });
+      await ensureClientSettingsHydrated();
+      expect(getClientSettings().backgroundGlow).toBe(30);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("holds patches until a pending read supplies the saved preferences", async () => {
     let finishRead!: (settings: ClientSettings) => void;
     persistenceMocks.getClientSettings.mockImplementationOnce(

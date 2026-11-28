@@ -68,7 +68,7 @@ import {
   type OlderSettledScope,
 } from "@s1tools/client-runtime/state/threads";
 
-import { ChevronDownIcon, PlusIcon } from "lucide-react";
+import { ArchiveIcon, ChevronDownIcon, PlusIcon } from "lucide-react";
 import {
   useEffect,
   useLayoutEffect,
@@ -1292,6 +1292,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       : { id: "pin", label: gt("Pin project"), icon: "pin" },
                   ]
                 : []),
+              { id: "archive", label: gt("Archive") },
               { id: "project-settings", label: gt("Project settings"), icon: "settings" },
             ],
             position,
@@ -1312,6 +1313,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           case "pin":
           case "unpin":
             setProjectGroupPinned(group, clicked.value === "pin");
+            return;
+          case "archive":
+            void router.navigate({ to: "/settings/archived" });
             return;
           case "project-settings":
             openProjectSettings(group);
@@ -3100,6 +3104,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           return (
                             <SidebarSearchResultRow
                               isSettled={settledThreadKeys.has(threadKey)}
+                              showProjectIcon={selectedProjectGroup === null}
                               key={threadKey}
                               thread={thread}
                               project={
@@ -3234,6 +3239,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                 }
                                 thread={thread}
                                 variant={section === "working" ? "working" : "line"}
+                                isReviewRow={section === "review"}
                                 navigationParent={
                                   section === "snoozed" || section === "settled"
                                     ? `shelf:${section}`
@@ -3328,6 +3334,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                               jumpLabelByDraftId={draftJumpLabelById}
                               projectByKey={projectByKey}
                               projectDisplayNameByKey={projectDisplayNameByKey}
+                              showProjectContext={selectedProjectGroup === null}
                               routeDraftId={routeDraftIdForRows}
                               onNavigateToDraft={navigateToDraft}
                               onDraftContextMenu={handleDraftContextMenu}
@@ -3484,6 +3491,20 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                         ),
                                       },
                                     )}
+                            </button>
+                          </li>
+                        ) : null}
+                        {settledShelfExpanded && settledCount > 0 ? (
+                          <li className="list-none pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void router.navigate({ to: "/settings/archived" });
+                              }}
+                              className="flex h-7 w-full cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-left text-xs text-sidebar-muted-foreground/75 transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground"
+                            >
+                              <ArchiveIcon aria-hidden className="size-3 shrink-0" />
+                              <span>{gt("Archive")}</span>
                             </button>
                           </li>
                         ) : null}

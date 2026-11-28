@@ -29,11 +29,9 @@ import { isEditableFocused } from "../lib/editableFocus";
 import { isPreviewFocused } from "../lib/previewFocus";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { isModelPickerOpen } from "../modelPickerVisibility";
-import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
-import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
+import { selectPaneVisible, useRightPanelStore } from "../rightPanelStore";
 import { cn, isMacPlatform } from "../lib/utils";
 import { primaryServerKeybindingsAtom } from "../state/server";
-import { useEnvironmentIdentificationMode } from "../hooks/useSettings";
 import {
   PanelAnimationSuppressionProvider,
   usePanelAnimationSettings,
@@ -44,8 +42,11 @@ import { HistorySwipeNavigation } from "./HistorySwipeNavigation";
 import ThreadSidebar from "./Sidebar";
 import { SidebarBrandWidthProbe } from "./sidebar/SidebarChrome";
 import { isAppModalPage } from "./sidebar/mainAppLocation";
+import {
+  isThreadDetailsDrillInShown,
+  useThreadDetailsDrillInShown,
+} from "./chat/threadDetailsStore";
 import type { SidebarRouteReveal } from "./sidebar/routeReveal";
-import { useSidebarStageBackdropVariant } from "./SidebarStageBackdrop";
 import {
   clampThreadSidebarWidth,
   resolveInitialThreadSidebarWidth,
@@ -61,7 +62,6 @@ import {
   SidebarTrigger,
   useMobileSidebarSheetMounted,
   useSidebar,
-  useSidebarVisibility,
 } from "./ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { appAtomRegistry } from "../rpc/atomRegistry";
@@ -127,10 +127,6 @@ function readInitialThreadSidebarWidth(): number {
   }
 }
 
-function readUsagePageOpen(router: AnyRouter) {
-  return router.state.location.pathname === "/usage";
-}
-
 function isKeybindingCaptureTarget(event: KeyboardEvent) {
   return event.target instanceof HTMLElement && event.target.closest("[data-keybinding-capture]");
 }
@@ -139,13 +135,16 @@ function readRoutePanelsOpen(router: AnyRouter) {
   const routeThreadRef = resolveThreadRouteRef(router.state.matches.at(-1)?.params ?? {});
   if (!routeThreadRef) return { terminalOpen: false, previewOpen: false };
   return {
-    terminalOpen: selectThreadTerminalUiState(
-      useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
+    terminalOpen: selectPaneVisible(
+      useRightPanelStore.getState().byThreadKey,
       routeThreadRef,
-    ).terminalOpen,
-    previewOpen:
-      selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, routeThreadRef) ===
-      "preview",
+      "terminal",
+    ),
+    previewOpen: selectPaneVisible(
+      useRightPanelStore.getState().byThreadKey,
+      routeThreadRef,
+      "browser",
+    ),
   };
 }
 
@@ -167,7 +166,7 @@ export function registerNavigationHistoryCommands(router: AnyRouter): () => void
       when: (event) => !isKeybindingCaptureTarget(event),
       context: () => ({
         ...readRoutePanelsOpen(router),
-        usagePageOpen: readUsagePageOpen(router),
+        usagePageOpen: isThreadDetailsDrillInShown("usage"),
       }),
     },
   );
@@ -200,35 +199,13 @@ function registerWorkspaceFocusCommands(router: AnyRouter): () => void {
   };
 }
 
-// Escape leaves the pull requests page when no scope (a selection, a dialog,
-// a drag) claimed it, so it observes after every other scope.
-function registerPullRequestsEscapeCommand(router: AnyRouter): () => void {
-  return registerCommands(
-    {},
-    {
-      observe: (event, consumed) => {
-        if (consumed || event.repeat || event.isComposing || event.key !== "Escape") return;
-        if (router.state.location.pathname !== "/pull-requests") return;
-        event.preventDefault();
-        const activeElement = document.activeElement;
-        if (activeElement instanceof HTMLElement) activeElement.blur();
-        if (router.state.location.state.__TSR_index !== 0) {
-          window.history.back();
-          return;
-        }
-        void router.navigate({ to: "/" });
-      },
-    },
-  );
-}
-
 const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 
 // A held key undoes once. Module state: undoing an archive navigates, and the
 // hold must survive whatever that re-renders.
 let heldUndoKey: string | null = null;
 
-// Undoes the thread actions in the sidebar's notice. Settings and Usage own
+// Undoes the thread actions in the sidebar's notice. Settings owns
 // mod+z while open. Captured so mod+z reaches it before the composer's own
 // undo handler consumes the key.
 function registerThreadUndoCommands(
@@ -303,7 +280,6 @@ function registerAppShellCommands(router: AnyRouter, shellElement: Element): () 
     registerThreadUndoCommands(router, readSidebarVisible),
     registerNavigationHistoryCommands(router),
     registerWorkspaceFocusCommands(router),
-    registerPullRequestsEscapeCommand(router),
     registerMenuAction("open-settings", () => {
       if (!/^\/settings(\/|$)/.test(router.state.location.pathname))
         void router.navigate({ to: "/settings" });
@@ -317,13 +293,10 @@ function registerAppShellCommands(router: AnyRouter, shellElement: Element): () 
 function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
   const gt = useGT();
   const router = useRouter();
-  const usagePageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
+  const usagePageOpen = useThreadDetailsDrillInShown("usage");
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { toggleSidebar } = useSidebar();
   const mobileSidebarSheetMounted = useMobileSidebarSheetMounted();
-  const isSidebarVisible = useSidebarVisibility();
-  const environmentIdentificationMode = useEnvironmentIdentificationMode();
-  const stageBackdropVariant = useSidebarStageBackdropVariant(environmentIdentificationMode);
   const shortcutLabel = shortcutLabelForCommand(keybindings, "sidebar.toggle", {
     context: { usagePageOpen },
   });
@@ -397,11 +370,8 @@ function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
           <TooltipTrigger
             render={
               <SidebarTrigger
-                variant={isSidebarVisible && stageBackdropVariant ? "media-navigation" : "ghost"}
-                className={cn(
-                  "pointer-events-auto",
-                  isSidebarVisible && stageBackdropVariant && "relative top-auto translate-y-0",
-                )}
+                variant="ghost"
+                className="pointer-events-auto"
                 aria-label={gt("Toggle main sidebar")}
               />
             }

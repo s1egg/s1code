@@ -131,10 +131,11 @@ const detail: PullRequestDetailView = {
 
 const environmentId = EnvironmentId.make("environment");
 const draftId = DraftId.make("conflicts-draft");
-const panel = (attach = false, reference = detail) => (
+const panel = (attach = false, reference = detail, storedTab?: "summary" | "timeline") => (
   <PullRequestDetailPanel
     environmentId={environmentId}
     reference={reference}
+    {...(storedTab ? { storedTab } : {})}
     context="page"
     shortcutsEnabled={false}
     getShortcutContext={() => ({
@@ -296,4 +297,15 @@ it("keeps a screen reader's place when scrolling the description condenses the h
   await act(() => vi.advanceTimersToNextFrame());
   // A programmatic focus() pulls the screen reader's browse cursor back to the header.
   expect(moves).not.toHaveBeenCalled();
+});
+
+it("shows the tab the panel store asks for while already on screen", async () => {
+  setup();
+  await using screen = await render(panel(false, detail, "summary"));
+  const timeline = screen.getByRole("button", { name: "Timeline", exact: true });
+  await expect.element(timeline).toHaveAttribute("aria-pressed", "false");
+
+  // A review guide notification files its tab in the store for the panel already open.
+  await screen.rerender(panel(false, detail, "timeline"));
+  await expect.element(timeline).toHaveAttribute("aria-pressed", "true");
 });

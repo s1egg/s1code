@@ -1,8 +1,7 @@
 import type { ScopedThreadRef } from "@s1tools/contracts";
 
-import { browserMiniPlayerSource, usePreviewMiniPlayerStore } from "~/previewMiniPlayerStore";
 import { whenPreviewTabKnown } from "~/previewStateStore";
-import { useRightPanelStore } from "~/rightPanelStore";
+import { browserSurface, useRightPanelStore } from "~/rightPanelStore";
 
 export function showPreviewPopup(
   threadRef: ScopedThreadRef,
@@ -11,7 +10,7 @@ export function showPreviewPopup(
 ): void {
   whenPreviewTabKnown(threadRef, popupTabId, () => {
     if (from === "floating") {
-      usePreviewMiniPlayerStore.getState().open(threadRef, browserMiniPlayerSource(popupTabId));
+      useRightPanelStore.getState().floatSurface(threadRef, browserSurface(popupTabId));
     } else {
       useRightPanelStore.getState().openBrowser(threadRef, popupTabId);
     }

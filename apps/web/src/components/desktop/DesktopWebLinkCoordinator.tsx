@@ -26,7 +26,7 @@ import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
 import { useScratchProject } from "../../hooks/useScratchProject";
 import { useClientSettings } from "../../hooks/useSettings";
 import { useOpenChangeRequestLink } from "../../lib/openPullRequestLink";
-import { selectActiveRightPanelSurface, useRightPanelStore } from "../../rightPanelStore";
+import { selectPaneVisible, useRightPanelStore } from "../../rightPanelStore";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { resolveThreadRouteTarget } from "../../threadRoutes";
 import { assetEnvironment } from "../../state/assets";
@@ -74,11 +74,9 @@ function threadShowingBrowser(
   }
   if (threadRef === null || !isPreviewAvailableFor(threadRef.environmentId)) return null;
   if (fileEnvironmentId !== null && threadRef.environmentId !== fileEnvironmentId) return null;
-  const surface = selectActiveRightPanelSurface(
-    useRightPanelStore.getState().byThreadKey,
-    threadRef,
-  );
-  return surface?.kind === "preview" ? threadRef : null;
+  return selectPaneVisible(useRightPanelStore.getState().byThreadKey, threadRef, "browser")
+    ? threadRef
+    : null;
 }
 
 export function DesktopWebLinkCoordinator() {
@@ -165,7 +163,8 @@ export function DesktopWebLinkCoordinator() {
       return null;
     }
     const threadRef = scopeThreadRef(project.environmentId, opened.threadId);
-    useRightPanelStore.getState().requestMaximize(threadRef);
+    // The browser opens a moment later and fills the new thread's window.
+    useRightPanelStore.getState().setFill(threadRef, "browser");
     return threadRef;
   };
 

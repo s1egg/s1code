@@ -27,6 +27,29 @@ describe("default theme adoption", () => {
     expect(next).not.toBe(applied);
   });
 
+  it("keeps a later local choice after a previously adopted retired theme turns stock", () => {
+    // Adopted `iris` at this set time, then picked Graphite locally; iris now decodes as stock.
+    const applied = defaultThemeGeneration("iris", BASE.defaultThemeSetAt);
+    expect(defaultThemeToApply({ ...BASE, defaultTheme: "", appliedGeneration: applied })).toBe(
+      null,
+    );
+    expect(
+      defaultThemeToApply({
+        ...BASE,
+        defaultTheme: "",
+        defaultThemeSetAt: "2026-08-29T00:00:00.000Z",
+        appliedGeneration: applied,
+      }),
+    ).not.toBe(null);
+    expect(
+      defaultThemeToApply({
+        ...BASE,
+        defaultTheme: "",
+        appliedGeneration: "nightfall@" + BASE.defaultThemeSetAt,
+      }),
+    ).not.toBe(null);
+  });
+
   it("applies the stock theme only when the environment set it", () => {
     expect(defaultThemeToApply({ ...BASE, defaultTheme: "", defaultThemeSetAt: "" })).toBe(null);
     expect(defaultThemeToApply({ ...BASE, defaultTheme: "" })).not.toBe(null);

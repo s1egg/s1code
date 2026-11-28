@@ -2,7 +2,7 @@ import { converter } from "culori/fn";
 import { describe, expect, it } from "vite-plus/test";
 
 import "~/index.css";
-import { getStandardPaintedThemeColors } from "./themePalette";
+import { getStandardThemeColors } from "./themePalette";
 
 const toRgb = converter("rgb");
 
@@ -27,7 +27,7 @@ describe("standard painted theme colors", () => {
     try {
       for (const appearance of ["light", "dark"] as const) {
         root.classList.toggle("dark", appearance === "dark");
-        const colors = getStandardPaintedThemeColors(appearance);
+        const colors = getStandardThemeColors(appearance);
         const canvas = paintedChannels("--background");
         for (const [variable, role] of [
           ["--background", "canvas"],
@@ -46,6 +46,34 @@ describe("standard painted theme colors", () => {
       }
     } finally {
       root.classList.remove("dark");
+    }
+  });
+});
+
+describe("background glow", () => {
+  it("tints the stock glow with the clay accent, not the near-white primary", () => {
+    const glowAccent = getComputedStyle(document.documentElement).getPropertyValue("--glow-accent");
+    expect(glowAccent.trim()).toBe("#d97757");
+  });
+
+  it("paints panes but skips content inside their scrollers", () => {
+    const root = document.documentElement;
+    root.style.setProperty("--background-glow", "30%");
+    const panel = document.createElement("div");
+    panel.dataset.paneSurface = "";
+    panel.innerHTML = `
+      <div class="bg-background" data-probe="pane">
+        <div class="overflow-auto"><div class="sticky bg-background" data-probe="cell"></div></div>
+      </div>`;
+    document.body.append(panel);
+    try {
+      const imageOf = (probe: string) =>
+        getComputedStyle(panel.querySelector(`[data-probe="${probe}"]`)!).backgroundImage;
+      expect(imageOf("pane")).toContain("radial-gradient");
+      expect(imageOf("cell")).toBe("none");
+    } finally {
+      panel.remove();
+      root.style.removeProperty("--background-glow");
     }
   });
 });

@@ -1,3 +1,5 @@
+import { reportTimelineTouchDrag } from "./timelineViewport";
+
 const MOUSE_WHEEL_SCROLL_MS = 150;
 const PRECISE_WHEEL_DELTA_RATIOS = [1, 3];
 
@@ -104,4 +106,49 @@ export function forwardWheelToTimeline(event: WheelEvent, timeline: HTMLElement)
     return;
   }
   glideBy(timeline, distance);
+}
+
+/**
+ * For surfaces that cover the timeline without being part of it (the composer's backdrop and
+ * bottom spacer): wheel and one-finger drags scroll the timeline, while clicks stay blocked.
+ */
+export function forwardScrollGesturesToTimeline(
+  element: HTMLElement,
+  getTimeline: () => HTMLElement | null | undefined,
+): () => void {
+  const onWheel = (event: WheelEvent) => {
+    const timeline = getTimeline();
+    if (timeline) forwardWheelToTimeline(event, timeline);
+  };
+  let lastTouchY: number | null = null;
+  const onTouchStart = (event: TouchEvent) => {
+    lastTouchY = event.touches.length === 1 ? event.touches[0]!.clientY : null;
+  };
+  const onTouchMove = (event: TouchEvent) => {
+    const timeline = getTimeline();
+    const touch = event.touches.length === 1 ? event.touches[0] : undefined;
+    if (lastTouchY === null || !timeline || !touch) return;
+    event.preventDefault();
+    const distance = lastTouchY - touch.clientY;
+    // The timeline hears it as its own touch, so the drag can release follow like one.
+    if (distance !== 0) reportTimelineTouchDrag(timeline, distance < 0 ? "up" : "down");
+    stopGlide(timeline);
+    timeline.scrollBy({ top: distance });
+    lastTouchY = touch.clientY;
+  };
+  const onTouchEnd = () => {
+    lastTouchY = null;
+  };
+  element.addEventListener("wheel", onWheel, { passive: false });
+  element.addEventListener("touchstart", onTouchStart, { passive: true });
+  element.addEventListener("touchmove", onTouchMove, { passive: false });
+  element.addEventListener("touchend", onTouchEnd, { passive: true });
+  element.addEventListener("touchcancel", onTouchEnd, { passive: true });
+  return () => {
+    element.removeEventListener("wheel", onWheel);
+    element.removeEventListener("touchstart", onTouchStart);
+    element.removeEventListener("touchmove", onTouchMove);
+    element.removeEventListener("touchend", onTouchEnd);
+    element.removeEventListener("touchcancel", onTouchEnd);
+  };
 }

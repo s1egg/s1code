@@ -176,7 +176,7 @@ import {
 } from "./pullRequestPresentation";
 import { resolveFilterOptions } from "./pullRequestListOptions";
 import { PullRequestGuideTab } from "./PullRequestGuideTab";
-import { guideRunKey, useGuideRunStore } from "./guide/guideRunStore";
+import { guideRunKey } from "./guide/guideRunStore";
 import { useReviewGuideWriter } from "./guide/useReviewGuideWriter";
 
 import { changeRequestTermKind, type ChangeRequestTermKind } from "./changeRequestTerm";
@@ -362,18 +362,15 @@ export function PullRequestDetailPanel({
   threadRef = null,
   reference: requestedReference,
   listEntry = null,
-  refreshToken: forcedRefreshToken = 0,
-  tabOnPage = false,
   onActed,
   onClose,
   context = "page",
   composerDraftTarget,
   onBack,
   onSelectPullRequest,
-  onGuideShown,
   revealUrl,
   onRevealSettled,
-  initialTab = "summary",
+  storedTab = "summary",
   onTabChange,
 }: {
   environmentId: EnvironmentId;
@@ -383,12 +380,6 @@ export function PullRequestDetailPanel({
   threadRef?: ScopedThreadRef | null;
   reference: PullRequestRef;
   listEntry?: PullRequestListEntry | null;
-  refreshToken?: number;
-  /**
-   * The pull requests page's panel: its tab lives in the guide run store, where a review guide
-   * notification can switch it.
-   */
-  tabOnPage?: boolean;
   onActed?: (
     action?: PullRequestAction,
     phase?: "sent" | "done" | "failed",
@@ -398,12 +389,15 @@ export function PullRequestDetailPanel({
   context?: "page" | "thread";
   composerDraftTarget?: ScopedThreadRef | DraftId;
   onBack?: (() => void) | undefined;
-  onGuideShown?: (() => void) | undefined;
   /** A clicked link into this pull request, waiting to be shown. */
   revealUrl?: string | undefined;
   /** Reports the link it was given shown or missing, so a newer link stays pending. */
   onRevealSettled?: ((revealUrl: string) => void) | undefined;
-  initialTab?: PullRequestDetailTab;
+  /**
+   * The tab the panel store holds, which `onTabChange` updates. A change from elsewhere, such as
+   * a review guide notification, selects it in a panel already on screen.
+   */
+  storedTab?: PullRequestDetailTab;
   onTabChange?: ((tab: PullRequestDetailTab) => void) | undefined;
 }) {
   const gt = useGT();
@@ -464,25 +458,25 @@ export function PullRequestDetailPanel({
   } = usePullRequestDetail(environmentId, reference, matchingListEntry);
   const revealAnchor = parsePullRequestAnchor(revealUrl);
   const [selectedTab, setTab] = useState<PullRequestDetailTab>(
-    () => linkedTab(revealAnchor) ?? initialTab,
+    () => linkedTab(revealAnchor) ?? storedTab,
   );
+  const [shownStoredTab, setShownStoredTab] = useState(storedTab);
+  if (shownStoredTab !== storedTab) {
+    setShownStoredTab(storedTab);
+    setTab(storedTab);
+  }
   const reviewGuidesEnabled = useEnvironmentSettings(
     environmentId,
     (settings) => settings.reviewGuidesEnabled,
   );
   const guideKey = guideRunKey(environmentId, reference);
-  const pageTab = useGuideRunStore((state) =>
-    tabOnPage && state.pageDetailTab?.key === guideKey ? state.pageDetailTab.tab : null,
-  );
-  const requestedTab = tabOnPage ? (pageTab ?? initialTab) : selectedTab;
   const isTabAvailable = (value: PullRequestDetailTab) =>
     (value !== "code" || detail === null || detail.capabilities.diff) &&
     (value !== "guide" || reviewGuidesEnabled);
   // An unavailable tab falls back without overwriting the saved selection.
-  const tab = isTabAvailable(requestedTab) ? requestedTab : "summary";
+  const tab = isTabAvailable(selectedTab) ? selectedTab : "summary";
   const selectTab = (next: PullRequestDetailTab) => {
-    if (tabOnPage) useGuideRunStore.getState().showPageDetailTab(guideKey, next);
-    else setTab(next);
+    setTab(next);
     onTabChange?.(next);
   };
   const [timelineOrder, setTimelineOrder] = useState<"newest" | "oldest">("newest");
@@ -853,14 +847,6 @@ export function PullRequestDetailPanel({
     },
     [],
   );
-  const refreshFromHostOnRequest = useEffectEvent(() => void refreshFromHost());
-  const appliedForcedToken = useRef(forcedRefreshToken);
-  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- a new forced refresh token invalidates the host cache and refetches
-  useEffect(() => {
-    if (appliedForcedToken.current === forcedRefreshToken) return;
-    appliedForcedToken.current = forcedRefreshToken;
-    refreshFromHostOnRequest();
-  }, [forcedRefreshToken]);
   const runAction = useAtomCommand(pullRequestEnvironment.runAction, {
     reportFailure: false,
   });
@@ -2235,7 +2221,6 @@ export function PullRequestDetailPanel({
                         : null
                     }
                     onOpenFile={openFileInCode}
-                    onTourShown={onGuideShown}
                   />
                 </div>
               ) : null}

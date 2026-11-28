@@ -1,10 +1,12 @@
 import { useGT } from "gt-react";
 import { MoonIcon, SunIcon } from "lucide-react";
 import type { CSSProperties } from "react";
+import { THEME_PREVIEW_RENDER_SPECS } from "@s1tools/shared/themePreview";
 import {
-  STANDARD_THEME_PREVIEW_COLORS as SHARED_STANDARD_THEME_PREVIEW_COLORS,
-  THEME_PREVIEW_RENDER_SPECS,
-} from "@s1tools/shared/themePreview";
+  S1_CODE_DARK_THEME_COLORS,
+  S1_CODE_LIGHT_THEME_COLORS,
+  type ThemeColors,
+} from "@s1tools/shared/themePalettes";
 import { cn } from "../../lib/utils";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
@@ -36,34 +38,26 @@ export type ThemeCardDefinition = {
 export type ThemeMode = ThemeAppearance | "system";
 export type ThemeCardPreviewColors = ThemeCardPreview["colors"];
 
-const STANDARD_THEME_PREVIEW_COLORS: Record<
-  ThemeAppearance,
-  Readonly<Record<ThemePreviewRole, string>>
-> = {
-  light: {
-    sidebar: "#fafafa",
-    surface: "#ffffff",
-    accentSurface: "#f4f4f5",
-    messageSurface: "#e4e4e7",
-    ...SHARED_STANDARD_THEME_PREVIEW_COLORS.light,
-  },
-  dark: {
-    sidebar: "#0f0f10",
-    surface: "#121212",
-    accentSurface: "#27272a",
-    messageSurface: "#27272a",
-    ...SHARED_STANDARD_THEME_PREVIEW_COLORS.dark,
-  },
-};
+function previewColorsFromTheme(colors: ThemeColors): ThemeCardPreviewColors {
+  return {
+    sidebar: colors.sidebar,
+    canvas: colors.canvas,
+    surface: colors.surface,
+    accentSurface: colors.accentSurface,
+    accent: colors.accent,
+    messageSurface: colors.messageSurface,
+    messageAction: colors.messageAction,
+  };
+}
 
 export const STANDARD_THEME_CARDS: ReadonlyArray<ThemeCardDefinition> = [
   {
     id: "default",
     label: "S1 Code",
-    previews: (["light", "dark"] as const).map((mode) => ({
-      mode,
-      colors: STANDARD_THEME_PREVIEW_COLORS[mode],
-    })),
+    previews: [
+      { mode: "light", colors: previewColorsFromTheme(S1_CODE_LIGHT_THEME_COLORS) },
+      { mode: "dark", colors: previewColorsFromTheme(S1_CODE_DARK_THEME_COLORS) },
+    ],
   },
 ];
 
@@ -80,18 +74,7 @@ export function getThemeCardDefinition(theme: ThemeDefinition): ThemeCardDefinit
     label: theme.label,
     previews: getThemeModes(theme).map((mode) => {
       const colors = getThemeColorsForMode(theme, mode) ?? theme.colors;
-      return {
-        mode,
-        colors: {
-          sidebar: colors.sidebar,
-          canvas: colors.canvas,
-          surface: colors.surface,
-          accentSurface: colors.accentSurface,
-          accent: colors.accent,
-          messageSurface: colors.messageSurface,
-          messageAction: colors.messageAction,
-        },
-      };
+      return { mode, colors: previewColorsFromTheme(colors) };
     }),
   };
 }

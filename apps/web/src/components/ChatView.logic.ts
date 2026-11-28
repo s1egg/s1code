@@ -1,7 +1,11 @@
 import { toServerClock } from "@s1tools/client-runtime/clock";
 import { msg } from "gt-react";
 import { m, type MessageResolver } from "../i18n/messages";
-import { type OrchestrationV2ProviderTurn, type RunAttemptId } from "@s1tools/contracts";
+import {
+  type OrchestrationV2ProviderTurn,
+  type PreviewSessionSnapshot,
+  type RunAttemptId,
+} from "@s1tools/contracts";
 import {
   deriveLatestThreadRun,
   deriveThreadRuntime,
@@ -98,7 +102,6 @@ import type { DraftThreadEnvMode } from "../composerDraftStore";
 import { type ComposerSubmissionIntent } from "../composer-logic";
 import type { ReviewCommentContext } from "../reviewCommentContext";
 import { derivePhase, type TimelineEntry } from "../session-logic";
-import type { PreviewMiniPlayerSource } from "../previewMiniPlayerStore";
 import type { DesktopPreviewOverlay } from "../previewStateStore";
 import type { RightPanelSurface } from "../rightPanelStore";
 import {
@@ -111,20 +114,35 @@ type ThreadProjection = EnvironmentThread["projection"];
 type ThreadStructureRow = ThreadStructure["visibleTurnItems"][number];
 
 export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "s1code:last-invoked-script-by-project";
-export const MAX_HIDDEN_MOUNTED_TERMINAL_THREADS = 10;
 
 export const ENVIRONMENT_RECONNECT_WARNING_GRACE_MS = 2_000;
 
+/**
+ * Asks before closing pages an agent is using: a desktop tab it controls, or a server tab it
+ * owns. Server ownership is in every client's session list, so a remote client asks too.
+ */
 export function agentControlledBrowserCloseConfirmation(
   surfaces: readonly RightPanelSurface[],
-  desktopByTabId: Readonly<Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>>,
+  browsers: {
+    readonly desktopByTabId: Readonly<
+      Record<string, Pick<DesktopPreviewOverlay, "controller"> | undefined>
+    >;
+    readonly sessions: Readonly<
+      Record<string, Pick<PreviewSessionSnapshot, "runtime" | "automationOwner"> | undefined>
+    >;
+  },
   resolve: MessageResolver = m,
 ): string | null {
+  const agentUsing = (tabId: string) => {
+    const session = browsers.sessions[tabId];
+    return (
+      browsers.desktopByTabId[tabId]?.controller === "agent" ||
+      (session?.runtime === "server" && session.automationOwner !== undefined)
+    );
+  };
   const activeBrowserCount = surfaces.filter(
     (surface) =>
-      surface.kind === "preview" &&
-      surface.resourceId !== null &&
-      desktopByTabId[surface.resourceId]?.controller === "agent",
+      surface.kind === "preview" && surface.resourceId !== null && agentUsing(surface.resourceId),
   ).length;
   if (activeBrowserCount === 0) return null;
   if (activeBrowserCount === 1) {
@@ -150,24 +168,6 @@ export function agentControlledBrowserCloseConfirmation(
       ),
     ),
   ].join("\n");
-}
-
-export function shouldRenderPreviewMiniPlayer(
-  source: PreviewMiniPlayerSource | null,
-  renderedRightPanelSurface: RightPanelSurface | null,
-): boolean {
-  if (source === null) return false;
-  if (source.kind === "browser") {
-    return !(
-      renderedRightPanelSurface?.kind === "preview" &&
-      renderedRightPanelSurface.resourceId === source.tabId
-    );
-  }
-  return !(
-    renderedRightPanelSurface?.kind === "device" &&
-    renderedRightPanelSurface.target?.hostId === source.hostId &&
-    renderedRightPanelSurface.target.deviceId === source.deviceId
-  );
 }
 
 export function shouldOpenProactivePullRequest(
@@ -275,31 +275,6 @@ export function shouldDockDraftHeroForSubmission(input: {
     input.isDraftHeroState &&
     input.activeThreadKey !== null
   );
-}
-
-export function shouldReleaseTimelineAnchorForToolActivity(input: {
-  anchorMessageId: MessageId | null;
-  liveFollowEnabled: boolean;
-  runningTurnId: RunId | null;
-  timelineEntries: ReadonlyArray<TimelineEntry>;
-}): boolean {
-  if (input.anchorMessageId === null || !input.liveFollowEnabled || input.runningTurnId === null) {
-    return false;
-  }
-
-  return input.timelineEntries.some((timelineEntry) => {
-    if (timelineEntry.kind !== "work" || timelineEntry.entry.runId !== input.runningTurnId) {
-      return false;
-    }
-
-    const entry = timelineEntry.entry;
-    return (
-      entry.tone === "tool" ||
-      entry.itemType !== undefined ||
-      entry.requestKind !== undefined ||
-      (entry.command?.trim().length ?? 0) > 0
-    );
-  });
 }
 
 export { resolveVisibleWorktreeSetup } from "@s1tools/client-runtime/worktree-setup";
@@ -577,48 +552,6 @@ export function getAntigravitySendBlockReason(
     return resolve(msg("That Antigravity model is no longer available. Choose another model."));
   }
   return null;
-}
-
-export function reconcileMountedTerminalThreadIds(input: {
-  currentThreadIds: ReadonlyArray<string>;
-  openThreadIds: ReadonlyArray<string>;
-  activeThreadId: string | null;
-  activeThreadTerminalOpen: boolean;
-  maxHiddenThreadCount?: number;
-}): string[] {
-  const openThreadIdSet = new Set(input.openThreadIds);
-  const hiddenThreadIds = input.currentThreadIds.filter(
-    (threadId) => threadId !== input.activeThreadId && openThreadIdSet.has(threadId),
-  );
-  const maxHiddenThreadCount = Math.max(
-    0,
-    input.maxHiddenThreadCount ?? MAX_HIDDEN_MOUNTED_TERMINAL_THREADS,
-  );
-  const nextThreadIds =
-    hiddenThreadIds.length > maxHiddenThreadCount
-      ? hiddenThreadIds.slice(-maxHiddenThreadCount)
-      : hiddenThreadIds;
-
-  if (
-    input.activeThreadId &&
-    input.activeThreadTerminalOpen &&
-    !nextThreadIds.includes(input.activeThreadId)
-  ) {
-    nextThreadIds.push(input.activeThreadId);
-  }
-
-  return nextThreadIds;
-}
-
-// Null identifies the project checkout when a launch or session is known.
-export function resolveTerminalWorktreePath(input: {
-  launchContext: { readonly worktreePath: string | null } | null;
-  summary: { readonly worktreePath: string | null } | null;
-  threadWorktreePath: string | null;
-}): string | null {
-  if (input.launchContext !== null) return input.launchContext.worktreePath;
-  if (input.summary !== null) return input.summary.worktreePath;
-  return input.threadWorktreePath;
 }
 
 export async function resolveFileAttachmentUrl(input: {
@@ -1169,7 +1102,7 @@ export function shouldRefocusComposerOnWindowFocus(
   }
   return (
     activeElement.closest(
-      '[data-workspace-keyboard-focus], [data-sidebar-row]:focus-visible, [role="dialog"], [role="alertdialog"], [role="application"], [role="menu"], [role="listbox"], [data-slot$="-popup"], [data-terminal-owner], [aria-keyshortcuts]',
+      '[data-workspace-keyboard-focus], [data-sidebar-row]:focus-visible, [role="dialog"], [role="alertdialog"], [role="application"], [role="menu"], [role="listbox"], [data-slot$="-popup"], [data-thread-terminal-drawer], [aria-keyshortcuts]',
     ) === null
   );
 }

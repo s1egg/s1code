@@ -364,7 +364,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "setting-glass-opacity",
     title: msg("Glass opacity"),
     to: "/settings/appearance",
-    searchTerms: [msg("transparent transparency solid menus dialogs composer")],
+    searchTerms: [msg("transparent transparency solid menus dialogs popovers")],
   },
   {
     // Prefixed because the slider control already owns the `background-glow` id.
@@ -399,7 +399,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/appearance",
     searchTerms: [
       msg(
-        "customize show hide panel card environment editor scripts branch pull request git changes servers automations lineage usage limits 5 hour weekly quota tokens context window",
+        "customize show hide panel card environment editor scripts branch pull request git changes servers automations lineage usage limits 5 hour weekly quota tokens context window pull requests issues",
       ),
     ],
   },
@@ -424,7 +424,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "environment-identification",
     title: msg("Environment identification"),
     to: "/settings/appearance",
-    searchTerms: [msg("dev nightly latest channel artwork pill label hide none")],
+    searchTerms: [msg("dev nightly latest channel pill label hide none")],
     targetId: "appearance-interface",
   },
   {
@@ -799,9 +799,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "proactive-panels",
     title: msg("Open pull requests and changes panels proactively"),
     to: "/settings/diffs",
-    searchTerms: [
-      msg("proactive automatically open diff pull request pr right panel agent completion"),
-    ],
+    searchTerms: [msg("proactive automatically open diff pull request pr pane agent completion")],
   },
   {
     id: "skills-in-slash-menu",
@@ -833,7 +831,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/chat",
     searchTerms: [
       msg(
-        "subagent side chat linked thread click right panel side panel main view command ctrl middle click",
+        "subagent side chat linked thread click pane side panel main view command ctrl middle click",
       ),
     ],
   },

@@ -11,10 +11,12 @@ import { closePreviewSession } from "../components/preview/closePreviewSession";
 import { useThreadTerminalActions } from "../components/terminal/useThreadTerminalActions";
 import { m } from "../i18n/messages";
 import { confirmTerminalClose } from "../lib/terminalCloseConfirm";
-import { focusPanelTerminalAfterClose } from "../lib/terminalFocus";
+import { focusTerminalAfterClose } from "../lib/terminalFocus";
 import { readLocalApi } from "../localApi";
 import { setActivePreviewTab, useThreadPreviewState } from "../previewStateStore";
+import type { PaneKind } from "../paneLayout";
 import {
+  paneKindOf,
   selectActiveRightPanelSurface,
   selectThreadRightPanelState,
   useRightPanelStore,
@@ -23,14 +25,15 @@ import {
 import { readThreadShell } from "../state/entities";
 import { previewEnvironment } from "../state/preview";
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
+import { useKnownTerminalSessions } from "../state/terminalSessions";
 import { threadEnvironment } from "../state/threads";
 import { useAtomCommand } from "../state/use-atom-command";
-import { useTerminalUiStateStore } from "../terminalUiStateStore";
+import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { useStableCallback } from "./useStableCallback";
 
 /**
  * Closing releases preview and terminal sessions, and deletes a side chat that never ran.
- * Agent-driven browsers and terminal tabs require confirmation.
+ * Agent-driven browsers and the terminal pane's shells require confirmation.
  */
 export function useRightPanelSurfaceClose(input: {
   readonly threadRef: ScopedThreadRef | null;
@@ -49,6 +52,21 @@ export function useRightPanelSurfaceClose(input: {
   const surfaces = useRightPanelStore(
     (state) => selectThreadRightPanelState(state.byThreadKey, threadRef).surfaces,
   );
+  const localTerminalIds = useTerminalUiStateStore(
+    (state) => selectThreadTerminalUiState(state.terminalUiStateByThreadKey, threadRef).terminalIds,
+  );
+  // Local ids follow the server only while the terminal pane shows, so a shell an agent
+  // started since then is known only to the server's list.
+  const serverSessions = useKnownTerminalSessions({
+    environmentId: threadRef?.environmentId ?? null,
+    threadId: threadRef?.threadId ?? null,
+  });
+  const terminalIds = [
+    ...new Set([
+      ...localTerminalIds,
+      ...(serverSessions ?? []).map((session) => session.target.terminalId),
+    ]),
+  ];
 
   const releaseSurfaceResources = (ref: ScopedThreadRef, surface: RightPanelSurface) => {
     // Without preview access, server state remains until an authorized close or restart.
@@ -64,7 +82,7 @@ export function useRightPanelSurfaceClose(input: {
       surface.kind === "terminal" &&
       readEnvironmentScope(ref.environmentId, AuthTerminalOperateScope)
     ) {
-      for (const terminalId of surface.terminalIds) {
+      for (const terminalId of terminalIds) {
         storeCloseTerminal(ref, terminalId);
         terminalActions.closeTerminalSession(terminalId, ref);
       }
@@ -88,7 +106,7 @@ export function useRightPanelSurfaceClose(input: {
     toClose: readonly RightPanelSurface[],
     closeSurfaces: () => void,
   ) => {
-    const message = agentControlledBrowserCloseConfirmation(toClose, previewState.desktopByTabId);
+    const message = agentControlledBrowserCloseConfirmation(toClose, previewState);
     if (!message) {
       closeSurfaces();
       return;
@@ -123,7 +141,7 @@ export function useRightPanelSurfaceClose(input: {
     if (nextActiveSurface?.kind === "preview" && nextActiveSurface.resourceId) {
       setActivePreviewTab(threadRef, nextActiveSurface.resourceId);
     }
-    focusPanelTerminalAfterClose(threadRef, activeId);
+    focusTerminalAfterClose(threadRef, activeId);
   };
   const labelFor = (terminalId: string) =>
     terminalLabelsById.get(terminalId) ?? getTerminalLabel(terminalId, m);
@@ -132,7 +150,7 @@ export function useRightPanelSurfaceClose(input: {
     closeAfterAgentBrowserConfirmation(toClose, () => {
       const labels = readEnvironmentScope(threadRef.environmentId, AuthTerminalOperateScope)
         ? toClose.flatMap((surface) =>
-            surface.kind === "terminal" ? surface.terminalIds.map(labelFor) : [],
+            surface.kind === "terminal" ? terminalIds.map(labelFor) : [],
           )
         : [];
       const [first, ...rest] = labels;
@@ -146,37 +164,11 @@ export function useRightPanelSurfaceClose(input: {
     });
   };
 
-  const closeSurface = useStableCallback((surface: RightPanelSurface) => {
-    if (!threadRef) return;
-    if (surface.kind === "preview") {
-      closeSurfaces([surface]);
-      return;
-    }
-    if (
-      surface.kind !== "terminal" ||
-      !readEnvironmentScope(threadRef.environmentId, AuthTerminalOperateScope)
-    ) {
-      finishClose([surface]);
-      return;
-    }
-    const otherLabels = surface.terminalIds
-      .filter((terminalId) => terminalId !== surface.activeTerminalId)
-      .map(labelFor);
-    void confirmTerminalClose([labelFor(surface.activeTerminalId), ...otherLabels]).then(
-      (confirmed) => {
-        if (confirmed) finishClose([surface]);
-      },
-    );
-  });
-  const closeOtherSurfaces = useStableCallback((surface: RightPanelSurface) =>
-    closeSurfaces(surfaces.filter((entry) => entry.id !== surface.id)),
+  const closeSurface = useStableCallback((surface: RightPanelSurface) => closeSurfaces([surface]));
+  const closePane = useStableCallback((pane: PaneKind) =>
+    closeSurfaces(surfaces.filter((surface) => paneKindOf(surface.kind) === pane)),
   );
-  const closeSurfacesToRight = useStableCallback((surface: RightPanelSurface) => {
-    const surfaceIndex = surfaces.findIndex((entry) => entry.id === surface.id);
-    if (surfaceIndex < 0) return;
-    closeSurfaces(surfaces.slice(surfaceIndex + 1));
-  });
   const closeAllSurfaces = useStableCallback(() => closeSurfaces(surfaces));
 
-  return { closeSurface, closeOtherSurfaces, closeSurfacesToRight, closeAllSurfaces };
+  return { closeSurface, closePane, closeAllSurfaces };
 }

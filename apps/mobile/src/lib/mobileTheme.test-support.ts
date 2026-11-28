@@ -7,10 +7,10 @@ import {
   type MobileThemeVariables,
 } from "./mobileTheme";
 
-import { S1_CHAT_THEME } from "@s1tools/shared/themePalettes";
+import { S1_CODE_LIGHT_THEME_COLORS } from "@s1tools/shared/themePalettes";
 
 const MOBILE_THEME_VARIABLE_NAMES = Object.keys(
-  createMobileThemeVariables(S1_CHAT_THEME.colors, "light"),
+  createMobileThemeVariables(S1_CODE_LIGHT_THEME_COLORS, "light"),
 ) as ReadonlyArray<MobileThemeVariable>;
 
 export function readDefaultMobileThemeVariables(

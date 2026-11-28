@@ -1,7 +1,6 @@
 import type { EnvironmentId, PullRequestRef, PullRequestReviewGuideStop } from "@s1tools/contracts";
 import { msg, T, useGT, useMessages } from "gt-react";
 import { ScrollTextIcon, TriangleAlertIcon } from "lucide-react";
-import { useEffect, useEffectEvent } from "react";
 
 import type { ReviewCommentContext } from "~/reviewCommentContext";
 
@@ -33,7 +32,6 @@ export function PullRequestGuideTab({
   onAskAboutStop,
   onFinishReview,
   onOpenFile,
-  onTourShown,
 }: {
   environmentId: EnvironmentId;
   reference: PullRequestRef;
@@ -49,7 +47,6 @@ export function PullRequestGuideTab({
     | null;
   onFinishReview: (() => void) | null;
   onOpenFile: (path: string) => void;
-  onTourShown?: (() => void) | undefined;
 }) {
   const gt = useGT();
   const resolve = useMessages();
@@ -83,12 +80,6 @@ export function PullRequestGuideTab({
           onAskAgent: onAskAboutLines,
         };
   const guide = data?.guide ?? null;
-  const tourShown = active && guide !== null;
-  const reportTourShown = useEffectEvent(() => onTourShown?.());
-  // oxlint-disable-next-line s1code/no-unreasoned-state-sync -- tells the parent once the loaded guide tour is on screen, which data arrival can cause
-  useEffect(() => {
-    if (tourShown) reportTourShown();
-  }, [tourShown]);
   const runState = data?.run ?? null;
   const currentHeadSha = data?.currentHeadSha ?? null;
   const stale = guide !== null && currentHeadSha !== null && currentHeadSha !== guide.headSha;

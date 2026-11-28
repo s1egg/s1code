@@ -20,7 +20,7 @@ import { createScratchProjectActions } from "../hooks/useScratchProject";
 import { getClientSettings } from "../hooks/useSettings";
 import { resolveThreadActionProjectRef } from "../lib/chatThreadActions";
 import { selectProjectGroupingSettings } from "@s1tools/client-runtime/state/project-grouping";
-import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
+import { selectPaneVisible, useRightPanelStore } from "../rightPanelStore";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import {
   buildSidebarProjectSnapshots,
@@ -35,7 +35,6 @@ import { defaultProjectFallbackReadyAtom } from "../state/projects";
 import { environmentPresentations } from "../state/presentation";
 import { primaryEnvironmentIdAtom } from "../state/primaryEnvironment";
 import { readEnvironmentScope } from "../state/session";
-import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { useThreadSelectionStore } from "../threadSelectionStore";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { useUiStateStore } from "../uiStateStore";
@@ -77,7 +76,7 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
     // Store-only on purpose: the URL-aware arbitration lives in ChatView's
     // preview toggle, which the action bus reaches.
     return threadRef
-      ? selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, threadRef) === "preview"
+      ? selectPaneVisible(useRightPanelStore.getState().byThreadKey, threadRef, "browser")
       : false;
   };
   const readThreadContext = () => {
@@ -222,10 +221,7 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
         const threadRef = readRouteThreadRef();
         return {
           terminalOpen: threadRef
-            ? selectThreadTerminalUiState(
-                useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
-                threadRef,
-              ).terminalOpen
+            ? selectPaneVisible(useRightPanelStore.getState().byThreadKey, threadRef, "terminal")
             : false,
           previewOpen: readPreviewOpen(),
         };

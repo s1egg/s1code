@@ -18,12 +18,17 @@ import {
   PullRequestMergeMethod,
   type SidebarProjectGroupingMode,
 } from "@s1tools/contracts";
-import { ToolCallVisibility } from "@s1tools/contracts/settings";
+import { RETIRED_THEME_IDS, ToolCallVisibility } from "@s1tools/contracts/settings";
 import type { AndroidNavigationStyle } from "../lib/androidNavigationStyle";
 import type { ComposerEnterBehavior } from "../lib/composerEnterBehavior";
 import type { FollowUpBehavior } from "../lib/followUpBehavior";
 import { isMicrophoneKind, type MicrophoneEntry } from "../lib/microphonePriority";
-import { MOBILE_THEME_IDS, type MobileThemeId, type MobileThemeMode } from "../lib/mobileTheme";
+import {
+  DEFAULT_MOBILE_THEME_ID,
+  MOBILE_THEME_IDS,
+  type MobileThemeId,
+  type MobileThemeMode,
+} from "../lib/mobileTheme";
 import * as MobileDatabase from "./mobile-database";
 import * as MobileSecureStorage from "./mobile-secure-storage";
 import { MobileStorageDecodeError, MobileStorageEncodeError } from "./mobile-storage";
@@ -233,6 +238,13 @@ export class MobilePreferencesStore extends Context.Service<
 const isToolCallVisibility = Schema.is(ToolCallVisibility);
 const isPullRequestMergeMethod = Schema.is(PullRequestMergeMethod);
 
+function readThemeId(value: unknown): MobileThemeId | undefined {
+  if (typeof value !== "string") return undefined;
+  if ((MOBILE_THEME_IDS as readonly string[]).includes(value)) return value as MobileThemeId;
+  // A retired built-in is an explicit choice, so it must not fall back to the legacy themeId.
+  return RETIRED_THEME_IDS.has(value) ? DEFAULT_MOBILE_THEME_ID : undefined;
+}
+
 function sanitizePreferences(parsed: Preferences): Preferences {
   const preferences: {
     navigationTabOrder?: readonly string[];
@@ -312,24 +324,12 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   if (typeof parsed.liveActivitiesEnabled === "boolean") {
     preferences.liveActivitiesEnabled = parsed.liveActivitiesEnabled;
   }
-  if (
-    typeof parsed.themeId === "string" &&
-    (MOBILE_THEME_IDS as readonly string[]).includes(parsed.themeId)
-  ) {
-    preferences.themeId = parsed.themeId as MobileThemeId;
-  }
-  if (
-    typeof parsed.lightThemeId === "string" &&
-    (MOBILE_THEME_IDS as readonly string[]).includes(parsed.lightThemeId)
-  ) {
-    preferences.lightThemeId = parsed.lightThemeId as MobileThemeId;
-  }
-  if (
-    typeof parsed.darkThemeId === "string" &&
-    (MOBILE_THEME_IDS as readonly string[]).includes(parsed.darkThemeId)
-  ) {
-    preferences.darkThemeId = parsed.darkThemeId as MobileThemeId;
-  }
+  const themeId = readThemeId(parsed.themeId);
+  if (themeId !== undefined) preferences.themeId = themeId;
+  const lightThemeId = readThemeId(parsed.lightThemeId);
+  if (lightThemeId !== undefined) preferences.lightThemeId = lightThemeId;
+  const darkThemeId = readThemeId(parsed.darkThemeId);
+  if (darkThemeId !== undefined) preferences.darkThemeId = darkThemeId;
   if (
     parsed.themeMode === "system" ||
     parsed.themeMode === "light" ||

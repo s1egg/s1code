@@ -57,23 +57,23 @@ describe("AppRouteModal", () => {
   });
 
   it("returns focus to the opener when Esc closes it", async () => {
-    const opener = <button type="button">Open usage</button>;
+    const opener = <button type="button">Open settings</button>;
     await using screen = await render(opener, { router: "/" });
-    const openerButton = screen.getByRole("button", { name: "Open usage" });
+    const openerButton = screen.getByRole("button", { name: "Open settings" });
     (openerButton.element() as HTMLElement).focus();
 
     await screen.rerender(
       <>
         {opener}
-        <AppRouteModal label="Usage">
-          <p>Usage</p>
+        <AppRouteModal label="Settings">
+          <p>Settings</p>
         </AppRouteModal>
       </>,
     );
-    await expect.element(page.getByRole("dialog", { name: "Usage" })).toHaveFocus();
+    await expect.element(page.getByRole("dialog", { name: "Settings" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
 
-    await expect.element(page.getByRole("dialog", { name: "Usage" })).not.toBeInTheDocument();
+    await expect.element(page.getByRole("dialog", { name: "Settings" })).not.toBeInTheDocument();
     await expect.element(openerButton).toHaveFocus();
   });
 
@@ -99,7 +99,7 @@ describe("AppRouteModal", () => {
 
   it("stays open when a held Esc repeats after closing a nested menu", async () => {
     await using _screen = await render(
-      <AppRouteModal label="Usage">
+      <AppRouteModal label="Settings">
         <Menu>
           <MenuTrigger>All providers</MenuTrigger>
           <MenuPopup>
@@ -107,11 +107,11 @@ describe("AppRouteModal", () => {
           </MenuPopup>
         </Menu>
       </AppRouteModal>,
-      { router: "/usage" },
+      { router: "/settings/general" },
     );
-    const usage = page.getByRole("dialog", { name: "Usage" });
+    const settings = page.getByRole("dialog", { name: "Settings" });
     const trigger = page.getByRole("button", { name: "All providers" });
-    await expect.element(usage).toHaveFocus();
+    await expect.element(settings).toHaveFocus();
 
     (trigger.element() as HTMLElement).focus();
     await userEvent.keyboard("{Enter}");
@@ -120,7 +120,7 @@ describe("AppRouteModal", () => {
     await userEvent.keyboard("{Escape}");
     await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
     await expect.element(trigger).toHaveFocus();
-    await expect.element(usage).toHaveAttribute("data-open");
+    await expect.element(settings).toHaveAttribute("data-open");
 
     await act(() =>
       trigger.element().dispatchEvent(
@@ -132,9 +132,9 @@ describe("AppRouteModal", () => {
         }),
       ),
     );
-    await expect.element(usage).toHaveAttribute("data-open");
+    await expect.element(settings).toHaveAttribute("data-open");
 
     await userEvent.keyboard("{Escape}");
-    await expect.element(usage).not.toBeInTheDocument();
+    await expect.element(settings).not.toBeInTheDocument();
   });
 });

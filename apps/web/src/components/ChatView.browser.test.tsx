@@ -33,7 +33,7 @@ import stylesheet from "~/index.css?inline";
 import { environmentContextRecord } from "~/lib/composerContextRecords";
 import { startWorkspaceFocus } from "~/lib/workspaceFocus";
 import { usePromptStashStore } from "~/promptStashStore";
-import { useRightPanelStore } from "~/rightPanelStore";
+import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
 import { getRouter } from "~/router";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 import { environmentThreadDetails } from "~/state/threads";
@@ -417,6 +417,48 @@ it("a new draft does not load its reserved thread before the server lists it", a
   expect(threadRequests).toEqual([]);
 });
 
+it("a new draft's control row names its machine and keeps labels at a normal width", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  using _environment = installFakeEnvironment([]);
+  await page.viewport(1280, 800);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+    // The composer's own width, without the docked thread details beside it.
+    threadDetailsOpen: false,
+  });
+  const draftId = DraftId.make("draft-composer-row");
+  useComposerDraftStore
+    .getState()
+    .setProjectDraftThreadId(scopeProjectRef(ENVIRONMENT_ID, PROJECT_ID), draftId, {
+      threadId: ThreadId.make("thread-composer-row"),
+    });
+
+  const router = getRouter(createMemoryHistory({ initialEntries: [`/draft/${draftId}`] }));
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await expect.element(page.getByTestId("composer-editor")).toBeVisible();
+  await expect.element(page.getByText("render", { exact: true }).first()).toBeVisible();
+
+  // A single primary machine still shows where the thread runs.
+  const strip = await vi.waitFor(() => {
+    const element = document.querySelector<HTMLElement>('[data-slot="composer-context-strip"]');
+    expect(element?.textContent).toContain("Render scenarios");
+    return element!;
+  });
+  // The composer's normal width, where the old even split folded the run context to icons.
+  expect(strip.parentElement!.getBoundingClientRect().width).toBeLessThan(800);
+  await vi.waitFor(() => {
+    expect(strip.hasAttribute("data-compact")).toBe(false);
+    for (const label of strip.querySelectorAll<HTMLElement>("[data-composer-label]")) {
+      expect(label.getBoundingClientRect().width).toBeGreaterThan(0);
+    }
+  });
+});
+
 it("a failed image-only first send of a new thread keeps the new draft", async () => {
   using _environment = installFakeEnvironment([]);
   __setClientSettingsForTests({
@@ -757,6 +799,93 @@ it("a rejected send leaves the timeline when a new draft was typed meanwhile", a
   expect(editor.element().textContent).toContain("Next draft");
 });
 
+it("after a rejected send, a growing composer keeps the end of the timeline in view", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  const thread = threadWithHistory("rejected-anchor", 8);
+  using _environment = installFakeEnvironment([thread], {
+    acceptCommands: true,
+    holdCommand: (command) => command.type === "message.dispatch",
+  });
+  await page.viewport(1280, 800);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await expect.element(page.getByText(`Answer 7 for ${thread.id}.`)).toBeVisible();
+
+  const editor = page.getByTestId("composer-editor");
+  await userEvent.click(editor);
+  await userEvent.keyboard("Failed prompt{Enter}");
+  await vi.waitFor(() =>
+    expect(dispatchedCommands().map((command) => command.type)).toContain("message.dispatch"),
+  );
+  const timeline = document.querySelector<HTMLElement>(".messages-timeline-scroll")!;
+  await vi.waitFor(() => expect(timeline.textContent).toContain("Failed prompt"));
+  await rejectPendingCommand("The provider refused the message.");
+  // The composer takes the failed text back; the timeline drops it.
+  await vi.waitFor(() => expect(timeline.textContent).not.toContain("Failed prompt"));
+
+  // The failed message's anchor would leave the end unfollowed as the composer grows over it.
+  await userEvent.click(editor);
+  await userEvent.keyboard(
+    "{Shift>}{Enter}{/Shift}Line 1{Shift>}{Enter}{/Shift}Line 2{Shift>}{Enter}{/Shift}Line 3{Shift>}{Enter}{/Shift}Line 4",
+  );
+  await vi.waitFor(() =>
+    expect(timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight).toBeLessThan(2),
+  );
+});
+
+it("a wheel over the space under the composer scrolls the timeline", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  const thread = threadWithHistory("composer-gutter-wheel", 8);
+  using _environment = installFakeEnvironment([thread]);
+  await page.viewport(1280, 800);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await expect.element(page.getByText(`Answer 7 for ${thread.id}.`)).toBeVisible();
+  const timeline = document.querySelector<HTMLElement>(".messages-timeline-scroll")!;
+  await vi.waitFor(() =>
+    expect(timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight).toBeLessThan(2),
+  );
+  const atEnd = timeline.scrollTop;
+
+  // The spacer sits in the composer stack, above the backdrop that used to take the wheel.
+  const spacer = document.querySelector<HTMLElement>('[data-chat-composer-bottom-spacer="true"]')!;
+  const box = spacer.getBoundingClientRect();
+  await cdp().send("Input.dispatchMouseEvent", {
+    type: "mouseWheel",
+    x: box.left + box.width / 2,
+    y: box.top + box.height / 2,
+    deltaX: 0,
+    deltaY: -400,
+  });
+  await vi.waitFor(() => expect(timeline.scrollTop).toBeLessThan(atEnd - 100));
+
+  // One-finger drags are forwarded by script; two-finger zoom stays the browser's.
+  const backdrop = document.querySelector<HTMLElement>('[data-chat-composer-backdrop="true"]')!;
+  for (const gutter of [spacer, backdrop]) {
+    expect(getComputedStyle(gutter).touchAction).toBe("pinch-zoom");
+  }
+});
+
 it("Enter on an empty prompt resumes an interrupted thread", async () => {
   const history = threadWithHistory("interrupted", 1);
   const interruptedRun = { ...history.runs[0]!, status: "interrupted" as const };
@@ -883,7 +1012,7 @@ it("a mounted thread view lets go of the thread structures it has replaced", asy
   expect(kept).toEqual([]);
 });
 
-it("a shortcut conditioned on rightPanelOpen sees the thread's open right panel", async () => {
+it("a shortcut conditioned on rightPanelOpen sees the thread's open panes", async () => {
   await page.viewport(1280, 800);
   const thread = threadWithHistory("thread-panel-shortcut", 1);
   using _environment = installFakeEnvironment([thread], {
@@ -907,17 +1036,57 @@ it("a shortcut conditioned on rightPanelOpen sees the thread's open right panel"
     router: false,
   });
   const composer = page.getByTestId("composer-editor");
-  const toggle = page.getByRole("button", { name: "Toggle right panel", exact: true });
-  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
-  await toggle.click();
-  await page.getByRole("button", { name: /^Files/ }).click();
+  const files = page.getByRole("button", { name: "Files", exact: true });
+  await expect.element(files).toHaveAttribute("aria-pressed", "false");
+  await files.click();
   await composer.click();
   await userEvent.keyboard("{Control>}t{/Control}");
-  await expect.element(page.getByRole("menuitem", { name: /Files/ })).toBeVisible();
-  await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect.element(page.getByRole("menuitem", { name: "Close all panes" })).toBeVisible();
+  await expect.element(files).toHaveAttribute("aria-pressed", "true");
 });
 
-it("selecting a side-chat tab focuses that side chat's composer", async () => {
+it("thread details dock beside the chat, toggle with their shortcut, and open as a popover beside a pane", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  await page.viewport(1400, 900);
+  const thread = threadWithHistory("thread-details-toggle", 1);
+  using _environment = installFakeEnvironment([thread]);
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, {
+    // AppRoot brings its own router.
+    router: false,
+  });
+  const details = page.getByRole("region", { name: "Thread details" });
+  const toggle = page.getByRole("button", { name: "Toggle thread details panel" });
+  await expect.element(details).toBeVisible();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  // The chat canvas makes room for the sidebar instead of sitting under it.
+  const canvas = document.querySelector("[data-chat-canvas]")!.getBoundingClientRect();
+  expect(canvas.right).toBeLessThanOrEqual(details.element().getBoundingClientRect().left);
+
+  await page.getByTestId("composer-editor").click();
+  await userEvent.keyboard("{ControlOrMeta>}{Shift>}b{/Shift}{/ControlOrMeta}");
+  await expect.element(details).not.toBeInTheDocument();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  await userEvent.keyboard("{ControlOrMeta>}{Shift>}b{/Shift}{/ControlOrMeta}");
+  await expect.element(details).toBeVisible();
+
+  await page.getByRole("button", { name: "Files", exact: true }).click();
+  await expect.element(details).not.toBeInTheDocument();
+  await toggle.click();
+  await expect.element(page.getByRole("dialog", { name: "Thread details" })).toBeVisible();
+});
+
+it("switching the side chat pane to another side chat focuses its composer", async () => {
   const parent = threadWithHistory("focus-parent", 1);
   // The shell loaded by the file's first test stays; a family read serves side chats added later.
   const sideChat = (name: string) => ({
@@ -944,14 +1113,15 @@ it("selecting a side-chat tab focuses that side chat's composer", async () => {
     // AppRoot brings its own router.
     router: false,
   });
-  using _focus = { [Symbol.dispose]: startWorkspaceFocus(router) };
+  using _focus = { [Symbol.dispose]: startWorkspaceFocus() };
   const mainEditor = screen.getByRole("textbox", { name: `Message ${parent.title}`, exact: true });
   const sideEditor = screen.getByRole("textbox", { name: `Message ${side.title}`, exact: true });
   await expect.element(sideEditor).toBeVisible();
   await userEvent.click(mainEditor);
   await userEvent.keyboard("main draft");
 
-  await userEvent.click(screen.getByRole("button", { name: otherSide.title, exact: true }));
+  await userEvent.click(screen.getByRole("button", { name: "Switch item" }));
+  await userEvent.click(page.getByRole("menuitemradio", { name: otherSide.title }));
   const otherEditor = screen.getByRole("textbox", {
     name: `Message ${otherSide.title}`,
     exact: true,
@@ -959,8 +1129,10 @@ it("selecting a side-chat tab focuses that side chat's composer", async () => {
   await expect.element(otherEditor).toHaveFocus();
   await userEvent.keyboard("other draft");
   await expect.element(otherEditor).toHaveTextContent("other draft");
+  await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 
-  await userEvent.click(screen.getByRole("button", { name: side.title, exact: true }));
+  await userEvent.click(screen.getByRole("button", { name: "Switch item" }));
+  await userEvent.click(page.getByRole("menuitemradio", { name: side.title }));
   await expect.element(sideEditor).toHaveFocus();
   await expect.element(mainEditor).toHaveTextContent("main draft");
 });
@@ -989,7 +1161,7 @@ it("a subagent tab shows its read-only bar under no header of its own", async ()
     router: false,
   });
   const pane = screen.getByTestId("side-thread-pane");
-  // No header of its own: the tab names it, and only a side chat has actions to put in one.
+  // No header of its own: the pane's chip names it, and only a side chat has actions to put in one.
   await expect.element(pane.getByRole("heading", { name: subagent.title })).not.toBeInTheDocument();
   await expect.element(pane.getByText("Runs on its own")).toBeVisible();
   await expect.element(pane.getByRole("button", { name: "Add to chat" })).not.toBeInTheDocument();
@@ -1040,15 +1212,19 @@ it("/side sends the draft's attachments and context, and keeps them when it does
     await userEvent.keyboard("{Enter}");
     await expect.element(image).not.toBeInTheDocument();
   };
-  // The tab opens once the start finished; until then `/side` refuses another side chat.
-  const sideChatTabs = page.getByRole("button", { name: "Side chat", exact: true });
+  // The side chat opens in its pane once the start finished; until then `/side` refuses another.
+  const openSideChats = () =>
+    selectThreadRightPanelState(
+      useRightPanelStore.getState().byThreadKey,
+      scopeThreadRef(ENVIRONMENT_ID, thread.id),
+    ).surfaces.filter((surface) => surface.kind === "thread").length;
   const sentMessage = async (fields: Record<string, unknown>, openTabs: number) => {
     await vi.waitFor(() =>
       expect(dispatchedCommands()).toContainEqual(
         expect.objectContaining({ type: "message.dispatch", ...fields }),
       ),
     );
-    await expect.element(sideChatTabs).toHaveLength(openTabs);
+    await vi.waitFor(() => expect(openSideChats()).toBe(openTabs));
   };
 
   await sendImageToSideChat();

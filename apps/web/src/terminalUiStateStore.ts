@@ -3,16 +3,10 @@ import { type ScopedThreadRef } from "@s1tools/contracts";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { resolveStorage } from "./lib/storage";
-import {
-  DEFAULT_THREAD_TERMINAL_HEIGHT,
-  DEFAULT_THREAD_TERMINAL_ID,
-  MAX_TERMINALS_PER_GROUP,
-  type ThreadTerminalGroup,
-} from "./types";
+import { MAX_TERMINALS_PER_GROUP, type ThreadTerminalGroup } from "./types";
 
+/** The thread's terminals and how they split; the terminal pane shows them. */
 interface ThreadTerminalUiState {
-  terminalOpen: boolean;
-  terminalHeight: number;
   terminalIds: string[];
   activeTerminalId: string;
   terminalGroups: ThreadTerminalGroup[];
@@ -37,10 +31,19 @@ export function migratePersistedTerminalUiStateStoreState(
   const candidate = persistedState as PersistedTerminalUiStateStoreState;
   const persistedUiStateByThreadKey =
     candidate.terminalUiStateByThreadKey ?? candidate.terminalStateByThreadKey ?? {};
+  // Version 5 dropped the bottom drawer's open flag and height; the terminal pane replaced it.
   const terminalUiStateByThreadKey = Object.fromEntries(
-    Object.entries(persistedUiStateByThreadKey).filter(([threadKey]) =>
-      parseScopedThreadKey(threadKey),
-    ),
+    Object.entries(persistedUiStateByThreadKey)
+      .filter(
+        ([threadKey, saved]) =>
+          parseScopedThreadKey(threadKey) !== null && saved !== null && typeof saved === "object",
+      )
+      .map(
+        ([threadKey, { terminalIds, activeTerminalId, terminalGroups, activeTerminalGroupId }]) => [
+          threadKey,
+          { terminalIds, activeTerminalId, terminalGroups, activeTerminalGroupId },
+        ],
+      ),
   );
 
   return { terminalUiStateByThreadKey };
@@ -163,8 +166,6 @@ function threadTerminalUiStateEqual(
   right: ThreadTerminalUiState,
 ): boolean {
   return (
-    left.terminalOpen === right.terminalOpen &&
-    left.terminalHeight === right.terminalHeight &&
     left.activeTerminalId === right.activeTerminalId &&
     left.activeTerminalGroupId === right.activeTerminalGroupId &&
     arraysEqual(left.terminalIds, right.terminalIds) &&
@@ -173,8 +174,6 @@ function threadTerminalUiStateEqual(
 }
 
 const DEFAULT_THREAD_TERMINAL_UI_STATE: ThreadTerminalUiState = Object.freeze({
-  terminalOpen: false,
-  terminalHeight: DEFAULT_THREAD_TERMINAL_HEIGHT,
   terminalIds: [],
   activeTerminalId: "",
   terminalGroups: [],
@@ -208,11 +207,6 @@ function normalizeThreadTerminalUiState(state: ThreadTerminalUiState): ThreadTer
     terminalGroups.find((group) => group.terminalIds.includes(activeTerminalId))?.id ?? null;
 
   const normalized: ThreadTerminalUiState = {
-    terminalOpen: state.terminalOpen,
-    terminalHeight:
-      Number.isFinite(state.terminalHeight) && state.terminalHeight > 0
-        ? state.terminalHeight
-        : DEFAULT_THREAD_TERMINAL_HEIGHT,
     terminalIds: nextTerminalIds,
     activeTerminalId,
     terminalGroups,
@@ -277,7 +271,6 @@ function upsertTerminalIntoGroups(
     terminalGroups.push({ id: nextGroupId, terminalIds: [terminalId] });
     return normalizeThreadTerminalUiState({
       ...normalized,
-      terminalOpen: true,
       terminalIds,
       activeTerminalId: terminalId,
       terminalGroups,
@@ -331,32 +324,11 @@ function upsertTerminalIntoGroups(
 
   return normalizeThreadTerminalUiState({
     ...normalized,
-    terminalOpen: true,
     terminalIds,
     activeTerminalId: terminalId,
     terminalGroups,
     activeTerminalGroupId: destinationGroup.id,
   });
-}
-
-function setThreadTerminalOpen(state: ThreadTerminalUiState, open: boolean): ThreadTerminalUiState {
-  const normalized = normalizeThreadTerminalUiState(state);
-  if (open && normalized.terminalIds.length === 0) {
-    return upsertTerminalIntoGroups(normalized, DEFAULT_THREAD_TERMINAL_ID, "new");
-  }
-  if (normalized.terminalOpen === open) return normalized;
-  return { ...normalized, terminalOpen: open };
-}
-
-function setThreadTerminalHeight(
-  state: ThreadTerminalUiState,
-  height: number,
-): ThreadTerminalUiState {
-  const normalized = normalizeThreadTerminalUiState(state);
-  if (!Number.isFinite(height) || height <= 0 || normalized.terminalHeight === height) {
-    return normalized;
-  }
-  return { ...normalized, terminalHeight: height };
 }
 
 function splitThreadTerminal(
@@ -440,12 +412,37 @@ function closeThreadTerminal(
     fallbackGroupId(nextActiveTerminalId);
 
   return normalizeThreadTerminalUiState({
-    terminalOpen: normalized.terminalOpen,
-    terminalHeight: normalized.terminalHeight,
     terminalIds: remainingTerminalIds,
     activeTerminalId: nextActiveTerminalId,
     terminalGroups,
     activeTerminalGroupId: nextActiveTerminalGroupId,
+  });
+}
+
+/** Adds shells kept elsewhere as their own split, showing the one that was active there. */
+function importThreadTerminalGroup(
+  state: ThreadTerminalUiState,
+  group: TerminalGroupImport,
+): ThreadTerminalUiState {
+  const normalized = normalizeThreadTerminalUiState(state);
+  const added = normalizeTerminalIds([...group.terminalIds]).filter(
+    (id) => !normalized.terminalIds.includes(id),
+  );
+  if (added.length === 0) return normalized;
+  const groups: ThreadTerminalGroup[] = [];
+  for (let index = 0; index < added.length; index += MAX_TERMINALS_PER_GROUP) {
+    const terminalIds = added.slice(index, index + MAX_TERMINALS_PER_GROUP);
+    groups.push({
+      id: fallbackGroupId(terminalIds[0]!),
+      terminalIds,
+      ...(group.splitDirection === "vertical" ? { splitDirection: "vertical" as const } : {}),
+    });
+  }
+  return normalizeThreadTerminalUiState({
+    terminalIds: [...normalized.terminalIds, ...added],
+    terminalGroups: [...normalized.terminalGroups, ...groups],
+    activeTerminalId: added.includes(group.activeTerminalId) ? group.activeTerminalId : added[0]!,
+    activeTerminalGroupId: "",
   });
 }
 
@@ -584,19 +581,23 @@ function forgetObservedTerminalId(
   return { ...serverObservationsByThreadKey, [threadKey]: { ...observation, ids } };
 }
 
+export interface TerminalGroupImport {
+  readonly terminalIds: readonly string[];
+  readonly activeTerminalId: string;
+  readonly splitDirection?: "horizontal" | "vertical";
+}
+
 interface TerminalUiStateStoreState {
   serverObservationsByThreadKey: Record<string, TerminalServerObservation>;
   terminalUiStateByThreadKey: Record<string, ThreadTerminalUiState>;
   suppressedTerminalIdsByThreadKey: Record<string, string[]>;
-  setTerminalOpen: (threadRef: ScopedThreadRef, open: boolean) => void;
-  setTerminalHeight: (threadRef: ScopedThreadRef, height: number) => void;
   splitTerminal: (threadRef: ScopedThreadRef, terminalId: string) => void;
   splitTerminalVertical: (threadRef: ScopedThreadRef, terminalId: string) => void;
   newTerminal: (threadRef: ScopedThreadRef, terminalId: string) => void;
   ensureTerminal: (
     threadRef: ScopedThreadRef,
     terminalId: string,
-    options?: { open?: boolean; active?: boolean },
+    options?: { active?: boolean },
   ) => void;
   setActiveTerminal: (threadRef: ScopedThreadRef, terminalId: string) => void;
   closeTerminal: (threadRef: ScopedThreadRef, terminalId: string) => void;
@@ -605,6 +606,8 @@ interface TerminalUiStateStoreState {
     serverIds: string[],
     snapshotId?: string | symbol,
   ) => void;
+  /** Takes in shells this store never listed, such as a pre-pane terminal tab's. */
+  importTerminalGroup: (threadRef: ScopedThreadRef, group: TerminalGroupImport) => void;
   clearTerminalUiState: (threadRef: ScopedThreadRef) => void;
   removeTerminalUiState: (threadRef: ScopedThreadRef) => void;
   removeOrphanedTerminalUiStates: (activeThreadKeys: Set<string>) => void;
@@ -692,21 +695,6 @@ export const useTerminalUiStateStore = create<TerminalUiStateStoreState>()(
         terminalUiStateByThreadKey: {},
         serverObservationsByThreadKey: {},
         suppressedTerminalIdsByThreadKey: {},
-        setTerminalOpen: (threadRef, open) => {
-          const terminalState = selectThreadTerminalUiState(
-            get().terminalUiStateByThreadKey,
-            threadRef,
-          );
-          updateTerminal(
-            threadRef,
-            (state) => setThreadTerminalOpen(state, open),
-            open && terminalState.terminalIds.length === 0
-              ? { terminalId: DEFAULT_THREAD_TERMINAL_ID, suppressed: false }
-              : undefined,
-          );
-        },
-        setTerminalHeight: (threadRef, height) =>
-          updateTerminal(threadRef, (state) => setThreadTerminalHeight(state, height)),
         splitTerminal: (threadRef, terminalId) =>
           updateTerminal(threadRef, (state) => splitThreadTerminal(state, terminalId), {
             terminalId,
@@ -739,9 +727,6 @@ export const useTerminalUiStateStore = create<TerminalUiStateStoreState>()(
               }
               if (options?.active ?? true) {
                 nextState = setThreadActiveTerminal(nextState, terminalId);
-              }
-              if (options?.open) {
-                nextState = setThreadTerminalOpen(nextState, true);
               }
               return normalizeThreadTerminalUiState(nextState);
             },
@@ -796,6 +781,30 @@ export const useTerminalUiStateStore = create<TerminalUiStateStoreState>()(
             set({ terminalUiStateByThreadKey, serverObservationsByThreadKey });
           }
         },
+        importTerminalGroup: (threadRef, group) =>
+          set((state) => {
+            const threadKey = terminalThreadKey(threadRef);
+            const terminalUiStateByThreadKey = updateTerminalUiStateByThreadKey(
+              state.terminalUiStateByThreadKey,
+              threadRef,
+              (current) => importThreadTerminalGroup(current, group),
+            );
+            const suppressed = state.suppressedTerminalIdsByThreadKey[threadKey] ?? [];
+            const remaining = suppressed.filter((id) => !group.terminalIds.includes(id));
+            if (
+              terminalUiStateByThreadKey === state.terminalUiStateByThreadKey &&
+              remaining.length === suppressed.length
+            ) {
+              return state;
+            }
+            return {
+              terminalUiStateByThreadKey,
+              suppressedTerminalIdsByThreadKey:
+                remaining.length === 0
+                  ? removeRecordEntry(state.suppressedTerminalIdsByThreadKey, threadKey)
+                  : { ...state.suppressedTerminalIdsByThreadKey, [threadKey]: remaining },
+            };
+          }),
         clearTerminalUiState: removeTerminalUiState,
         removeTerminalUiState,
         removeOrphanedTerminalUiStates: (activeThreadKeys) =>
@@ -830,7 +839,7 @@ export const useTerminalUiStateStore = create<TerminalUiStateStoreState>()(
     },
     {
       name: TERMINAL_UI_STATE_STORAGE_KEY,
-      version: 4,
+      version: 5,
       storage: createJSONStorage(createTerminalUiStateStorage),
       migrate: migratePersistedTerminalUiStateStoreState,
       partialize: (state) => ({

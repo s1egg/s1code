@@ -401,13 +401,13 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                       accentColor={selection.entry.accentColor}
                       acpRegistryAgentId={selection.entry.acpRegistryAgentId}
                       acpRegistryIconUrl={selection.entry.acpRegistryIconUrl}
-                      className="size-4 rounded-full bg-(--chat-composer-glass-surface,var(--background)) ring-2 ring-(--chat-composer-glass-surface,var(--background))"
+                      className="size-4 rounded-full bg-(--chat-composer-surface,var(--background)) ring-2 ring-(--chat-composer-surface,var(--background))"
                       iconClassName="size-4"
                     />
                   ) : null,
                 )}
               {selectedEntries.length > 3 ? (
-                <span className="relative z-30 flex size-4 items-center justify-center rounded-full bg-(--chat-composer-glass-surface,var(--background)) text-3xs ring-2 ring-(--chat-composer-glass-surface,var(--background))">
+                <span className="relative z-30 flex size-4 items-center justify-center rounded-full bg-(--chat-composer-surface,var(--background)) text-3xs ring-2 ring-(--chat-composer-surface,var(--background))">
                   +{selectedEntries.length - 3}
                 </span>
               ) : null}

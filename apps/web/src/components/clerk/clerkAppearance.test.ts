@@ -1,14 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  EMBER_THEME,
-  GROVE_THEME,
-  IRIS_THEME,
-  OCEAN_THEME,
-  S1_CHAT_THEME,
-  themeColorToHex,
-  type ThemeColors,
-} from "../../themePalette";
+  S1_CODE_DARK_THEME_COLORS,
+  S1_CODE_LIGHT_THEME_COLORS,
+} from "@s1tools/shared/themePalettes";
+import { themeColorToHex, type ThemeColors } from "../../themePalette";
 import { clerkAppearance } from "./clerkAppearance";
 
 function contrastRatio(first: string, second: string): number {
@@ -40,18 +36,13 @@ function mixThemeColors(first: string, second: string, firstWeight: number): str
   return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
-const builtInThemeModes = [
-  S1_CHAT_THEME,
-  GROVE_THEME,
-  OCEAN_THEME,
-  EMBER_THEME,
-  IRIS_THEME,
-].flatMap((theme) =>
-  [theme.colors, theme.variants?.dark].filter((colors): colors is ThemeColors => !!colors),
-);
+const stockThemeModes: ReadonlyArray<ThemeColors> = [
+  S1_CODE_LIGHT_THEME_COLORS,
+  S1_CODE_DARK_THEME_COLORS,
+];
 
 describe("clerkAppearance", () => {
-  it.each(builtInThemeModes)("keeps Clerk text readable across a built-in palette", (colors) => {
+  it.each(stockThemeModes)("keeps Clerk text readable across the stock palette", (colors) => {
     expect(clerkAppearance.variables).toMatchObject({
       colorForeground: "var(--contrast-foreground)",
       colorBackground: "var(--card)",

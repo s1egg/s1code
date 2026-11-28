@@ -20,6 +20,7 @@ import {
   resolveProactiveTurnDiffAction,
 } from "./ChatView.logic";
 import {
+  agentControlledBrowserCloseConfirmation,
   isThreadEnvironmentLocked,
   recallCheckoutIsRepo,
   rememberCheckoutIsRepo,
@@ -126,6 +127,37 @@ const readySession = {
   lastError: null,
   updatedAt: "2026-03-29T00:00:10.000Z",
 };
+
+describe("agentControlledBrowserCloseConfirmation", () => {
+  const page = (tabId: string) =>
+    ({ id: `browser:${tabId}`, kind: "preview", resourceId: tabId }) as const;
+  const sessions = {
+    tab_agent: { runtime: "server", automationOwner: "agent-1" },
+    tab_user: { runtime: "server" },
+    tab_desktop: { runtime: "desktop" },
+  } as const;
+
+  it("counts server pages an agent owns as well as desktop ones it controls", () => {
+    expect(
+      agentControlledBrowserCloseConfirmation([page("tab_user"), page("tab_desktop")], {
+        desktopByTabId: {},
+        sessions,
+      }),
+    ).toBeNull();
+    expect(
+      agentControlledBrowserCloseConfirmation([page("tab_user"), page("tab_agent")], {
+        desktopByTabId: {},
+        sessions,
+      }),
+    ).toContain("Close browser while the agent is using it?");
+    expect(
+      agentControlledBrowserCloseConfirmation([page("tab_agent"), page("tab_desktop")], {
+        desktopByTabId: { tab_desktop: { controller: "agent" } },
+        sessions,
+      }),
+    ).toContain("Close 2 browsers");
+  });
+});
 
 describe("deriveComposerSendState", () => {
   it("keeps text sendable while excluding expired terminal pills", () => {

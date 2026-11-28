@@ -1,28 +1,27 @@
-import { S1_PAIRED_THEMES } from "@s1tools/shared/themePalettes";
+import {
+  BUILT_IN_THEMES,
+  S1_CODE_DARK_THEME_COLORS,
+  S1_CODE_LIGHT_THEME_COLORS,
+} from "@s1tools/shared/themePalettes";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import indexHtml from "../index.html?raw";
 import {
   CUSTOM_THEMES_STORAGE_KEY,
   ENVIRONMENT_THEMES_STORAGE_KEY,
-  getDefaultThemeColors,
+  getStandardThemeColors,
   getThemeColorsForMode,
   invalidateCustomThemes,
   isKnownThemePreference,
   publishedThemeDefinitions,
   resolveThemeAppearance,
-  S1_CHAT_THEME,
-  EMBER_THEME,
-  GROVE_THEME,
-  IRIS_THEME,
-  OCEAN_THEME,
   THEME_APPEARANCE_MODE_STORAGE_KEY,
   THEME_FOLLOW_SYSTEM_STORAGE_KEY,
   toCanonicalThemeColor,
 } from "./themePalette";
 
 const THEME_STORAGE_KEY = "s1code:theme";
-const DEFAULT_DARK_CHROME = getDefaultThemeColors("dark").chrome;
+const BUILT_IN_THEME = (id: string) => BUILT_IN_THEMES.find((theme) => theme.id === id)!;
 
 const bootScript = (() => {
   const match = indexHtml.match(/<script>([\s\S]*?)<\/script>/);
@@ -155,40 +154,11 @@ describe("index.html boot script", () => {
     prefersDark: boolean;
   }> = [
     { name: "no stored preference on a dark OS", storage: {}, prefersDark: true },
-    {
-      name: "S1 Chat follows a dark OS",
-      storage: { [THEME_STORAGE_KEY]: "s1-chat", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
+    ...["s1-chat", "grove", "ocean", "ember", "iris", "s1-grove", "s1-chat-dark"].map((id) => ({
+      name: `a retired ${id} preference falls back to system`,
+      storage: { [THEME_STORAGE_KEY]: id, [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
       prefersDark: true,
-    },
-    {
-      name: "an explicit global dark mode applies to S1 Chat",
-      storage: {
-        [THEME_STORAGE_KEY]: "s1-chat",
-        [THEME_APPEARANCE_MODE_STORAGE_KEY]: "dark",
-        [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "false",
-      },
-      prefersDark: false,
-    },
-    {
-      name: "Grove follows a dark OS",
-      storage: { [THEME_STORAGE_KEY]: "grove", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
-      prefersDark: true,
-    },
-    {
-      name: "Ocean follows a dark OS",
-      storage: { [THEME_STORAGE_KEY]: "ocean", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
-      prefersDark: true,
-    },
-    {
-      name: "Ember follows a dark OS",
-      storage: { [THEME_STORAGE_KEY]: "ember", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
-      prefersDark: true,
-    },
-    {
-      name: "Iris follows a dark OS",
-      storage: { [THEME_STORAGE_KEY]: "iris", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
-      prefersDark: true,
-    },
+    })),
     {
       name: "Midnight follows a light OS to its Mist half",
       storage: { [THEME_STORAGE_KEY]: "s1-midnight", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
@@ -203,16 +173,6 @@ describe("index.html boot script", () => {
       name: "Midnight with follow-system off keeps its dark base on a light OS",
       storage: { [THEME_STORAGE_KEY]: "s1-midnight", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "false" },
       prefersDark: false,
-    },
-    {
-      name: "a legacy s1-grove preference resolves through the alias",
-      storage: { [THEME_STORAGE_KEY]: "s1-grove", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
-      prefersDark: true,
-    },
-    {
-      name: "legacy s1-chat-dark resolves to dark S1 Chat",
-      storage: { [THEME_STORAGE_KEY]: "s1-chat-dark" },
-      prefersDark: true,
     },
     {
       name: "a dual-mode custom theme follows the OS",
@@ -325,28 +285,29 @@ describe("index.html boot script", () => {
     expect(boot.backgroundColor).toBe(published.colors.chrome);
   });
 
-  it("keeps every built-in boot splash in sync with the real palettes", () => {
-    for (const theme of [S1_CHAT_THEME, GROVE_THEME, OCEAN_THEME, EMBER_THEME, IRIS_THEME]) {
-      expect(theme.appearance).toBe("light");
-      for (const mode of ["light", "dark"] as const) {
-        const colors = getThemeColorsForMode(theme, mode);
-        expect(colors).not.toBeNull();
-        const boot = runBootScript({
-          storage: {
-            [THEME_STORAGE_KEY]: theme.id,
-            [THEME_APPEARANCE_MODE_STORAGE_KEY]: mode,
-          },
-          prefersDark: mode === "dark",
-        });
-        expect(boot.themeId).toBe(theme.id);
-        expect(boot.isDark).toBe(mode === "dark");
-        expect(boot.bootVariables["--boot-background"]).toBe(colors!.canvas);
-        expect(boot.bootVariables["--boot-foreground"]).toBe(colors!.text);
-        expect(boot.bootVariables["--boot-accent"]).toBe(colors!.accent);
-        expect(boot.backgroundColor).toBe(colors!.chrome);
-        expect(boot.metaContent).toBe(colors!.chrome);
+  it("paints retired built-in preferences as the unthemed default", () => {
+    for (const id of ["s1-chat", "grove", "ocean", "ember", "iris", "s1-chat-dark"]) {
+      for (const prefersDark of [false, true]) {
+        const boot = runBootScript({ storage: { [THEME_STORAGE_KEY]: id }, prefersDark });
+        const colors = prefersDark ? S1_CODE_DARK_THEME_COLORS : S1_CODE_LIGHT_THEME_COLORS;
+        expect(boot.themeId).toBeUndefined();
+        expect(boot.themeSelected).toBeUndefined();
+        expect(boot.isDark).toBe(prefersDark);
+        expect(boot.backgroundColor).toBe(colors.chrome);
+        expect(boot.metaContent).toBe(colors.chrome);
       }
     }
+  });
+
+  it("ignores a stored custom theme that claims a retired built-in id", () => {
+    const boot = runBootScript({
+      storage: {
+        [THEME_STORAGE_KEY]: "grove",
+        [CUSTOM_THEMES_STORAGE_KEY]: JSON.stringify([{ ...AURORA_DUAL, id: "grove" }]),
+      },
+      prefersDark: false,
+    });
+    expect(boot.themeId).toBeUndefined();
   });
 
   it("keeps a stored dark S1 pick dark and lets follow-system switch it to its light half", () => {
@@ -357,8 +318,8 @@ describe("index.html boot script", () => {
     expect(runBootScript({ storage: following, prefersDark: true }).isDark).toBe(true);
   });
 
-  it("keeps every paired S1 built-in boot splash in sync with the real palettes", () => {
-    for (const theme of S1_PAIRED_THEMES) {
+  it("keeps every built-in boot splash in sync with the real palettes", () => {
+    for (const theme of BUILT_IN_THEMES) {
       expect(theme.appearance).toBe("dark");
       for (const mode of ["light", "dark"] as const) {
         const colors = getThemeColorsForMode(theme, mode);
@@ -382,24 +343,25 @@ describe("index.html boot script", () => {
   });
 
   it("applies the matching half of an automatic mix to the splash", () => {
+    const [charcoal, graphite] = [BUILT_IN_THEME("s1-charcoal"), BUILT_IN_THEME("s1-graphite")];
     const storage = {
-      [THEME_STORAGE_KEY]: "s1-chat",
+      [THEME_STORAGE_KEY]: charcoal.id,
       [THEME_APPEARANCE_MODE_STORAGE_KEY]: "system",
-      "s1code:theme-halves:v1": JSON.stringify({ dark: GROVE_THEME.id }),
+      "s1code:theme-halves:v1": JSON.stringify({ dark: graphite.id }),
     };
 
     const dark = runBootScript({ storage, prefersDark: true });
     expect(dark.isDark).toBe(true);
-    expect(dark.themeId).toBe(GROVE_THEME.id);
+    expect(dark.themeId).toBe(graphite.id);
     expect(dark.bootVariables["--boot-background"]).toBe(
-      getThemeColorsForMode(GROVE_THEME, "dark")!.canvas,
+      getThemeColorsForMode(graphite, "dark")!.canvas,
     );
 
     const light = runBootScript({ storage, prefersDark: false });
     expect(light.isDark).toBe(false);
-    expect(light.themeId).toBe("s1-chat");
+    expect(light.themeId).toBe(charcoal.id);
     expect(light.bootVariables["--boot-background"]).toBe(
-      getThemeColorsForMode(S1_CHAT_THEME, "light")!.canvas,
+      getThemeColorsForMode(charcoal, "light")!.canvas,
     );
   });
 
@@ -408,42 +370,46 @@ describe("index.html boot script", () => {
       storage: {
         [THEME_STORAGE_KEY]: "gone-theme",
         [THEME_APPEARANCE_MODE_STORAGE_KEY]: "system",
-        "s1code:theme-halves:v1": JSON.stringify({ dark: GROVE_THEME.id }),
+        "s1code:theme-halves:v1": JSON.stringify({ dark: "s1-graphite" }),
       },
       prefersDark: true,
     });
     expect(boot.isDark).toBe(true);
-    expect(boot.themeId).toBe(GROVE_THEME.id);
+    expect(boot.themeId).toBe("s1-graphite");
     expect(boot.themeSelected).toBe("true");
     expect(boot.bootVariables["--boot-background"]).toBe(
-      getThemeColorsForMode(GROVE_THEME, "dark")!.canvas,
+      getThemeColorsForMode(BUILT_IN_THEME("s1-graphite"), "dark")!.canvas,
     );
   });
 
-  it("uses runtime defaults for malformed custom roles", () => {
-    const boot = runBootScript({
-      storage: {
-        [THEME_STORAGE_KEY]: "partial",
-        [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true",
-        [CUSTOM_THEMES_STORAGE_KEY]: JSON.stringify([
-          {
-            id: "partial",
-            label: "Partial",
-            appearance: "dark",
-            colors: { canvas: "not-a-color", text: "#fffaff", accent: "nope" },
-          },
-        ]),
-      },
-      prefersDark: true,
-    });
+  it.each(["light", "dark"] as const)(
+    "uses runtime defaults for malformed custom roles in %s",
+    (appearance) => {
+      const boot = runBootScript({
+        storage: {
+          [THEME_STORAGE_KEY]: "partial",
+          [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true",
+          [CUSTOM_THEMES_STORAGE_KEY]: JSON.stringify([
+            {
+              id: "partial",
+              label: "Partial",
+              appearance,
+              colors: { canvas: "not-a-color", text: "#fffaff", accent: "nope" },
+            },
+          ]),
+        },
+        prefersDark: appearance === "dark",
+      });
 
-    expect(boot.themeId).toBe("partial");
-    expect(boot.bootVariables["--boot-background"]).toBe(getDefaultThemeColors("dark").canvas);
-    expect(boot.bootVariables["--boot-foreground"]).toBe("#fffaff");
-    expect(boot.bootVariables["--boot-accent"]).toBe(getDefaultThemeColors("dark").accent);
-    expect(boot.backgroundColor).toBe(DEFAULT_DARK_CHROME);
-    expect(boot.metaContent).toBe(DEFAULT_DARK_CHROME);
-  });
+      const defaults = getStandardThemeColors(appearance);
+      expect(boot.themeId).toBe("partial");
+      expect(boot.bootVariables["--boot-background"]).toBe(defaults.canvas);
+      expect(boot.bootVariables["--boot-foreground"]).toBe("#fffaff");
+      expect(boot.bootVariables["--boot-accent"]).toBe(defaults.accent);
+      expect(boot.backgroundColor).toBe(defaults.chrome);
+      expect(boot.metaContent).toBe(defaults.chrome);
+    },
+  );
 
   it("follows the OS appearance when storage is unavailable", () => {
     const light = runBootScript({ storageThrows: true, prefersDark: false });

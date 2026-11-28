@@ -19,7 +19,6 @@ export interface ChatCanvasPreview {
 }
 
 const GAP = 12;
-export const DETAILS_CARD_CLEARANCE = 32;
 
 export function resolveChatCanvasLayout({
   container,
@@ -29,7 +28,6 @@ export function resolveChatCanvasLayout({
   maxHtmlPreviewWidth = maxChatWidth,
   minChatWidth = 640,
   composerHeight = 0,
-  detailsCard = null,
   findBar = null,
 }: {
   container: PreviewMiniPlayerSize;
@@ -39,14 +37,10 @@ export function resolveChatCanvasLayout({
   maxHtmlPreviewWidth?: number;
   minChatWidth?: number;
   composerHeight?: number;
-  detailsCard?: PreviewMiniPlayerObstacles["detailsCard"];
-  findBar?: PreviewMiniPlayerObstacles["detailsCard"];
+  findBar?: PreviewMiniPlayerObstacles["findBar"];
 }) {
-  const centeredWidth = Math.max(0, Math.min(maxChatWidth, container.width - padding * 2));
-  const laneRight = detailsCard
-    ? detailsCard.left - DETAILS_CARD_CLEARANCE
-    : container.width - padding;
-  const normalWidth = Math.max(0, Math.min(centeredWidth, laneRight - padding));
+  const laneRight = container.width - padding;
+  const normalWidth = Math.max(0, Math.min(maxChatWidth, laneRight - padding));
   const canvasCenterLeft = (container.width - normalWidth) / 2;
   const normalLeft = Math.max(padding, Math.min(canvasCenterLeft, laneRight - normalWidth));
   let chat = {
@@ -85,27 +79,13 @@ export function resolveChatCanvasLayout({
         });
       }
     }
-    const findBarObstacles = findBar ? { detailsCard: findBar, composer: null } : undefined;
-    const preferredFrame = {
-      ...frame,
-      ...clampPreviewMiniPlayerPosition(frame, container, frame, findBarObstacles, minimumPreviewX),
-    };
-    const dragObstacle =
-      detailsCard && findBar
-        ? {
-            left: Math.min(detailsCard.left, findBar.left),
-            right: Math.max(detailsCard.right, findBar.right),
-            bottom: Math.max(detailsCard.bottom, findBar.bottom),
-          }
-        : (detailsCard ?? findBar);
-    const cardObstacle = preview.lastInteraction === "resize" ? findBar : dragObstacle;
     frame = {
       ...frame,
       ...clampPreviewMiniPlayerPosition(
         frame,
         container,
         frame,
-        { detailsCard: cardObstacle, composer: null },
+        { findBar, composer: null },
         minimumPreviewX,
       ),
     };
@@ -122,11 +102,7 @@ export function resolveChatCanvasLayout({
         insetEnd: Math.max(0, container.width - left * 2 - width),
       };
     };
-    let nextChat = chatBeside(frame);
-    if (!nextChat && detailsCard) {
-      nextChat = chatBeside(preferredFrame);
-      if (nextChat) frame = preferredFrame;
-    }
+    const nextChat = chatBeside(frame);
     if (nextChat) chat = nextChat;
     else overlapsChat = true;
     if (overlapsChat && preview.lastInteraction === "resize") {
@@ -139,7 +115,7 @@ export function resolveChatCanvasLayout({
       };
     } else if (overlapsChat) {
       const obstacles = {
-        detailsCard: cardObstacle,
+        findBar,
         composer: { left: chat.left, right: chat.left + chat.width, height: composerHeight },
       };
       frame = resolvePreviewMiniPlayerFrame({ ...preview, container, obstacles });
@@ -164,22 +140,15 @@ export function resolveChatCanvasLayout({
             frame,
             container,
             frame,
-            { composer: obstacles.composer, detailsCard: findBar },
+            { composer: obstacles.composer, findBar },
             minimumPreviewX,
           ),
         };
       }
     }
   }
-  const overlapsDetailsCard = Boolean(
-    frame &&
-    detailsCard &&
-    frame.x < detailsCard.right &&
-    frame.x + frame.width > detailsCard.left &&
-    frame.y < detailsCard.bottom,
-  );
   // A wider HTML preview stays centered on the chat column while that fits, and
-  // clear of the details card and a mini player the chat column sits beside.
+  // clear of a mini player the chat column sits beside.
   const laneEnd = frame ? Math.min(laneRight, frame.x - GAP) : laneRight;
   const htmlPreviewWidth = overlapsChat ? 0 : Math.min(maxHtmlPreviewWidth, laneEnd - padding);
   const htmlPreview =
@@ -192,5 +161,5 @@ export function resolveChatCanvasLayout({
           width: htmlPreviewWidth,
         }
       : { left: chat.left, width: chat.width };
-  return { chat, htmlPreview, frame, overlapsChat, overlapsDetailsCard };
+  return { chat, htmlPreview, frame, overlapsChat };
 }

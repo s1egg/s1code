@@ -622,8 +622,8 @@ describe("environment theme", () => {
         assert.match(reserved.message, /not a valid theme id/);
         const unknown = yield* themes.apply({ themeId: "missing" }).pipe(Effect.flip);
         assert.match(unknown.message, /not a built-in or published theme/);
-        yield* themes.apply({ themeId: "grove" });
-        yield* themes.apply({ themeId: "grove", appearance: "dark" });
+        yield* themes.apply({ themeId: "s1-graphite" });
+        yield* themes.apply({ themeId: "s1-graphite", appearance: "dark" });
         yield* themes.apply({ appearance: "light" });
 
         assert.deepEqual(
@@ -633,8 +633,8 @@ describe("environment theme", () => {
         // Only a theme that was published or already exists becomes the environment theme.
         assert.deepEqual(selected, [
           { theme: "agent-look" },
-          { theme: "grove" },
-          { theme: "grove", appearance: "dark" },
+          { theme: "s1-graphite" },
+          { theme: "s1-graphite", appearance: "dark" },
           { appearance: "light" },
         ]);
       }),

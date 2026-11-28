@@ -54,8 +54,7 @@ import { isTerminalFocused, subscribeToTerminalFocusChanges } from "../lib/termi
 import { isPreviewFocused } from "../lib/previewFocus";
 import { isModelPickerOpen, subscribeToModelPickerVisibility } from "../modelPickerVisibility";
 import { shortcutModifierStore } from "../shortcutModifierState";
-import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
-import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
+import { selectPaneVisible, useRightPanelStore } from "../rightPanelStore";
 
 export function shouldNavigateAfterThreadPark(input: {
   readonly threadKey: string;
@@ -679,14 +678,13 @@ export function threadShortcutContext(routeThreadRef: ScopedThreadRef | null) {
     terminalFocus: isTerminalFocused(),
     terminalOpen:
       routeThreadRef !== null &&
-      selectThreadTerminalUiState(
-        useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
-        routeThreadRef,
-      ).terminalOpen,
+      selectPaneVisible(useRightPanelStore.getState().byThreadKey, routeThreadRef, "terminal"),
     previewFocus: isPreviewFocused(),
-    previewOpen:
-      selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, routeThreadRef) ===
-      "preview",
+    previewOpen: selectPaneVisible(
+      useRightPanelStore.getState().byThreadKey,
+      routeThreadRef,
+      "browser",
+    ),
     modelPickerOpen: isModelPickerOpen(),
     isWeb: !isElectron,
     isDesktop: isElectron,
@@ -741,14 +739,12 @@ function subscribeToThreadJumpHintInputs(listener: () => void): () => void {
   // The snapshot reads the modifiers; the hold stays silent when it is true across a change.
   const unsubscribeModifiers = shortcutModifierStore.subscribe(listener);
   const unsubscribeFocus = subscribeToTerminalFocusChanges(listener);
-  const unsubscribeTerminals = useTerminalUiStateStore.subscribe(listener);
   const unsubscribeRightPanels = useRightPanelStore.subscribe(listener);
   const unsubscribeModelPicker = subscribeToModelPickerVisibility(listener);
   return () => {
     unsubscribeHold();
     unsubscribeModifiers();
     unsubscribeFocus();
-    unsubscribeTerminals();
     unsubscribeRightPanels();
     unsubscribeModelPicker();
   };

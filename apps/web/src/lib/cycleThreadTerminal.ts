@@ -1,54 +1,31 @@
 import type { ScopedThreadRef } from "@s1tools/contracts";
 
-import { selectThreadRightPanelState, useRightPanelStore } from "../rightPanelStore";
+import { selectPaneOnScreen, useRightPanelStore } from "../rightPanelStore";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
-import { focusTerminal, type TerminalFocusOwner } from "./terminalFocus";
+import { focusTerminal } from "./terminalFocus";
 
+/** Steps to the previous or next terminal of the pane, in its sidebar's order. */
 export function cycleThreadTerminal(
   threadRef: ScopedThreadRef,
-  owner: TerminalFocusOwner,
   direction: "previous" | "next",
 ): boolean {
-  const drawer = useTerminalUiStateStore.getState();
-  const panels = useRightPanelStore.getState();
-  const drawerState = selectThreadTerminalUiState(drawer.terminalUiStateByThreadKey, threadRef);
-  const panelState = selectThreadRightPanelState(panels.byThreadKey, threadRef);
-  const activeSurface = panelState.surfaces.find(
-    (surface) => surface.id === panelState.activeSurfaceId,
-  );
-  const terminalOrder = new Map(drawerState.terminalIds.map((id, index) => [id, index]));
+  const store = useTerminalUiStateStore.getState();
+  const state = selectThreadTerminalUiState(store.terminalUiStateByThreadKey, threadRef);
+  if (!selectPaneOnScreen(useRightPanelStore.getState().byThreadKey, threadRef, "terminal")) {
+    return false;
+  }
+  const terminalOrder = new Map(state.terminalIds.map((id, index) => [id, index]));
   const groupRank = (ids: readonly string[]) =>
     Math.min(...ids.map((id) => terminalOrder.get(id) ?? Number.POSITIVE_INFINITY));
-  const terminalIds =
-    owner === "drawer"
-      ? drawerState.terminalGroups
-          .toSorted((left, right) => groupRank(left.terminalIds) - groupRank(right.terminalIds))
-          .flatMap((group) => group.terminalIds)
-      : panelState.surfaces.flatMap((surface) =>
-          surface.kind === "terminal" ? surface.terminalIds : [],
-        );
-  const activeTerminalId =
-    owner === "drawer"
-      ? drawerState.activeTerminalId
-      : activeSurface?.kind === "terminal"
-        ? activeSurface.activeTerminalId
-        : null;
-  const index = activeTerminalId === null ? -1 : terminalIds.indexOf(activeTerminalId);
-  if (index === -1 || (owner === "drawer" ? !drawerState.terminalOpen : !panelState.isOpen))
-    return false;
+  const terminalIds = state.terminalGroups
+    .toSorted((left, right) => groupRank(left.terminalIds) - groupRank(right.terminalIds))
+    .flatMap((group) => group.terminalIds);
+  const index = terminalIds.indexOf(state.activeTerminalId);
+  if (index === -1) return false;
   const offset = direction === "next" ? 1 : -1;
   const terminalId = terminalIds[(index + offset + terminalIds.length) % terminalIds.length];
   if (terminalId === undefined) return false;
-  if (owner === "drawer") {
-    drawer.setActiveTerminal(threadRef, terminalId);
-  } else {
-    const surface = panelState.surfaces.find(
-      (surface) => surface.kind === "terminal" && surface.terminalIds.includes(terminalId),
-    );
-    if (!surface) return false;
-    panels.activateTerminal(threadRef, surface.id, terminalId);
-    panels.activateSurface(threadRef, surface.id);
-  }
+  store.setActiveTerminal(threadRef, terminalId);
   focusTerminal(threadRef, terminalId);
   return true;
 }

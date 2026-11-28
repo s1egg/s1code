@@ -272,14 +272,3 @@ export function getDesktopUpdateDisabledReason(
     state.message?.trim() || resolve(msg("Automatic updates are not available in this build."))
   );
 }
-
-export function getDesktopUpdateIdleTooltip(
-  state: Pick<DesktopUpdateState, "enabled" | "status" | "message"> | null,
-  managedDenial?: string,
-  resolve: MessageResolver = m,
-) {
-  const disabledReason = getDesktopUpdateDisabledReason(state, managedDenial, resolve);
-  return disabledReason
-    ? { title: resolve(msg("Updates unavailable")), detail: disabledReason }
-    : { title: resolve(msg("Check for updates")), detail: null };
-}

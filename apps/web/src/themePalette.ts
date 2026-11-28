@@ -9,11 +9,6 @@ import "culori/css";
 import { converter, parse } from "culori/fn";
 import {
   BUILT_IN_THEMES,
-  EMBER_THEME,
-  GROVE_THEME,
-  IRIS_THEME,
-  OCEAN_THEME,
-  S1_CHAT_THEME,
   S1_CODE_LIGHT_THEME_COLORS,
   S1_CODE_DARK_THEME_COLORS,
   RESERVED_THEME_IDS,
@@ -36,22 +31,15 @@ import { applyThemeBackground } from "./themeBackground";
 import { applyThemeCss } from "./themeCss";
 import { themeServerEnvironmentThemesAtom } from "./state/server";
 
-export { EMBER_THEME, GROVE_THEME, IRIS_THEME, OCEAN_THEME, S1_CHAT_THEME, THEME_COLOR_ROLES };
+export { THEME_COLOR_ROLES };
 export type { ThemeAppearance, ThemeColorRole, ThemeColors, ThemeDefinition, ThemeVariants };
 
-const S1_CHAT_THEME_ID = "s1-chat" as const;
-const GROVE_THEME_ID = "grove" as const;
-const OCEAN_THEME_ID = "ocean" as const;
-const EMBER_THEME_ID = "ember" as const;
-const IRIS_THEME_ID = "iris" as const;
 export const THEME_FILE_VERSION = 1 as const;
 export const CUSTOM_THEMES_STORAGE_KEY = "s1code:themes:v1";
 export const THEME_FOLLOW_SYSTEM_STORAGE_KEY = "s1code:theme-follow-system";
 export const THEME_APPEARANCE_MODE_STORAGE_KEY = "s1code:theme-appearance-mode";
 export const THEME_HALVES_STORAGE_KEY = "s1code:theme-halves:v1";
 export const ENVIRONMENT_THEMES_STORAGE_KEY = "s1code:environment-themes:v1";
-
-const LEGACY_S1_CHAT_DARK_THEME_ID = "s1-chat-dark";
 
 export const ThemePreference = Schema.String;
 export type ThemePreference = typeof ThemePreference.Type;
@@ -89,10 +77,6 @@ let themePreviewAppearance: ThemeAppearance | null = null;
 
 export function getThemePreviewAppearance(): ThemeAppearance | null {
   return themePreviewAppearance;
-}
-
-export function getThemePreviewSidebarArtwork(): boolean | null {
-  return themePreviewAppearance === null ? null : false;
 }
 
 export function subscribeToThemePreview(listener: () => void): () => void {
@@ -154,7 +138,7 @@ function lenientThemeColorOverrides(
 
 function parseStoredThemeColors(value: unknown, appearance: ThemeAppearance): ThemeColors | null {
   if (!isRecord(value)) return null;
-  return { ...getDefaultThemeColors(appearance), ...lenientThemeColorOverrides(value) };
+  return { ...getStandardThemeColors(appearance), ...lenientThemeColorOverrides(value) };
 }
 
 function parseStoredThemeVariants(
@@ -267,7 +251,7 @@ function publishedThemeColors(
   const base =
     appearance === theme.appearance && theme.canvas !== undefined && theme.accent !== undefined
       ? createVividThemeColors(appearance, theme.canvas, theme.accent)
-      : getDefaultThemeColors(appearance);
+      : getStandardThemeColors(appearance);
   return { ...base, ...lenientThemeColorOverrides(colors ?? {}) };
 }
 
@@ -406,51 +390,11 @@ export function subscribeToCustomThemes(listener: () => void): () => void {
   };
 }
 
-const LEGACY_THEME_ID_ALIASES: Readonly<Record<string, string>> = {
-  [LEGACY_S1_CHAT_DARK_THEME_ID]: S1_CHAT_THEME_ID,
-  "s1-grove": GROVE_THEME_ID,
-  "s1-ocean": OCEAN_THEME_ID,
-  "s1-ember": EMBER_THEME_ID,
-  "s1-iris": IRIS_THEME_ID,
-};
-
-function normalizeThemeId(themeId: string): string {
-  return Object.hasOwn(LEGACY_THEME_ID_ALIASES, themeId)
-    ? (LEGACY_THEME_ID_ALIASES[themeId] ?? themeId)
-    : themeId;
-}
-
-export function canonicalThemePreference(theme: string): string {
-  return theme === LEGACY_S1_CHAT_DARK_THEME_ID ? theme : normalizeThemeId(theme);
-}
-
-function themeIdFromPreference(theme: ThemePreference): string {
-  return normalizeThemeId(theme);
-}
-
-function legacyThemeMode(theme: ThemePreference): ThemeAppearance | null {
-  return theme === LEGACY_S1_CHAT_DARK_THEME_ID ? "dark" : null;
-}
-
 export function getStandardThemeColors(appearance: ThemeAppearance): ThemeColors {
   if (appearance === "dark") {
-    return (standardDarkThemeColors ??= decodeThemeColors({
-      ...S1_CODE_DARK_THEME_COLORS,
-      canvas: "#000000",
-    }));
+    return (standardDarkThemeColors ??= decodeThemeColors(S1_CODE_DARK_THEME_COLORS));
   }
   return (standardLightThemeColors ??= decodeThemeColors(S1_CODE_LIGHT_THEME_COLORS));
-}
-
-// index.css paints the light bubble a step darker than the shared palette mobile uses.
-const STANDARD_WEB_PAINTED_COLORS: Record<ThemeAppearance, Partial<ThemeColors>> = {
-  light: { messageSurface: "#ebebed" },
-  dark: { canvas: "#000000", messageSurface: "#1e1e1e" },
-};
-
-/** The standard theme as index.css paints it, for solves that measure the page. */
-export function getStandardPaintedThemeColors(appearance: ThemeAppearance): ThemeColors {
-  return { ...getStandardThemeColors(appearance), ...STANDARD_WEB_PAINTED_COLORS[appearance] };
 }
 
 type ThemeRgbColor = {
@@ -842,7 +786,7 @@ export function createVividThemeColors(
   backgroundValue: string,
   accentValue: string,
 ): ThemeColors {
-  const defaults = getDefaultThemeColors(appearance);
+  const defaults = getStandardThemeColors(appearance);
   const canvasRgb = parseThemeRgbColor(
     backgroundValue,
     appearance === "dark" ? { r: 24, g: 15, b: 27 } : { r: 250, g: 245, b: 250 },
@@ -1031,10 +975,6 @@ function standardMutedThemeText(
       ? STANDARD_DARK_MUTED_CONTRAST
       : STANDARD_LIGHT_MUTED_CONTRAST;
   return readableThemeText(background, foreground, 1, target);
-}
-
-export function getDefaultThemeColors(appearance: ThemeAppearance): ThemeColors {
-  return appearance === "dark" ? S1_CHAT_THEME.variants!.dark! : S1_CHAT_THEME.colors;
 }
 
 export function updateThemeColorFamily(
@@ -1235,19 +1175,13 @@ export function updateThemeColorFamily(
   }
 }
 
-export function getThemeDefinition(theme: ThemePreference): ThemeDefinition | null {
-  const themeId = themeIdFromPreference(theme);
+export function getThemeDefinition(themeId: ThemePreference): ThemeDefinition | null {
   return (
     BUILT_IN_THEMES.find((definition) => definition.id === themeId) ??
     getCustomThemes().find((definition) => definition.id === themeId) ??
     getEnvironmentThemes().find((definition) => definition.id === themeId) ??
     null
   );
-}
-
-export function themeAllowsSidebarArtwork(theme: ThemePreference): boolean {
-  const themeId = themeIdFromPreference(theme);
-  return BUILT_IN_THEMES.find((definition) => definition.id === themeId)?.sidebarArtwork === true;
 }
 
 /** Every selection path must check single-appearance themes to keep mix and appearance tiles in sync. */
@@ -1271,8 +1205,6 @@ export function getThemeModes(theme: ThemeDefinition): ReadonlyArray<ThemeAppear
 export function getThemePreferenceMode(theme: ThemePreference): ThemeAppearance | null {
   if (theme === "system") return null;
   if (theme === "light" || theme === "dark") return theme;
-  const legacyMode = legacyThemeMode(theme);
-  if (legacyMode) return legacyMode;
   return getThemeDefinition(theme)?.appearance ?? null;
 }
 
@@ -1588,7 +1520,7 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
           parseThemeSeedColor("canvas", value.canvas),
           parseThemeSeedColor("accent", value.accent),
         )
-      : getDefaultThemeColors(appearance);
+      : getStandardThemeColors(appearance);
   const variants: Partial<Record<ThemeAppearance, ThemeColors>> = {};
   if (value.variants !== undefined) {
     if (!isRecord(value.variants)) throw new Error(m(msg("Theme variants must be an object.")));
@@ -1605,7 +1537,7 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
           ),
         );
       }
-      const variantFallback = getDefaultThemeColors(variantAppearance);
+      const variantFallback = getStandardThemeColors(variantAppearance);
       variants[variantAppearance] = {
         ...variantFallback,
         ...parseThemeColorOverrides(variantColors),
@@ -1757,7 +1689,7 @@ export function applyThemePalette(theme: ThemePreference, appearance?: ThemeAppe
 
   if (palette) {
     root.dataset.themeId = palette.id;
-    const mode = appearance ?? legacyThemeMode(theme) ?? palette.appearance;
+    const mode = appearance ?? palette.appearance;
     const colors = getThemeColorsForMode(palette, mode) ?? palette.colors;
     for (const [role, value] of Object.entries(colors) as Array<[ThemeColorRole, string]>) {
       root.style.setProperty(APP_THEME_VARIABLES[role], value);
@@ -1770,7 +1702,7 @@ export function applyThemePalette(theme: ThemePreference, appearance?: ThemeAppe
   for (const variable of Object.values(APP_THEME_VARIABLES)) {
     root.style.removeProperty(variable);
   }
-  applyContextChipVariables(root, getStandardPaintedThemeColors(appearance ?? "light"));
+  applyContextChipVariables(root, getStandardThemeColors(appearance ?? "light"));
 }
 
 export function resolveThemeAppearance(

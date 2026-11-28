@@ -6,6 +6,9 @@ const emptySizeClassName = {
   compact:
     "min-h-64 gap-4 p-6 md:p-10 [&_[data-slot=empty-media]]:mb-0 [&_[data-slot=empty-title]]:text-[1.0625rem] [&_[data-slot=empty-title]]:leading-6 [&_[data-slot=empty-description]]:text-[0.8125rem] [&_[data-slot=empty-description]]:leading-[1.125rem]",
   default: "gap-6 p-6 md:p-12",
+  /** Dense side panels, such as the 300px thread details sidebar. */
+  panel:
+    "gap-3 px-3 py-8 [&_[data-slot=empty-media]]:mb-1 [&_[data-slot=empty-title]]:text-sm [&_[data-slot=empty-title]]:leading-5 [&_[data-slot=empty-title]]:font-medium [&_[data-slot=empty-description]]:text-xs [&_[data-slot=empty-description]]:leading-4 [&_[data-slot=empty-content]]:gap-2 [&_[data-slot=empty-content]]:text-xs",
   hero: "gap-6 p-6 md:p-12 [&_[data-slot=empty-title]]:text-2xl sm:[&_[data-slot=empty-title]]:text-3xl",
 } as const;
 

@@ -5,7 +5,7 @@ import { userEvent } from "vite-plus/test/browser";
 
 import { act, fakeTimers, render } from "../../test/render";
 import { registerModelPickerContent } from "../modelPickerVisibility";
-import { useTerminalUiStateStore } from "../terminalUiStateStore";
+import { useRightPanelStore } from "../rightPanelStore";
 import {
   THREAD_JUMP_HINT_SHOW_DELAY_MS,
   useSnoozeWakeClock,
@@ -84,12 +84,12 @@ describe("useThreadJumpHintsVisible", () => {
   it("follows terminal focus and the route thread's terminal while the modifier is held", async () => {
     using stack = new DisposableStack();
     const terminal = document.createElement("div");
-    terminal.dataset.terminalOwner = "drawer";
+    terminal.dataset.threadTerminalDrawer = "";
     const terminalInput = document.createElement("textarea");
     terminal.append(terminalInput);
     document.body.append(terminal);
     stack.defer(() => terminal.remove());
-    stack.defer(() => useTerminalUiStateStore.getState().setTerminalOpen(ROUTE_THREAD_REF, false));
+    stack.defer(() => useRightPanelStore.getState().hidePane(ROUTE_THREAD_REF, "terminal"));
     const keybindings = compileResolvedKeybindingsConfig([
       { key: "mod+1", command: "thread.jump.1", when: "terminalOpen" },
     ]);
@@ -104,7 +104,7 @@ describe("useThreadJumpHintsVisible", () => {
     await userEvent.keyboard(`{${modifier}>}`);
     await act(() => vi.advanceTimersByTime(THREAD_JUMP_HINT_SHOW_DELAY_MS));
     await expect.element(output).toHaveTextContent("hidden");
-    await act(() => useTerminalUiStateStore.getState().setTerminalOpen(ROUTE_THREAD_REF, true));
+    await act(() => useRightPanelStore.getState().open(ROUTE_THREAD_REF, "terminal"));
     await expect.element(output).toHaveTextContent("shown");
     await act(() => terminalInput.focus());
     await expect.element(output).toHaveTextContent("hidden");

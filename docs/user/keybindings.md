@@ -56,7 +56,7 @@ in Settings.
 
 ## Copy pull request references
 
-With a PR open in the right panel or on the Pull requests page, use `mod+shift+c`
+With a PR open in its pane, use `mod+shift+c`
 to copy its URL and `mod+shift+k` to copy its number with a `#` prefix.
 Both shortcuts can be changed in Settings. Search for “Copy Link or Thread”
 or “Copy Number”. They copy the selected PR and leave terminal input alone.
@@ -129,8 +129,10 @@ Join modifiers and a key with `+`, such as `mod+shift+d` or `ctrl+l`.
 Available context keys are `terminalFocus`, `terminalOpen`, `previewFocus`,
 `previewOpen`, `rightPanelOpen`, `modelPickerOpen`, `usagePageOpen`, `composerFocus`,
 `draftThreadRoute`, `turnRunning`, `composerEmpty`, `editableFocus`, `isWeb`, and `isDesktop`.
-In a thread, `rightPanelOpen` is true while its right panel is open; the default
-`mod+t` uses it to open the panel's new-tab menu.
+In a thread, `rightPanelOpen` is true while any of its [panes](panes.md) is showing, and
+`terminalOpen` while its terminal pane is; the default `mod+t` uses `rightPanelOpen` to open the
+**…** menu of more panes. `usagePageOpen` is true while thread details
+show Usage.
 `draftThreadRoute` is true on a draft thread, including a restored draft, until it is first sent.
 `composerEmpty` is true while the composer has no text, attachments, or context, and is not
 editing a queued message or answering a question.
@@ -197,13 +199,12 @@ through the pages you have visited, like a browser's back and forward buttons.
 
 ## Reserved shortcuts
 
-In the desktop app, `mod+w` closes the focused terminal or the active right-panel
-tab. When nothing remains to close, it does nothing; it never closes the window. In a browser, `mod+w`
+In the desktop app, `mod+w` closes the focused terminal or the pane you last used. When nothing remains to close, it does nothing; it never closes the window. In a browser, `mod+w`
 closes the browser tab; rebind `rightPanel.close` and `terminal.close` to an available
 shortcut such as `alt+w`.
 
-`mod+shift+t` reopens the last closed tab across the app, including files,
-diffs, pull requests, browsers, and devices, in the order you closed them.
+`mod+shift+t` reopens the last closed pane item across the app, including files,
+diffs, pull requests, browsers, and devices, in the order you closed them, back where its pane was.
 A browser opens in a fresh session without its old page history. Incognito tabs
 can reopen until you reload or quit the app. This shortcut does not undo deleted work.
 Browsers also use it to reopen browser tabs; choose another binding in Settings

@@ -34,6 +34,7 @@ import {
   deriveMessagesTimelineRowsWithState,
   isTimelineMinimapTurnVisible,
   resolveAssistantMessageCopyState,
+  resolveTimelineAnchorIndex,
   resolveTimelineMinimapHitStrip,
   type MessagesTimelineRow,
   workEntryDisplayLabel,
@@ -67,6 +68,42 @@ describe("resolveTimelineMinimapHitStrip", () => {
       expect(resolveTimelineMinimapHitStrip(viewport, content)).toEqual({ left, width });
     },
   );
+});
+
+describe("resolveTimelineAnchorIndex", () => {
+  it("anchors a follow-up message, not only the thread's first", () => {
+    const at = "2026-11-06T00:00:00Z";
+    const message = (id: string, role: "user" | "assistant"): TimelineEntry => ({
+      kind: "message",
+      id,
+      createdAt: at,
+      message: {
+        id: MessageId.make(id),
+        role,
+        runId: null,
+        text: id,
+        streaming: false,
+        createdAt: at,
+        updatedAt: at,
+      },
+    });
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        message("first", "user"),
+        message("reply", "assistant"),
+        message("follow-up", "user"),
+      ],
+      latestRun: null,
+      isWorking: false,
+      activeTurnStartedAt: null,
+      turnDiffSummaries: [],
+      supportsConversationRollback: false,
+    });
+    const followUpIndex = rows.findIndex((row) => row.id === "follow-up");
+    expect(resolveTimelineAnchorIndex(rows, MessageId.make("follow-up"))).toBe(followUpIndex);
+    expect(resolveTimelineAnchorIndex(rows, MessageId.make("reply"))).toBeUndefined();
+    expect(resolveTimelineAnchorIndex(rows, null)).toBeUndefined();
+  });
 });
 
 describe("resolveAssistantMessageCopyState", () => {

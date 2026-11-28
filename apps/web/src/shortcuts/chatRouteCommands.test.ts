@@ -147,7 +147,7 @@ describe("preview commands", () => {
     using dispatch = vi.spyOn(previewActions, "dispatchPreviewAction").mockImplementation(() => {});
     using register = vi.spyOn(dispatcher, "registerCommands").mockReturnValue(() => {});
     const router = {
-      state: { matches: [{ routeId: "/_chat/pull-requests", params: {} }] },
+      state: { matches: [{ routeId: "/_chat/workflows", params: {} }] },
     } as unknown as AnyRouter;
     using stack = new DisposableStack();
     stack.defer(installChatRouteCommands(router));

@@ -1,4 +1,5 @@
 import { UsageProviderKind } from "@s1tools/contracts";
+import { makeWindow } from "@s1tools/shared/usageFormat";
 import * as Schema from "effect/Schema";
 
 import { getLocalStorageItem, setLocalStorageItem } from "../../hooks/useLocalStorage";
@@ -28,4 +29,9 @@ export function saveUsagePagePreferences(preferences: UsagePagePreferences): voi
   } catch (error) {
     console.error("Could not save Usage page preferences.", error);
   }
+}
+
+/** The window a period reads: the past 24 hours by the hour, longer periods by the day. */
+export function usageWindowFor(days: UsagePagePreferences["windowDays"]) {
+  return makeWindow(days, undefined, days === 1 ? "hour" : "day");
 }

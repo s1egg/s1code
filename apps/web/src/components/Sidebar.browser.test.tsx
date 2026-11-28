@@ -9,6 +9,7 @@ import {
   EnvironmentId,
   type LocalApi,
   ProjectId,
+  ProviderInstanceId,
   ThreadId,
   type ScopedThreadRef,
 } from "@s1tools/contracts";
@@ -28,7 +29,7 @@ import { useProjects, useServerConfigs, useQuietThreadShells } from "../state/en
 import { useConnectedEnvironmentIds, usePrimaryEnvironmentId } from "../state/environments";
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
-import { useTerminalUiStateStore } from "../terminalUiStateStore";
+import { useRightPanelStore } from "../rightPanelStore";
 import { readLocalApi } from "../localApi";
 import type { Project } from "../types";
 import Sidebar from "./Sidebar";
@@ -363,12 +364,12 @@ describe("sidebar render isolation", () => {
       routeThreadRef,
     });
     const terminal = document.createElement("div");
-    terminal.dataset.terminalOwner = "drawer";
+    terminal.dataset.threadTerminalDrawer = "";
     const terminalInput = document.createElement("textarea");
     terminal.append(terminalInput);
     document.body.append(terminal);
     stack.defer(() => terminal.remove());
-    stack.defer(() => useTerminalUiStateStore.getState().setTerminalOpen(routeThreadRef, false));
+    stack.defer(() => useRightPanelStore.getState().hidePane(routeThreadRef, "terminal"));
     await using screen = await render(
       <SidebarProvider>
         <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
@@ -381,7 +382,7 @@ describe("sidebar render isolation", () => {
     const modifier = isMacPlatform(navigator.platform) ? "Meta" : "Control";
     const beforeShortcut = rowRenders();
     await userEvent.keyboard(`{${modifier}>}`);
-    await act(() => useTerminalUiStateStore.getState().setTerminalOpen(routeThreadRef, true));
+    await act(() => useRightPanelStore.getState().open(routeThreadRef, "terminal"));
     await act(() => terminalInput.focus());
     await userEvent.keyboard(`{/${modifier}}`);
     await act(() => terminalInput.blur());
@@ -404,6 +405,59 @@ describe("sidebar render isolation", () => {
     await userEvent.keyboard(`{/${modifier}}`);
     expect(rowRenders()).toBeGreaterThan(beforeRelease);
     expect(jumpLabelsSince(beforeRelease)).toEqual([]);
+  });
+});
+
+describe("sidebar running sparkle", () => {
+  it("twinkles once when a thread in Earlier starts running and moves to Working", async () => {
+    const activeProject = project("active");
+    // Ids no other test uses: the sidebar keeps a finished run in Working for a while.
+    const idleThread = threadShell(activeProject.id, 700);
+    const routeThreadRef = scopeThreadRef(
+      activeProject.environmentId,
+      threadShell(activeProject.id, 701).id,
+    );
+    vi.mocked(useProjects).mockReturnValue([activeProject]);
+    vi.mocked(useQuietThreadShells).mockReturnValue([idleThread]);
+    vi.mocked(useThreadRouteTarget).mockReturnValue({ kind: "server", threadRef: routeThreadRef });
+    vi.mocked(useHandleNewThread).mockReturnValue({
+      activeDraftThread: null,
+      activeThread: null,
+      defaultProjectRef: {
+        environmentId: activeProject.environmentId,
+        projectId: activeProject.id,
+      },
+      defaultProjectFallbackReady: true,
+      handleNewThread: vi.fn().mockResolvedValue(null),
+      routeDraftId: null,
+      routeThreadRef,
+    });
+    using _configs = mockServerConfigs(activeProject.environmentId);
+    const tree = () => (
+      <SidebarProvider>
+        <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
+      </SidebarProvider>
+    );
+    await using screen = await render(tree());
+    await expect.element(screen.getByTestId("sidebar-row-slim")).toBeVisible();
+
+    vi.mocked(useQuietThreadShells).mockReturnValue([
+      {
+        ...idleThread,
+        runtime: {
+          status: "running",
+          activeRunId: null,
+          providerInstanceId: ProviderInstanceId.make("codex"),
+          providerName: "Codex",
+          lastError: null,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    ]);
+    await screen.rerender(tree());
+    const working = screen.getByTestId("sidebar-row-working");
+    await expect.element(working).toBeVisible();
+    expect(working.element().querySelector("[data-twinkle]")).not.toBeNull();
   });
 });
 
@@ -648,5 +702,105 @@ describe("sidebar settled pagination", () => {
     const loadedRows = screen.container.querySelectorAll("[data-thread-item]").length;
     await act(() => moreButton.click());
     expect(screen.container.querySelectorAll("[data-thread-item]")).toHaveLength(loadedRows);
+  });
+
+  it("hides the empty Settled shelf and links to Archive once expanded", async () => {
+    localStorage.removeItem("s1code:sidebar:settled-expanded");
+    const activeProject = project("active");
+    const activeThread = threadShell(activeProject.id, 0);
+    const routeThreadRef = scopeThreadRef(activeProject.environmentId, activeThread.id);
+    vi.mocked(useProjects).mockReturnValue([activeProject]);
+    vi.mocked(useQuietThreadShells).mockReturnValue([activeThread]);
+    vi.mocked(useThreadRouteTarget).mockReturnValue({ kind: "server", threadRef: routeThreadRef });
+    vi.mocked(useHandleNewThread).mockReturnValue({
+      activeDraftThread: null,
+      activeThread: null,
+      defaultProjectRef: {
+        environmentId: activeProject.environmentId,
+        projectId: activeProject.id,
+      },
+      defaultProjectFallbackReady: true,
+      handleNewThread: vi.fn().mockResolvedValue(null),
+      routeDraftId: null,
+      routeThreadRef,
+    });
+    using _configs = mockServerConfigs(activeProject.environmentId);
+    const tree = () => (
+      <SidebarProvider>
+        <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
+      </SidebarProvider>
+    );
+    await using screen = await render(tree());
+    await expect
+      .element(screen.getByTestId("sidebar-settled-shelf-toggle"))
+      .not.toBeInTheDocument();
+
+    const unreadSettled = makeThreadFixture({
+      environmentId: activeProject.environmentId,
+      projectId: activeProject.id,
+      id: ThreadId.make("settled-unread"),
+      title: "Settled unread thread",
+      settledOverride: "settled",
+      settledAt: "2026-01-02T00:00:00.000Z",
+      lastVisitedAt: "2026-01-01T00:00:00.000Z",
+      latestRun: {
+        runId: "run-1" as never,
+        status: "completed",
+        assistantMessageId: null,
+        requestedAt: "2026-01-01T01:00:00.000Z",
+        startedAt: "2026-01-01T01:00:00.000Z",
+        completedAt: "2026-01-01T02:00:00.000Z",
+      },
+    });
+    vi.mocked(useQuietThreadShells).mockReturnValue([activeThread, unreadSettled]);
+    await screen.rerender(tree());
+    const toggle = screen.getByTestId("sidebar-settled-shelf-toggle");
+    await expect.element(toggle).toBeVisible();
+    if (toggle.element().getAttribute("aria-expanded") === "false") {
+      await userEvent.click(toggle);
+    }
+    const settledRow = screen.getByRole("button", { name: /Settled unread thread/ });
+    await expect.element(settledRow).toBeVisible();
+    expect(settledRow.element().querySelector("[data-unread-dot]")).toBeNull();
+    const navigate = vi.spyOn(screen.router!, "navigate").mockResolvedValue(undefined);
+    await userEvent.click(screen.getByRole("button", { name: "Archive", exact: true }));
+    expect(navigate).toHaveBeenCalledWith({ to: "/settings/archived" });
+  });
+
+  it("hides trailing row actions while inline rename is open", async () => {
+    const activeProject = project("active");
+    const activeThread = { ...threadShell(activeProject.id, 0), title: "Rename target" };
+    const routeThreadRef = scopeThreadRef(activeProject.environmentId, activeThread.id);
+    vi.mocked(readEnvironmentScope).mockReturnValue(true);
+    vi.mocked(useEnvironmentScope).mockReturnValue(true);
+    vi.mocked(useProjects).mockReturnValue([activeProject]);
+    vi.mocked(useQuietThreadShells).mockReturnValue([activeThread]);
+    vi.mocked(useThreadRouteTarget).mockReturnValue({ kind: "server", threadRef: routeThreadRef });
+    vi.mocked(useHandleNewThread).mockReturnValue({
+      activeDraftThread: null,
+      activeThread: null,
+      defaultProjectRef: {
+        environmentId: activeProject.environmentId,
+        projectId: activeProject.id,
+      },
+      defaultProjectFallbackReady: true,
+      handleNewThread: vi.fn().mockResolvedValue(null),
+      routeDraftId: null,
+      routeThreadRef,
+    });
+    using _configs = mockServerConfigs(activeProject.environmentId);
+    await using screen = await render(
+      <SidebarProvider>
+        <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
+      </SidebarProvider>,
+    );
+    await expect.element(screen.getByRole("button", { name: "Settle thread" })).toBeInTheDocument();
+    await userEvent.dblClick(screen.getByText("Rename target").first());
+    await expect.element(screen.getByRole("textbox", { name: "Thread title" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Settle thread" }))
+      .not.toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(screen.getByRole("button", { name: "Settle thread" })).toBeInTheDocument();
   });
 });

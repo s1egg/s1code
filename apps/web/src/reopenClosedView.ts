@@ -1,12 +1,10 @@
-import type { EnvironmentId, ProjectId } from "@s1tools/contracts";
-
 import type { OpenPreviewMutation } from "./browser/openFileInPreview";
 import type { ClosedView, ClosedViewEntry } from "./closedViewStore";
-import type { PullRequestListPreferences } from "./components/pullRequest/pullRequestListPreferences";
 import { openPreviewSession } from "./components/preview/openPreviewSession";
 import {
+  isPaneVisible,
+  paneKindOf,
   rightPanelHostRef,
-  type RightPanelSurface,
   selectThreadRightPanelState,
   type ThreadRightPanelState,
   useRightPanelStore,
@@ -40,7 +38,8 @@ export function planNextReopen(
     }
     const alreadyOpen =
       entry.kind === "panel-tab"
-        ? owner.panel.isOpen && owner.panel.surfaces.some((s) => s.id === entry.surface.id)
+        ? isPaneVisible(owner.panel, paneKindOf(entry.surface.kind)) &&
+          owner.panel.surfaces.some((s) => s.id === entry.surface.id)
         : owner.panel.surfaces.some(
             (s) => s.kind === "preview" && s.resourceId === entry.snapshot.tabId,
           );
@@ -51,62 +50,6 @@ export function planNextReopen(
     return { drop, restore: entry };
   }
   return { drop, restore: null };
-}
-
-type PullRequestsSearchLike = Partial<PullRequestListPreferences> & {
-  repository?: string;
-  number?: number;
-  selectedProjectId?: ProjectId | undefined;
-  selectedHost?: string | undefined;
-  selectedEnvironmentId?: EnvironmentId | undefined;
-};
-
-export function pullRequestsSearchForRestore<S extends PullRequestsSearchLike>(
-  previous: S,
-  selected: RightPanelSurface | null,
-): S & PullRequestListPreferences {
-  const {
-    repository: _repository,
-    number: _number,
-    selectedProjectId: _projectId,
-    selectedHost: _host,
-    selectedEnvironmentId: _environmentId,
-    ...filters
-  } = previous;
-  return {
-    ...filters,
-    involvement: previous.involvement ?? "all",
-    state: previous.state ?? "open",
-    ...(selected?.kind === "pull-request"
-      ? {
-          repository: selected.repository,
-          number: selected.number,
-          selectedProjectId: selected.projectId as ProjectId,
-          ...(selected.host === undefined ? {} : { selectedHost: selected.host }),
-          ...(selected.environmentId === undefined
-            ? {}
-            : { selectedEnvironmentId: selected.environmentId as EnvironmentId }),
-        }
-      : {}),
-  } as S & PullRequestListPreferences;
-}
-
-export function issuesSearchForRestore<S extends object>(
-  preferences: S,
-  selected: RightPanelSurface | null,
-) {
-  if (selected?.kind !== "issue") return preferences;
-  return {
-    ...preferences,
-    ...(selected.environmentId === undefined
-      ? {}
-      : { selectedEnvironmentId: selected.environmentId as EnvironmentId }),
-    selectedProjectId: selected.projectId as ProjectId,
-    ...(selected.host === undefined ? {} : { selectedHost: selected.host }),
-    tracker: selected.tracker,
-    scope: selected.scope,
-    key: selected.key,
-  };
 }
 
 export async function reopenClosedView(

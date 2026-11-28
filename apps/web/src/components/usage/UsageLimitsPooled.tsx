@@ -506,7 +506,7 @@ function LegendRow({
       payload={payload}
       style={{ gridColumn: "1 / -1", gridRow: index + 1 }}
       render={<Button variant="ghost" size="compact" />}
-      className="min-w-0 @2xl/pool:hidden"
+      className="w-full min-w-0 @2xl/pool:hidden"
     >
       <span className="relative inline-flex size-4 shrink-0 items-center justify-center rounded-sm text-3xs leading-none font-semibold text-foreground/80 tabular-nums">
         <span
@@ -608,17 +608,20 @@ function PoolWindowCard({
 }) {
   const m = useMessages();
   const nextRefill = pool.resets.find((reset) => reset.at > now && reset.restoresPercent > 0);
+  // Stacked, not side by side: the thread details sidebar is 300px at any window width.
   return (
-    <div className="grid items-center gap-x-6 gap-y-3 rounded-lg border border-border/60 p-4 md:grid-cols-[11rem_minmax(0,1fr)]">
-      <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-border/60 p-3">
+      <div className="flex min-w-0 flex-col gap-0.5">
         {label !== null ? (
-          <span className="text-sm font-medium text-foreground">{label ?? pool.label}</span>
+          <span className="truncate text-xs font-medium text-foreground">
+            {label ?? pool.label}
+          </span>
         ) : null}
-        <span className="flex items-baseline gap-2">
-          <span className="text-3xl font-semibold text-foreground tabular-nums">
+        <span className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-semibold text-foreground tabular-nums">
             {pool.remainingPercent}%
           </span>
-          <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>
               <T context="remaining usage percentage">left</T>
             </span>
@@ -626,7 +629,7 @@ function PoolWindowCard({
           </span>
         </span>
         {nextRefill && pool.columns.length > 1 ? (
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="text-2xs text-muted-foreground tabular-nums">
             <T context="usage limit refill">
               <span className="font-medium text-foreground">
                 ↻ +<Var>{nextRefill.restoresPercent}</Var>%
@@ -637,9 +640,7 @@ function PoolWindowCard({
         ) : null}
       </div>
       <PoolBar pool={pool} color={color} now={now} />
-      {description ? (
-        <p className="text-xs text-muted-foreground md:col-span-2">{description}</p>
-      ) : null}
+      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
     </div>
   );
 }
@@ -695,7 +696,7 @@ export function UsageLimitsPooled({
   const notices = collectLimitNotices(presentations, m);
   const externalLinks = collectExternalUsageLinks(presentations, m);
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       {pools.length === 0 &&
       notices.length === 0 &&
       externalLinks.length === 0 &&
@@ -725,7 +726,7 @@ export function UsageLimitsPooled({
         }
       </Popover>
       {quotaSources.map((source) => (
-        <section key={source.key} className="space-y-3 rounded-xl border p-4">
+        <section key={source.key} className="space-y-3 rounded-lg border p-3">
           <h2 className="text-sm font-medium">{source.label}</h2>
           {source.quotaAccounts?.map((account) => (
             <div key={account.id} className="space-y-1">
@@ -735,10 +736,10 @@ export function UsageLimitsPooled({
                 return (
                   <div
                     key={window.id}
-                    className="flex justify-between gap-3 text-sm text-muted-foreground"
+                    className="flex flex-wrap justify-between gap-x-3 text-xs text-muted-foreground"
                   >
-                    <span>{window.label}</span>
-                    <span>
+                    <span className="min-w-0">{window.label}</span>
+                    <span className="tabular-nums">
                       {gt("{remaining}% left", { remaining: remainingPercent(window) })}
                       {reset ? ` · ${reset}` : ""}
                     </span>
@@ -752,7 +753,7 @@ export function UsageLimitsPooled({
       {externalLinks.map((link) => (
         <section
           key={link.url}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
         >
           <div className="flex min-w-0 flex-1 items-center gap-3">
             {link.url === CHATGPT_USAGE_URL ? (

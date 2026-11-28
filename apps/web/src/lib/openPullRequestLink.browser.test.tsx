@@ -32,7 +32,8 @@ import { DEFAULT_CLIENT_SETTINGS } from "@s1tools/contracts/settings";
 import { __setClientSettingsForTests } from "../hooks/useSettings";
 import { ToastProvider } from "../components/ui/toast";
 import { AppAtomRegistryProvider } from "../rpc/atomRegistry";
-import { ISSUES_PANEL_REF, useRightPanelStore } from "../rightPanelStore";
+import { useRightPanelStore } from "../rightPanelStore";
+import { useThreadDetailsStore } from "../components/chat/threadDetailsStore";
 import { useDiffPanelStore } from "../diffPanelStore";
 import { useOpenChangeRequestLink } from "./openPullRequestLink";
 
@@ -66,8 +67,8 @@ function CommitLink({ url = commitUrl }: { url?: string }) {
   );
 }
 
-function IssuesPagePullRequestLink() {
-  const open = useOpenChangeRequestLink(undefined, ISSUES_PANEL_REF);
+function ThreadlessPullRequestLink() {
+  const open = useOpenChangeRequestLink();
   return (
     <a
       href={pullRequestUrl}
@@ -171,17 +172,22 @@ it("opens an available commit in the closed Diff pane without the pane resetting
   );
 });
 
-it("opens a pull request linked on the Issues page beside its issues", async () => {
+it("opens a pull request linked outside any thread beside the last thread", async () => {
   setup();
+  const shown = { threadRef, presentation: "docked" as const };
+  useThreadDetailsStore.getState().attach(shown);
+  using _detach = { [Symbol.dispose]: () => useThreadDetailsStore.getState().detach(shown) };
   await using screen = await render(
     <AppAtomRegistryProvider>
-      <IssuesPagePullRequestLink />
+      <ThreadlessPullRequestLink />
     </AppAtomRegistryProvider>,
-    { router: "/issues" },
+    { router: "/workflows" },
   );
   await screen.getByRole("link", { name: "Pull request" }).click();
-  expect(
-    useRightPanelStore.getState().byThreadKey[scopedThreadKey(ISSUES_PANEL_REF)],
-  ).toMatchObject({ isOpen: true, surfaces: [{ kind: "pull-request", number: 86 }] });
-  expect(screen.router?.state.location.pathname).toBe("/issues");
+  await vi.waitFor(() =>
+    expect(useRightPanelStore.getState().byThreadKey[scopedThreadKey(threadRef)]).toMatchObject({
+      isOpen: true,
+      surfaces: [{ kind: "pull-request", number: 86 }],
+    }),
+  );
 });

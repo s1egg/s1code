@@ -1,5 +1,5 @@
 import { MISSING_FILE_ACCESS_MESSAGE } from "@s1tools/client-runtime/state/assets";
-import { EnvironmentId, ThreadId } from "@s1tools/contracts";
+import { EnvironmentId, SourceControlProviderKind, ThreadId } from "@s1tools/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { type ReactElement } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -56,6 +56,10 @@ vi.mock(import("../state/server"), async (original) => {
   const actual = await original();
   const { Atom } = await import("effect/reactivity");
   const noConfig = Atom.make(null);
+  const issuesConfig = Atom.make({
+    environment: { platform: { os: "darwin" }, capabilities: { issues: true } },
+    availableEditors: [],
+  });
   const modelsConfig = Atom.make({
     environment: { platform: { os: "darwin" }, capabilities: {} },
     availableEditors: [],
@@ -73,8 +77,12 @@ vi.mock(import("../state/server"), async (original) => {
     ...actual,
     serverEnvironment: {
       ...actual.serverEnvironment,
-      configValueAtom: ((environmentId: string) =>
-        environmentId === "models" ? modelsConfig : noConfig) as never,
+      configValueAtom: ((environmentId: string | null) =>
+        environmentId === "models"
+          ? modelsConfig
+          : environmentId?.startsWith("issues-")
+            ? issuesConfig
+            : noConfig) as never,
     },
   };
 });
@@ -101,10 +109,33 @@ vi.mock(import("../state/filesystem"), async (original) => {
   };
 });
 const threadWorktrees = vi.hoisted(() => new Map<string, string>());
+const issueRepositories = vi.hoisted(() => [
+  { id: "web", environmentId: "issues-local", repository: "acme/web" },
+  { id: "api", environmentId: "issues-remote", repository: "acme/api" },
+]);
 vi.mock(import("../state/entities"), async (original) => {
   const actual = await original();
+  const issueProjects = issueRepositories.map(({ id, environmentId, repository }) => ({
+    id,
+    environmentId,
+    title: id,
+    workspaceRoot: `/${id}`,
+    repositoryIdentity: {
+      canonicalKey: `github.com/${repository}`,
+      locator: { source: "git-remote", remoteName: "origin", remoteUrl: "" },
+      provider: SourceControlProviderKind.make("github"),
+      displayName: repository,
+    },
+  }));
+  const issues = { environment: { capabilities: { issues: true } } };
   return {
     ...actual,
+    useProjects: (() => [...actual.useProjects(), ...issueProjects]) as never,
+    useServerConfigs: (() =>
+      new Map<string, unknown>([
+        ...actual.useServerConfigs(),
+        ...issueRepositories.map(({ environmentId }) => [environmentId, issues] as const),
+      ])) as never,
     readThreadShell: ((ref: { threadId: string }) => {
       const worktreePath = threadWorktrees.get(ref.threadId);
       return worktreePath === undefined ? actual.readThreadShell(ref as never) : { worktreePath };
@@ -681,6 +712,31 @@ describe("ChatMarkdown workspace file opens", () => {
         relativePath: "/elsewhere/other.md",
       });
     }
+  });
+});
+
+describe("ChatMarkdown issue links", () => {
+  it("opens a link in a remote issue's body against that environment, beside a local thread", async () => {
+    setup();
+    useRightPanelStore.setState({ byThreadKey: {}, userActionRevisionByThreadKey: {} });
+    const localThread = {
+      environmentId: EnvironmentId.make("issues-local"),
+      threadId: ThreadId.make("local-thread"),
+    };
+    await using screen = await render(
+      <ChatMarkdown
+        cwd={undefined}
+        threadRef={localThread}
+        environmentId={EnvironmentId.make("issues-remote")}
+        text="See [the bug](https://github.com/acme/api/issues/7)."
+      />,
+    );
+    // Keep a missed open from leaving the test page.
+    screen.container.addEventListener("click", (event) => event.preventDefault());
+    await screen.getByRole("link", { name: "the bug" }).click();
+    expect(
+      selectActiveRightPanelSurface(useRightPanelStore.getState().byThreadKey, localThread),
+    ).toMatchObject({ kind: "issue", environmentId: "issues-remote", projectId: "api", key: "7" });
   });
 });
 

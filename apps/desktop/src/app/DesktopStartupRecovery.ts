@@ -152,7 +152,7 @@ function buildStartupRecoveryHtml(input: {
   const title = escapeHtml(m(msg("S1 Code could not start")));
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${title}</title><style>
 :root{color-scheme:light dark;--bg:#fff;--fg:#111;--muted:#666;--line:#ddd;--code:#f4f4f4}
-@media (prefers-color-scheme:dark){:root{--bg:#000;--fg:#fff;--muted:#999;--line:#333;--code:#111}}
+@media (prefers-color-scheme:dark){:root{--bg:#191919;--fg:#efefef;--muted:#9c9c9c;--line:#333;--code:#1f1f1f}}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg)}
 body{font:13px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;padding:28px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
 h1{font-size:18px;margin:0}p{margin:0}.muted{color:var(--muted)}
@@ -304,7 +304,7 @@ export const listen: Effect.Effect<
           show: false,
           title: m(msg("S1 Code could not start")),
           autoHideMenuBar: true,
-          backgroundColor: shouldUseDarkColors ? "#000000" : "#ffffff",
+          backgroundColor: shouldUseDarkColors ? "#191919" : "#ffffff",
           webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,

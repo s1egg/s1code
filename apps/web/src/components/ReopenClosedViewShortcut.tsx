@@ -1,12 +1,7 @@
 import { m } from "../i18n/messages";
 import { thrownErrorMessage } from "@s1tools/client-runtime/errors";
 import { useAtomValue } from "@effect/atom-react";
-import {
-  scopeProjectRef,
-  scopedThreadKey,
-  scopeThreadRef,
-} from "@s1tools/client-runtime/environment";
-import type { ScopedThreadRef } from "@s1tools/contracts";
+import { scopeProjectRef, scopeThreadRef } from "@s1tools/client-runtime/environment";
 import { linkOptions, useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import { useGT } from "gt-react";
 import { useEffect, useEffectEvent, useRef } from "react";
@@ -20,17 +15,9 @@ import { isEditableFocused } from "../lib/editableFocus";
 import { isPreviewFocused } from "../lib/previewFocus";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { isModelPickerOpen } from "../modelPickerVisibility";
+import { planNextReopen, reopenClosedView } from "../reopenClosedView";
 import {
-  planNextReopen,
-  issuesSearchForRestore,
-  pullRequestsSearchForRestore,
-  reopenClosedView,
-} from "../reopenClosedView";
-import {
-  ISSUES_PANEL_REF,
-  PULL_REQUESTS_PANEL_REF,
-  selectActiveRightPanel,
-  selectSelectedRightPanelSurface,
+  selectPaneVisible,
   selectThreadRightPanelState,
   useRightPanelStore,
 } from "../rightPanelStore";
@@ -41,14 +28,12 @@ import { previewEnvironment } from "../state/preview";
 import { primaryServerKeybindingsAtom } from "../state/server";
 import { environmentShell } from "../state/shell";
 import { useAtomCommand } from "../state/use-atom-command";
-import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import {
   buildDraftThreadRouteParams,
   buildThreadRouteParams,
   resolveThreadRouteTarget,
 } from "../threadRoutes";
 import { toastManager } from "./ui/toast";
-import { readIssueListPreferences } from "./issue/issueListPreferences";
 
 declare module "@tanstack/react-router" {
   interface HistoryState {
@@ -71,11 +56,6 @@ const PREVIEW_FORWARDED_COMMANDS = [
   "preview.find",
 ] as const;
 
-const isGlobalPullRequests = (ref: ScopedThreadRef) =>
-  scopedThreadKey(ref) === scopedThreadKey(PULL_REQUESTS_PANEL_REF);
-const isGlobalIssues = (ref: ScopedThreadRef) =>
-  scopedThreadKey(ref) === scopedThreadKey(ISSUES_PANEL_REF);
-
 export function ReopenClosedViewShortcut() {
   const gt = useGT();
   const navigate = useNavigate();
@@ -91,12 +71,11 @@ export function ReopenClosedViewShortcut() {
       : draft
         ? (draft.promotedTo ?? scopeThreadRef(draft.environmentId, draft.threadId))
         : null;
-  const terminalOpen = useTerminalUiStateStore(
-    (state) =>
-      selectThreadTerminalUiState(state.terminalUiStateByThreadKey, threadRef).terminalOpen,
+  const terminalOpen = useRightPanelStore((state) =>
+    selectPaneVisible(state.byThreadKey, threadRef, "terminal"),
   );
-  const previewOpen = useRightPanelStore(
-    (state) => selectActiveRightPanel(state.byThreadKey, threadRef) === "preview",
+  const previewOpen = useRightPanelStore((state) =>
+    selectPaneVisible(state.byThreadKey, threadRef, "browser"),
   );
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const hasHistory = useClosedViewStore((state) => state.entries.length > 0);
@@ -112,16 +91,6 @@ export function ReopenClosedViewShortcut() {
     const { drop, restore } = planNextReopen(useClosedViewStore.getState().entries, (entry) => {
       const ref = entry.threadRef;
       const panel = selectThreadRightPanelState(panelsByThread, ref);
-      if (isGlobalPullRequests(ref) || isGlobalIssues(ref)) {
-        return {
-          environmentKnown: true,
-          catalogReady: true,
-          ownerExists: true,
-          sideChatExists: true,
-          shellLive: true,
-          panel,
-        };
-      }
       return {
         environmentKnown: catalog.entries.has(ref.environmentId),
         catalogReady: catalog.isReady,
@@ -142,9 +111,7 @@ export function ReopenClosedViewShortcut() {
     if (!restore) return;
 
     const ref = restore.threadRef;
-    const globalPullRequests = isGlobalPullRequests(ref);
-    const globalIssues = isGlobalIssues(ref);
-    const thread = globalPullRequests || globalIssues ? null : readThreadShell(ref);
+    const thread = readThreadShell(ref);
     const owner = thread ?? drafts.getDraftThreadByRef(ref);
     const project = owner ? readProject(scopeProjectRef(ref.environmentId, owner.projectId)) : null;
     if (!(await reopenClosedView(restore, { openPreview, workspaceAvailable: project !== null }))) {
@@ -154,28 +121,11 @@ export function ReopenClosedViewShortcut() {
     useClosedViewStore.getState().remove(restore.id);
     if (router.history.location !== request.location) return;
 
-    let destination;
-    if (globalPullRequests || globalIssues) {
-      const selected = selectSelectedRightPanelSurface(
-        useRightPanelStore.getState().byThreadKey,
-        ref,
-      );
-      destination = globalPullRequests
-        ? linkOptions({
-            to: "/pull-requests",
-            search: (previous) => pullRequestsSearchForRestore(previous, selected),
-          })
-        : linkOptions({
-            to: "/issues",
-            search: issuesSearchForRestore(readIssueListPreferences(), selected),
-          });
-    } else {
-      const draftId = thread === null ? drafts.getDraftIdByRef(ref) : null;
-      destination =
-        draftId !== null
-          ? linkOptions({ to: "/draft/$draftId", params: buildDraftThreadRouteParams(draftId) })
-          : linkOptions({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(ref) });
-    }
+    const draftId = thread === null ? drafts.getDraftIdByRef(ref) : null;
+    const destination =
+      draftId !== null
+        ? linkOptions({ to: "/draft/$draftId", params: buildDraftThreadRouteParams(draftId) })
+        : linkOptions({ to: "/$environmentId/$threadId", params: buildThreadRouteParams(ref) });
 
     const { history } = router;
     if (router.buildLocation(destination).publicHref === history.location.href) {

@@ -71,6 +71,7 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
   terminalLabel: string | null;
   project: ProjectFaviconProject | null;
   projectDisplayName: string | null;
+  showProjectContext: boolean;
   isActive: boolean;
   jumpLabel: string | null;
   onNavigate: (draftId: DraftId) => void;
@@ -139,7 +140,7 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
     onDiscard(draftId);
   };
   return (
-    <li className="list-none py-0.5">
+    <li className="list-none">
       <div
         role="button"
         tabIndex={0}
@@ -148,50 +149,65 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         aria-current={accessibility.current}
         data-testid="sidebar-draft-row"
         className={cn(
-          "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          "group/sidebar-row relative flex h-8 w-full cursor-pointer items-center gap-2 overflow-hidden rounded-md px-2.5 text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           props.isActive ? "bg-sidebar-row-active" : draftSurfaceClassName,
         )}
         onClick={handleActivate}
         onContextMenu={handleContextMenu}
         onKeyDown={handleKeyDown}
       >
-        <div className="relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
-          <div className="flex h-5 min-w-0 items-center gap-1.5">
-            <SquarePenIcon aria-hidden className={draftPenClassName} />
-            {props.project ? (
-              <ProjectFavicon project={props.project} className="size-4 shrink-0" />
-            ) : null}
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-secondary-label">
-              {props.projectDisplayName}
-            </span>
-            <span
-              className={cn(
-                "ml-auto flex h-5 min-w-5 shrink-0 items-center justify-end",
-                props.jumpLabel && JUMP_HINT_SLOT_CLASS_NAME,
-              )}
-            >
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label={gt("Discard draft")}
-                      onClick={handleDiscard}
-                      className="pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100"
-                    >
-                      <XIcon className="size-3" />
-                    </button>
-                  }
-                />
-                <TooltipPopup side="top">
-                  <T>Discard draft</T>
-                </TooltipPopup>
-              </Tooltip>
-              {props.jumpLabel ? <JumpHintBadge label={props.jumpLabel} /> : null}
-            </span>
-          </div>
-          <div className="mt-0.5 truncate text-sm font-medium text-foreground/90">{preview}</div>
-        </div>
+        <SquarePenIcon aria-hidden className={draftPenClassName} />
+        {props.showProjectContext && props.project ? (
+          <ProjectFavicon
+            project={props.project}
+            monochromeFallback
+            className="size-3.5 shrink-0"
+          />
+        ) : null}
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-start text-sm",
+            props.isActive
+              ? "font-medium text-foreground"
+              : "font-normal text-sidebar-foreground/85 group-hover/sidebar-row:text-foreground",
+          )}
+        >
+          {preview}
+        </span>
+        {props.showProjectContext && props.projectDisplayName ? (
+          <span className="max-w-[35%] shrink-0 truncate text-2xs text-secondary-label">
+            {props.projectDisplayName}
+          </span>
+        ) : null}
+        <span
+          className={cn(
+            "ml-auto flex h-6 shrink-0 items-center justify-end",
+            props.jumpLabel
+              ? cn("min-w-6", JUMP_HINT_SLOT_CLASS_NAME)
+              : // Collapsed, not display:none: focus leaves the row before it reaches the button,
+                // and a button hidden in between could not take keyboard focus.
+                "-ms-2 w-0 overflow-hidden group-hover/sidebar-row:ms-0 group-hover/sidebar-row:w-auto group-focus-visible/sidebar-row:ms-0 group-focus-visible/sidebar-row:w-auto group-has-[:focus-visible]/sidebar-row:ms-0 group-has-[:focus-visible]/sidebar-row:w-auto",
+          )}
+        >
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={gt("Discard draft")}
+                  onClick={handleDiscard}
+                  className="pointer-events-none inline-flex cursor-pointer items-center rounded-md bg-transparent px-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100"
+                >
+                  <XIcon className="size-3" />
+                </button>
+              }
+            />
+            <TooltipPopup side="top">
+              <T>Discard draft</T>
+            </TooltipPopup>
+          </Tooltip>
+          {props.jumpLabel ? <JumpHintBadge label={props.jumpLabel} /> : null}
+        </span>
       </div>
     </li>
   );
@@ -258,6 +274,7 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
   jumpLabelByDraftId: ReadonlyMap<DraftId, string> | null;
   projectByKey: ReadonlyMap<string, EnvironmentProject>;
   projectDisplayNameByKey: ReadonlyMap<string, string>;
+  showProjectContext?: boolean | undefined;
   routeDraftId: string | null;
   onNavigateToDraft: (draftId: DraftId) => void;
   onDraftContextMenu: (
@@ -266,6 +283,7 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
     source: ContextMenuSource,
   ) => void;
 }) {
+  const showProjectContext = props.showProjectContext ?? true;
   const draftThreadsByThreadKey = useComposerDraftStore((store) => store.draftThreadsByThreadKey);
   const draftsByThreadKey = useComposerDraftStore(
     useShallow((store) =>
@@ -297,6 +315,7 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
             terminalLabel={draftTerminalLabel(session, props.terminalLabels)}
             project={props.projectByKey.get(projectKey) ?? null}
             projectDisplayName={props.projectDisplayNameByKey.get(projectKey) ?? null}
+            showProjectContext={showProjectContext}
             isActive={draftId === props.routeDraftId}
             jumpLabel={props.jumpLabelByDraftId?.get(draftId) ?? null}
             onNavigate={props.onNavigateToDraft}
@@ -308,7 +327,7 @@ export const SidebarDraftBlock = memo(function SidebarDraftBlock(props: {
       <li
         aria-hidden
         data-testid="sidebar-draft-divider"
-        className="mx-2.5 my-1.5 h-px list-none bg-sidebar-border/60"
+        className="mx-2.5 my-1 h-px list-none bg-sidebar-border/50"
       />
     </>
   );

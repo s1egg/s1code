@@ -62,7 +62,7 @@ describe("SidebarProviderUpdatePill exit", () => {
     expect(screen.container.textContent).toBe("");
   });
 
-  it("removes a dismissed failure", async () => {
+  it("keeps a dismissed failure dismissed when thread details close mid-exit and mount again", async () => {
     setup([provider("failed")]);
     await using screen = await render(<SidebarProviderUpdatePill />);
     using _timers = fakeTimers();
@@ -73,7 +73,9 @@ describe("SidebarProviderUpdatePill exit", () => {
         .querySelector<HTMLButtonElement>('[aria-label="Dismiss provider update notice"]')
         ?.click(),
     );
-    await advance(180);
+    // Closed before the exit animation's timer runs.
+    await screen.rerender(<div />);
+    await screen.rerender(<SidebarProviderUpdatePill />);
     expect(screen.container.textContent).toBe("");
   });
 });
