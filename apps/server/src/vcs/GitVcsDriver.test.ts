@@ -331,12 +331,15 @@ it.effect.each(["interrupt", "timeout", "success"] as const)(
           ),
         ),
       );
-      const packs = (yield* fs.readDirectory(path.join(objectDirectory, "pack"))).filter(
-        (name) => name.startsWith("tmp_pack_") && name !== "tmp_pack_other_operation",
+      // Git may nest the pack under a temporary bulk-fsync directory on macOS and Windows.
+      const packs = (yield* fs.readDirectory(objectDirectory, { recursive: true })).filter(
+        (entry) =>
+          path.basename(entry).startsWith("tmp_pack_") &&
+          path.basename(entry) !== "tmp_pack_other_operation",
       );
       assert.strictEqual(packs.length, 1);
       assert.isAbove(
-        Number((yield* fs.stat(path.join(objectDirectory, "pack", packs[0]!))).size),
+        Number((yield* fs.stat(path.join(objectDirectory, packs[0]!))).size),
         1024 * 1024,
       );
       // An overlapping capture publishes the same large blob while the first
@@ -380,7 +383,7 @@ it.effect.each(["interrupt", "timeout", "success"] as const)(
         sharedPackBytes,
       );
       assert.strictEqual((yield* git(["rev-parse", concurrentRef])).stdout, concurrentOid);
-      assert.isFalse(yield* fs.exists(path.join(objectDirectory, "pack", packs[0]!)));
+      assert.isFalse(yield* fs.exists(path.join(objectDirectory, packs[0]!)));
       assert.isFalse(yield* fs.exists(objectDirectory));
       assert.strictEqual(yield* fs.readFileString(sharedPack), "owned by another Git operation");
       if (stop !== "success")
